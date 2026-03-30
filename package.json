@@ -3,9 +3,10 @@
   "version": "1.0.0",
   "description": "",
   "main": "index.js",
+  "private": true,
   "workspaces": [
-    "client",
-    "server"
+    "apps/*",
+    "packages/*"
   ],
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
@@ -22,5 +23,8 @@
   "bugs": {
     "url": "https://github.com/imsayon/spotly/issues"
   },
-  "homepage": "https://github.com/imsayon/spotly#readme"
+  "homepage": "https://github.com/imsayon/spotly#readme",
+  "devDependencies": {
+    "turbo": "^2.8.21"
+  }
 }
