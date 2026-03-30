@@ -1,0 +1,50 @@
+datasource db {
+  provider = "postgresql"
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model User {
+  id          String   @id @default(uuid())
+  name        String
+  phone       String
+  pushToken   String?
+
+  queueEntries QueueEntry[]
+}
+
+model Merchant {
+  id        String   @id @default(uuid())
+  name      String
+  category  String
+  address   String
+  lat       Float
+  lng       Float
+
+  queueEntries QueueEntry[]
+  queueState   QueueState?
+}
+
+model QueueEntry {
+  id          String   @id @default(uuid())
+  merchantId  String
+  userId      String
+  tokenNumber Int
+  status      String
+  createdAt   DateTime @default(now())
+  expiresAt   DateTime?
+  otp         String?
+
+  merchant Merchant @relation(fields: [merchantId], references: [id])
+  user     User     @relation(fields: [userId], references: [id])
+}
+
+model QueueState {
+  merchantId  String @id
+  currentToken Int
+  nextToken    Int
+
+  merchant Merchant @relation(fields: [merchantId], references: [id])
+}
