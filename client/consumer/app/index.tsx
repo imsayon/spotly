@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View,
   FlatList,
@@ -21,9 +21,11 @@ export default function HomeScreen() {
   const router = useRouter();
   const { merchants, loading, error, setMerchants, setLoading, setError } =
     useMerchantStore();
+  const [displayMerchants, setDisplayMerchants] = useState<Merchant[]>(MOCK_MERCHANTS);
 
   useEffect(() => {
-    void loadMerchants();
+    // Show mock data immediately for testing
+    setDisplayMerchants(MOCK_MERCHANTS);
   }, []);
 
   const loadMerchants = async () => {
@@ -48,16 +50,17 @@ export default function HomeScreen() {
       try {
         const { data } = await merchantsApi.findNearby(lat, lng);
         setMerchants(data as Merchant[]);
+        setError(null);
       } catch (apiErr) {
-        // Fallback to mock data if API fails
-        console.log('Using mock merchants as fallback');
+        // Keep mock data if API fails
+        console.log('Using mock merchants (API unavailable)');
         setMerchants(MOCK_MERCHANTS);
       }
     } catch (err) {
       const errorMsg =
         err instanceof Error ? err.message : 'Failed to load merchants';
-      setError(errorMsg);
-      // Fallback to mock data
+      console.warn(errorMsg);
+      // Keep showing mock data
       setMerchants(MOCK_MERCHANTS);
     } finally {
       setLoading(false);
@@ -108,7 +111,7 @@ export default function HomeScreen() {
 
         {/* Merchant List */}
         <FlatList
-          data={merchants}
+          data={displayMerchants}
           keyExtractor={(item) => item.id}
           renderItem={({ item }) => (
             <MerchantCard

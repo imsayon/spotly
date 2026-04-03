@@ -21,8 +21,18 @@ export const MerchantCard: React.FC<Props> = ({ merchant, onPress }) => (
       <Text style={s.meta}>{merchant.distanceKm.toFixed(1)} km away</Text>
     )}
     {merchant.queueState && (
-      <Text style={s.queue}>
-        Serving #{merchant.queueState.currentToken} · Next #{merchant.queueState.nextToken}
+      <View style={s.queueContainer}>
+        <Text style={s.queue}>
+          🎫 #{merchant.queueState.currentToken}
+        </Text>
+        <Text style={s.waitInfo}>
+          {merchant.queueState.totalWaiting} waiting · ~{merchant.queueState.avgWaitTime}m
+        </Text>
+      </View>
+    )}
+    {merchant.isOpen !== undefined && (
+      <Text style={[s.status, merchant.isOpen ? s.statusOpen : s.statusClosed]}>
+        {merchant.isOpen ? '🟢 Open' : '🔴 Closed'}
       </Text>
     )}
   </Pressable>
@@ -36,5 +46,10 @@ const s = StyleSheet.create({
   tag: { fontSize: 11, color: '#6366f1', backgroundColor: '#eef2ff', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 100 },
   address: { fontSize: 13, color: '#555' },
   meta: { fontSize: 12, color: '#999', marginTop: 4 },
-  queue: { fontSize: 12, color: '#10b981', marginTop: 6, fontWeight: '500' },
+  queueContainer: { marginTop: 8, paddingTop: 8, borderTopWidth: 1, borderTopColor: '#eee' },
+  queue: { fontSize: 14, fontWeight: '600', color: '#6366f1' },
+  waitInfo: { fontSize: 12, color: '#888', marginTop: 2 },
+  status: { fontSize: 12, marginTop: 6, fontWeight: '500' },
+  statusOpen: { color: '#10b981' },
+  statusClosed: { color: '#ef4444' },
 });
