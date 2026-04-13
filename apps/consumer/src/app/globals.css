@@ -17,10 +17,17 @@
 	}
 
 	body {
-		background: #0a0a0a;
-		color: #f9fafb;
-		font-family: var(--font-sans), system-ui, sans-serif;
-		-webkit-font-smoothing: antialiased;
+		@apply transition-colors duration-300;
+	}
+}
+
+@layer utilities {
+	.no-scrollbar::-webkit-scrollbar {
+		display: none;
+	}
+	.no-scrollbar {
+		-ms-overflow-style: none;
+		scrollbar-width: none;
 	}
 }
 

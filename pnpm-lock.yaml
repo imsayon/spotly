@@ -32,6 +32,9 @@ importers:
       '@spotly/types':
         specifier: workspace:*
         version: link:../../packages/types
+      axios:
+        specifier: 0.27.2
+        version: 0.27.2
       class-transformer:
         specifier: ^0.5.1
         version: 0.5.1
@@ -1798,6 +1801,15 @@ packages:
       postcss: 8.5.9
       postcss-value-parser: 4.2.0
     dev: true
+
+  /axios@0.27.2:
+    resolution: {integrity: sha512-t+yRIyySRTp/wua5xEr+z1q60QmLq8ABsS5O9Me1AsE5dfKqgnCFzwiCZZ/cGNd1lq4/7akDWMxdhVlucjmnOQ==}
+    dependencies:
+      follow-redirects: 1.15.11
+      form-data: 4.0.5
+    transitivePeerDependencies:
+      - debug
+    dev: false
 
   /axios@1.15.0:
     resolution: {integrity: sha512-wWyJDlAatxk30ZJer+GeCWS209sA42X+N5jU2jy6oHTp7ufw8uzUTVFBX9+wTfAlhiJXGS0Bq7X6efruWjuK9Q==}

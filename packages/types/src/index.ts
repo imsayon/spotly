@@ -13,6 +13,8 @@ export interface User {
   name: string;
   email: string;
   role: UserRole;
+  phone?: string;
+  location?: string;
   createdAt: string;
 }
 
@@ -25,6 +27,9 @@ export interface Merchant {
   phone?: string;
   contactEmail?: string;
   logoUrl?: string;
+  location?: string;
+  rating?: number;
+  estimatedWaitTime?: string;
   createdAt: string;
 }
 

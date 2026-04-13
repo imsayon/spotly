@@ -75,6 +75,17 @@ export class QueueController {
     return { success: true };
   }
 
+  /** POST /api/queue/missed/:entryId — merchant marks as missed (no-show) */
+  @Post('missed/:entryId')
+  @UseGuards(FirebaseAuthGuard)
+  async missed(
+    @Param('entryId') entryId: string,
+    @Body() body: ServedDto,
+  ) {
+    await this.queueService.markMissed(entryId, body.outletId);
+    return { success: true };
+  }
+
   /** DELETE /api/queue/leave/:entryId — consumer leaves queue */
   @Delete('leave/:entryId')
   @UseGuards(FirebaseAuthGuard)

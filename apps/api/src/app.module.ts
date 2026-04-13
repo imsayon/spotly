@@ -6,6 +6,7 @@ import { MerchantModule } from './modules/merchant/merchant.module';
 import { OutletModule } from './modules/outlet/outlet.module';
 import { QueueModule } from './modules/queue/queue.module';
 import { WebsocketModule } from './modules/websocket/websocket.module';
+import { IntegrationModule } from './modules/integration/integration.module';
 
 @Module({
   imports: [
@@ -16,6 +17,7 @@ import { WebsocketModule } from './modules/websocket/websocket.module';
     OutletModule,
     QueueModule,
     WebsocketModule,
+    IntegrationModule,
   ],
 })
 export class AppModule {}

@@ -16,6 +16,15 @@ export class AuthService {
    * Throws UnauthorizedException if token is invalid or expired.
    */
   async verifyToken(idToken: string): Promise<DecodedUser> {
+    if (!this.firebase.isFunctional) {
+      // Development Bypass: Return a mock user if Firebase is not initialized
+      return {
+        uid: 'dev-user-123',
+        email: 'dev@spotlyy.com',
+        name: 'Development User',
+      };
+    }
+
     try {
       const decoded = await this.firebase.auth.verifyIdToken(idToken);
       return {
@@ -26,5 +35,9 @@ export class AuthService {
     } catch {
       throw new UnauthorizedException('Invalid or expired Firebase token');
     }
+  }
+
+  get isFunctional(): boolean {
+    return this.firebase.isFunctional;
   }
 }

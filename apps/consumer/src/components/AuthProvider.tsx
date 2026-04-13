@@ -9,8 +9,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const setUser = useAuthStore((s) => s.setUser);
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(getFirebaseAuth(), (user) => {
+    const unsubscribe = onAuthStateChanged(getFirebaseAuth(), async (user) => {
       setUser(user);
+      if (user) {
+        await useAuthStore.getState().fetchProfile();
+      }
     });
     return unsubscribe;
   }, [setUser]);

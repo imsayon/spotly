@@ -44,4 +44,18 @@ export class UserService {
   async updateRole(uid: string, role: UserRole): Promise<void> {
     await this.db.collection(this.collection).doc(uid).update({ role });
   }
+
+  async updateProfile(uid: string, data: Partial<User>): Promise<User | null> {
+    const updatePayload = {
+      ...(data.name && { name: data.name }),
+      ...(data.phone !== undefined && { phone: data.phone }),
+      ...(data.location !== undefined && { location: data.location }),
+    };
+
+    if (Object.keys(updatePayload).length > 0) {
+      await this.db.collection(this.collection).doc(uid).update(updatePayload);
+    }
+    
+    return this.findById(uid);
+  }
 }

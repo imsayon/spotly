@@ -14,6 +14,12 @@ export class FirebaseAuthGuard implements CanActivate {
     const request = context.switchToHttp().getRequest();
     const authHeader: string | undefined = request.headers['authorization'];
 
+    if (!this.authService.isFunctional) {
+      // In restricted mode, automatically assign the mock user and allow
+      request.user = await this.authService.verifyToken('no-token-needed');
+      return true;
+    }
+
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
       throw new UnauthorizedException('Missing Authorization header');
     }

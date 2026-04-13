@@ -1,6 +1,7 @@
 import {
-  Body, Controller, Get, Param, Patch, Post, UseGuards,
+  Body, Controller, Get, Param, Patch, Post, UseGuards, Query,
 } from '@nestjs/common';
+import { FirebaseService } from '../../firebase/firebase.service';
 import { MerchantService } from './merchant.service';
 import { FirebaseAuthGuard } from '../auth/guards/firebase-auth.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
@@ -26,15 +27,71 @@ class UpdateMerchantDto {
   @IsString() @IsOptional() logoUrl?: string;
 }
 
+import { IntegrationService } from '../integration/integration.service';
+
 @Controller('merchant')
 export class MerchantController {
-  constructor(private readonly merchantService: MerchantService) {}
+  constructor(
+    private readonly merchantService: MerchantService,
+    private readonly integrationService: IntegrationService,
+    private readonly firebase: FirebaseService,
+  ) {}
 
   /** GET /api/merchant — public: browse all merchants */
   @Get()
-  async findAll() {
-    const data = await this.merchantService.findAll();
-    return { success: true, data };
+  async findAll(
+    @Query('location') location?: string,
+    @Query('q') q?: string,
+    @Query('category') category?: string,
+  ) {
+    const safeLocation = location?.trim();
+    const safeQuery = q?.trim();
+    const safeCategory = category?.trim();
+
+    if (safeLocation) {
+      const coords = await this.integrationService.geocode(safeLocation);
+      if (coords) {
+        const [externalMerchants, internalMerchants] = await Promise.all([
+          this.integrationService.fetchShops(coords.lat, coords.lon, 10000, safeCategory),
+          this.firebase.isFunctional
+            ? this.merchantService.findAll(safeLocation, safeQuery)
+            : Promise.resolve([]),
+        ]);
+
+        const filteredExternal = safeQuery
+          ? externalMerchants.filter((merchant) =>
+              merchant.name.toLowerCase().includes(safeQuery.toLowerCase()) ||
+              merchant.category.toLowerCase().includes(safeQuery.toLowerCase()),
+            )
+          : externalMerchants;
+
+        const filteredInternal = safeCategory && safeCategory !== 'All'
+          ? internalMerchants.filter((merchant) =>
+              merchant.category.toLowerCase().includes(safeCategory.toLowerCase()),
+            )
+          : internalMerchants;
+
+        return {
+          success: true,
+          data: [...filteredExternal, ...filteredInternal],
+          meta: {
+            location: coords.displayName,
+            coords: { lat: coords.lat, lon: coords.lon },
+          },
+        };
+      }
+    }
+
+    if (this.firebase.isFunctional) {
+      const data = await this.merchantService.findAll(safeLocation, safeQuery);
+      return { success: true, data };
+    }
+
+    return {
+      success: true,
+      data: [],
+      meta: safeLocation ? { location: safeLocation } : undefined,
+    };
   }
 
   /** GET /api/merchant/me/profile — get current merchant's profile */

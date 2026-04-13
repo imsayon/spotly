@@ -1,36 +1,49 @@
 'use client';
 
-import { useEffect, useCallback } from 'react';
+import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useQueueStore } from '@/store/queue.store';
-import { useAuthStore } from '@/store/auth.store';
 import { joinOutletRoom, leaveOutletRoom, getSocket } from '@/lib/socket';
 import { QueueUpdatePayload, TokenCalledPayload } from '@spotly/types';
 import { motion } from 'framer-motion';
-import { ArrowLeft, LogOut, Bell, Users } from 'lucide-react';
+import { ArrowLeft, LogOut, Bell, Users, AlertCircle } from 'lucide-react';
 import Link from 'next/link';
 
 export default function QueueTrackerPage() {
   const { entryId } = useParams<{ entryId: string }>();
   const router = useRouter();
-  const { user } = useAuthStore();
   const { myEntry, entries, currentToken, leaveQueue, handleQueueUpdate, handleTokenCalled } =
     useQueueStore();
+  const [error, setError] = useState<string | null>(null);
+  const [isCalling, setIsCalling] = useState(false);
 
   // Fetch latest entry state on mount
   useEffect(() => {
     if (!entryId) return;
+
+    if (entryId.startsWith('mock-') && myEntry?.id === entryId) {
+      setError(null);
+      return;
+    }
+
     (async () => {
       try {
+        setError(null);
         const res = await import('@/lib/api').then((m) =>
           m.default.get(`/queue/entry/${entryId}`),
         );
         useQueueStore.setState({ myEntry: res.data.data });
-      } catch {
-        router.push('/');
+      } catch (err) {
+        if (entryId.startsWith('mock-') && myEntry?.id === entryId) {
+          setError(null);
+          return;
+        }
+        const message = err instanceof Error ? err.message : 'Queue entry not found';
+        setError(message);
+        setTimeout(() => router.push('/'), 2000);
       }
     })();
-  }, [entryId, router]);
+  }, [entryId, myEntry, router]);
 
   // Subscribe to the outlet's WebSocket room
   useEffect(() => {
@@ -45,7 +58,10 @@ export default function QueueTrackerPage() {
     };
 
     const onTokenCalled = (payload: TokenCalledPayload) => {
+      setIsCalling(true);
       handleTokenCalled(payload.tokenNumber);
+      // Keep calling animation for a few seconds
+      setTimeout(() => setIsCalling(false), 3000);
     };
 
     socket.on('queue_update', onQueueUpdate);
@@ -61,9 +77,42 @@ export default function QueueTrackerPage() {
   const handleLeave = async () => {
     if (!myEntry) return;
     if (!confirm('Are you sure you want to leave the queue?')) return;
-    await leaveQueue(myEntry.id);
-    router.push('/');
+    
+    try {
+      await leaveQueue(myEntry.id);
+      router.push('/');
+    } catch {
+      // For mock entries, just navigate back anyway
+      if (isMockEntry) {
+        router.push('/');
+      } else {
+        alert('Failed to leave queue. Please try again.');
+      }
+    }
   };
+
+  // Request notification permission on mount
+  useEffect(() => {
+    if ('Notification' in window && Notification.permission === 'default') {
+      Notification.requestPermission();
+    }
+  }, []);
+
+  if (error) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="card p-8 max-w-md text-center">
+          <AlertCircle className="w-12 h-12 text-red-400 mx-auto mb-4" />
+          <h2 className="text-xl font-bold text-white mb-2">Queue Not Found</h2>
+          <p className="text-gray-400 mb-6">{error}</p>
+          <p className="text-sm text-gray-500 mb-6">Redirecting to home...</p>
+          <Link href="/" className="btn-primary inline-block">
+            Back to Home
+          </Link>
+        </div>
+      </div>
+    );
+  }
 
   if (!myEntry) {
     return (
@@ -76,6 +125,9 @@ export default function QueueTrackerPage() {
       </div>
     );
   }
+
+  // Determine if this is a mock entry
+  const isMockEntry = myEntry.id.startsWith('mock-');
 
   const waitingAhead = entries.filter(
     (e) => e.status === 'WAITING' && e.tokenNumber < myEntry.tokenNumber,
@@ -107,6 +159,17 @@ export default function QueueTrackerPage() {
       {/* Main Content */}
       <div className="flex-1 flex flex-col items-center justify-center px-4 py-12">
         <div className="w-full max-w-2xl">
+          {/* Mock Entry Banner */}
+          {isMockEntry && (
+            <motion.div
+              initial={{ opacity: 0, y: -20 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="mb-6 p-4 bg-blue-900/30 border border-blue-500/50 rounded-xl text-blue-300 text-sm flex items-center gap-3"
+            >
+              <div className="w-2 h-2 rounded-full bg-blue-400 animate-pulse" />
+              <span>This is a nearby place. Updates may not reflect in real-time.</span>
+            </motion.div>
+          )}
           {/* Token Card */}
           <motion.div
             initial={{ scale: 0.9, opacity: 0 }}
@@ -116,9 +179,18 @@ export default function QueueTrackerPage() {
           >
             {/* Animated background elements */}
             <div className="absolute top-0 right-0 w-64 h-64 bg-gradient-brand opacity-5 rounded-full blur-[100px] -mr-32 -mt-32 pointer-events-none" />
+            
+            {/* Pulsing background for CALLED status */}
+            {myEntry.status === 'CALLED' && isCalling && (
+              <motion.div
+                animate={{ scale: [1, 1.2, 1], opacity: [0.3, 0.1, 0.3] }}
+                transition={{ duration: 0.8, repeat: Infinity }}
+                className="absolute inset-0 bg-gradient-to-r from-green-500 to-emerald-500 blur-lg opacity-30 rounded-3xl"
+              />
+            )}
 
             <motion.div
-              animate={{ y: [0, -10, 0] }}
+              animate={myEntry.status === 'CALLED' ? { y: [0, -15, 0] } : { y: [0, -10, 0] }}
               transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }}
               className="relative z-10"
             >
@@ -140,13 +212,16 @@ export default function QueueTrackerPage() {
                 {status.label}
               </motion.p>
               {myEntry.status === 'CALLED' && (
-                <motion.p
+                <motion.div
                   animate={{ scale: [1, 1.05, 1] }}
                   transition={{ duration: 0.6, repeat: Infinity }}
-                  className="text-green-400 text-lg font-semibold"
+                  className="space-y-2"
                 >
-                  Please proceed to the counter now!
-                </motion.p>
+                  <p className="text-green-400 text-lg font-semibold">
+                    🎉 Please proceed to the counter now!
+                  </p>
+                  <p className="text-xs text-green-300">Do not miss your turn</p>
+                </motion.div>
               )}
             </motion.div>
           </motion.div>
@@ -246,7 +321,7 @@ export default function QueueTrackerPage() {
             </motion.div>
           )}
 
-          {/* Leave Queue Button */}
+          {/* Leave Queue Button — only show for WAITING and CALLED */}
           {(myEntry.status === 'WAITING' || myEntry.status === 'CALLED') && (
             <motion.button
               initial={{ opacity: 0, y: 20 }}
@@ -260,17 +335,38 @@ export default function QueueTrackerPage() {
               Leave Queue
             </motion.button>
           )}
-        </div>
-      </div>
-    </div>
-  );
-}
 
-        {myEntry.status === 'SERVED' && (
-          <a href="/" className="btn-primary w-full text-center block">
-            Find another queue
-          </a>
-        )}
+          {/* Served State — show FYI message */}
+          {myEntry.status === 'SERVED' && (
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.3 }}
+              className="text-center mb-8"
+            >
+              <p className="text-lg text-green-400 font-semibold mb-4">✓ You have been served!</p>
+              <Link href="/" className="btn-primary inline-block">
+                Find Another Queue
+              </Link>
+            </motion.div>
+          )}
+
+          {/* Missed State — show FYI message */}
+          {myEntry.status === 'MISSED' && (
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.3 }}
+              className="text-center mb-8"
+            >
+              <p className="text-lg text-red-400 font-semibold mb-2">✕ You missed your turn</p>
+              <p className="text-sm text-gray-400 mb-4">Please join again if you'd like to continue waiting</p>
+              <Link href="/" className="btn-primary inline-block">
+                Back to Outlets
+              </Link>
+            </motion.div>
+          )}
+        </div>
       </div>
     </div>
   );

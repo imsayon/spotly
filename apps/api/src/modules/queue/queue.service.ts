@@ -94,6 +94,14 @@ export class QueueService {
     await this.emitQueueUpdate(outletId);
   }
 
+  /**
+   * Mark entry as MISSED (called by merchant if customer doesn't respond to call).
+   */
+  async markMissed(entryId: string, outletId: string): Promise<void> {
+    await this.repo.markMissed(entryId);
+    await this.emitQueueUpdate(outletId);
+  }
+
   // ─── Private ───────────────────────────────────────────────────────────────
 
   private async emitQueueUpdate(outletId: string): Promise<void> {

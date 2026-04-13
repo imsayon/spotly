@@ -1,39 +1,25 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect } from "react"
 import { useAuthStore } from "@/store/auth.store"
-import api from "@/lib/api"
-import { Merchant } from "@spotly/types"
 import { motion } from "framer-motion"
 import {
 	Clock,
 	Smartphone,
 	Zap,
 	ArrowRight,
-	Search as SearchIcon,
 } from "lucide-react"
-import Link from "next/link"
+import { useRouter } from "next/navigation"
 
-export default function HomePage() {
-	const { user, signInWithGoogle, signOut, loading } = useAuthStore()
-	const [merchants, setMerchants] = useState<Merchant[]>([])
-	const [merchantsLoading, setMerchantsLoading] = useState(true)
-	const [search, setSearch] = useState("")
+export default function LandingPage() {
+	const { user, signInWithGoogle, loading } = useAuthStore()
+	const router = useRouter()
 
 	useEffect(() => {
-		if (!loading) {
-			api.get("/merchant").then((res) => {
-				setMerchants(res.data.data ?? [])
-				setMerchantsLoading(false)
-			})
+		if (!loading && user) {
+			router.push("/home")
 		}
-	}, [loading])
-
-	const filtered = merchants.filter(
-		(m) =>
-			m.name.toLowerCase().includes(search.toLowerCase()) ||
-			m.category.toLowerCase().includes(search.toLowerCase()),
-	)
+	}, [loading, user, router])
 
 	if (loading) return null
 
@@ -65,33 +51,7 @@ export default function HomePage() {
 						animate={{ opacity: 1, x: 0 }}
 						className="flex items-center gap-3"
 					>
-						{user ? (
-							<>
-								<div className="flex items-center gap-3 px-4 py-2 rounded-lg bg-white/5 border border-white/10">
-									{user.photoURL ? (
-										<img
-											src={user.photoURL}
-											alt="Avatar"
-											className="w-6 h-6 rounded-full border border-brand-500/50"
-										/>
-									) : (
-										<div className="w-6 h-6 rounded-full bg-gradient-brand flex items-center justify-center text-xs font-bold text-black">
-											{user.email?.[0].toUpperCase()}
-										</div>
-									)}
-									<span className="text-sm text-gray-300 truncate max-w-[120px]">
-										{user.displayName ||
-											user.email?.split("@")[0]}
-									</span>
-								</div>
-								<button
-									onClick={signOut}
-									className="px-4 py-2 rounded-lg text-sm text-gray-400 hover:text-red-400 hover:bg-red-500/10 border border-transparent hover:border-red-500/30 transition-all duration-300"
-								>
-									Sign out
-								</button>
-							</>
-						) : (
+						{!user && (
 							<button
 								onClick={signInWithGoogle}
 								className="btn-primary"
@@ -109,7 +69,7 @@ export default function HomePage() {
 				initial={{ opacity: 0 }}
 				animate={{ opacity: 1 }}
 				transition={{ duration: 0.8 }}
-				className="relative py-20 overflow-hidden"
+				className="relative py-20 overflow-hidden min-h-[90vh] flex flex-col justify-center"
 			>
 				{/* Glowing orbs background */}
 				<div className="absolute top-1/4 -left-1/4 w-[800px] h-[800px] bg-yellow-500/15 rounded-full blur-[150px] opacity-60 pointer-events-none" />
@@ -206,137 +166,6 @@ export default function HomePage() {
 					</motion.div>
 				</div>
 			</motion.section>
-
-			{/* Merchants Section */}
-			<section className="relative py-20">
-				<div className="max-w-6xl mx-auto px-6">
-					{/* Search Bar */}
-					<motion.div
-						initial={{ opacity: 0, y: 20 }}
-						whileInView={{ opacity: 1, y: 0 }}
-						transition={{ duration: 0.6 }}
-						className="mb-16 text-center"
-					>
-						<h2 className="text-3xl md:text-4xl font-bold text-white mb-4">
-							Browse Merchants
-						</h2>
-						<p className="text-gray-400 mb-8 max-w-xl mx-auto">
-							Search for your favorite places and join their
-							queues
-						</p>
-
-						<div className="relative max-w-2xl mx-auto">
-							<SearchIcon className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-500" />
-							<input
-								type="text"
-								placeholder="Search merchants or categories..."
-								value={search}
-								onChange={(e) => setSearch(e.target.value)}
-								className="w-full bg-surface border border-border rounded-2xl pl-12 pr-6 py-4 text-white placeholder-gray-500 focus:outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500/50 transition-all duration-300"
-							/>
-						</div>
-					</motion.div>
-
-					{/* Merchants Grid */}
-					{merchantsLoading ? (
-						<div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-							{Array.from({ length: 6 }).map((_, i) => (
-								<div
-									key={i}
-									className="card h-56 animate-shimmer"
-								/>
-							))}
-						</div>
-					) : filtered.length === 0 ? (
-						<motion.div
-							initial={{ opacity: 0 }}
-							animate={{ opacity: 1 }}
-							className="text-center py-24 text-gray-500"
-						>
-							<div className="text-6xl mb-4 opacity-50">🏪</div>
-							<p className="text-xl font-medium">
-								No merchants found yet
-							</p>
-							<p className="text-sm mt-2">
-								Try a different search or check back later
-							</p>
-						</motion.div>
-					) : (
-						<motion.div
-							initial={{ opacity: 0 }}
-							animate={{ opacity: 1 }}
-							className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6"
-						>
-							{filtered.map((merchant, index) => (
-								<motion.div
-									key={merchant.id}
-									initial={{ opacity: 0, y: 20 }}
-									animate={{ opacity: 1, y: 0 }}
-									transition={{ delay: index * 0.05 }}
-									whileHover={{ y: -5 }}
-								>
-									<Link href={`/merchant/${merchant.id}`}>
-										<div className="card cursor-pointer overflow-hidden group h-full flex flex-col">
-											{/* Image Placeholder */}
-											<div className="w-full h-32 bg-gradient-brand group-hover:scale-105 transition-transform duration-300 rounded-xl mb-4 flex items-center justify-center">
-												<div className="text-4xl">
-													🏪
-												</div>
-											</div>
-
-											<h3 className="text-lg font-bold text-white mb-1 group-hover:text-gradient transition-all">
-												{merchant.name}
-											</h3>
-											<p className="text-sm text-gray-400 mb-4 flex-1">
-												{merchant.category}
-											</p>
-
-											<div className="flex items-center justify-between pt-4 border-t border-border">
-												<span className="badge text-xs">
-													Join Queue
-												</span>
-												<span className="text-xs text-gray-500 font-medium">
-													→
-												</span>
-											</div>
-										</div>
-									</Link>
-								</motion.div>
-							))}
-						</motion.div>
-					)}
-				</div>
-			</section>
-
-			{/* CTA Section */}
-			{!user && (
-				<section className="relative py-20 overflow-hidden">
-					<div className="absolute inset-0 bg-gradient-to-r from-yellow-500/10 via-transparent to-orange-500/10" />
-					<div className="relative z-10 max-w-4xl mx-auto px-6 text-center">
-						<motion.div
-							initial={{ opacity: 0, y: 20 }}
-							whileInView={{ opacity: 1, y: 0 }}
-							transition={{ duration: 0.6 }}
-						>
-							<h2 className="text-3xl md:text-4xl font-bold text-white mb-6">
-								Ready to skip the wait?
-							</h2>
-							<p className="text-gray-400 text-lg mb-8 max-w-2xl mx-auto">
-								Join thousands of users who are already saving
-								time with Spotly. Sign in with Google to get
-								started.
-							</p>
-							<button
-								onClick={signInWithGoogle}
-								className="btn-primary inline-flex items-center gap-2"
-							>
-								<span>Sign in with Google</span>
-								<ArrowRight className="w-5 h-5" />
-							</button>
-						</motion.div>
-					</div>
-				</section>
-			)}
 		</div>
 	)
 }

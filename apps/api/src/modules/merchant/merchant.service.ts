@@ -34,9 +34,26 @@ export class MerchantService {
     return doc.data() as Merchant;
   }
 
-  async findAll(): Promise<Merchant[]> {
-    const snapshot = await this.db.collection(this.collection).get();
-    return snapshot.docs.map((d) => d.data() as Merchant);
+  async findAll(location?: string, search?: string): Promise<Merchant[]> {
+    let query: admin.firestore.Query = this.db.collection(this.collection);
+
+    if (location) {
+      query = query.where('location', '==', location);
+    }
+
+    const snapshot = await query.get();
+    let merchants = snapshot.docs.map((d) => d.data() as Merchant);
+
+    if (search) {
+      const lowerSearch = search.toLowerCase();
+      merchants = merchants.filter(
+        (m) =>
+          m.name.toLowerCase().includes(lowerSearch) ||
+          m.category.toLowerCase().includes(lowerSearch),
+      );
+    }
+
+    return merchants;
   }
 
   async findByUser(userId: string): Promise<Merchant | null> {

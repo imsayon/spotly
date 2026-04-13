@@ -34,16 +34,27 @@ export class FirebaseService implements OnModuleInit {
     const privateKey = process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n');
 
     if (!projectId || !clientEmail || !privateKey) {
-      throw new Error(
+      this.logger.error(
         'Firebase credentials not found. Set FIREBASE_SERVICE_ACCOUNT_PATH or ' +
           'FIREBASE_PROJECT_ID + FIREBASE_CLIENT_EMAIL + FIREBASE_PRIVATE_KEY env vars.',
       );
+      this.logger.warn('⚠️ API starting in RESTRICTED MODE (Firebase functions disabled)');
+      return;
     }
 
-    this._app = admin.initializeApp({
-      credential: admin.credential.cert({ projectId, clientEmail, privateKey }),
-    });
-    this.logger.log('Firebase Admin initialized via environment variables');
+    try {
+      this._app = admin.initializeApp({
+        credential: admin.credential.cert({ projectId, clientEmail, privateKey }),
+      });
+      this.logger.log('Firebase Admin initialized via environment variables');
+    } catch (err) {
+      this.logger.error('Failed to initialize Firebase Admin:', err);
+      this.logger.warn('⚠️ API starting in RESTRICTED MODE (Firebase functions disabled)');
+    }
+  }
+
+  get isFunctional(): boolean {
+    return !!this._app;
   }
 
   get auth(): admin.auth.Auth {
