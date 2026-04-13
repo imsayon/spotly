@@ -96,6 +96,10 @@ export const useQueueStore = create<QueueState>()((set, get) => ({
       const res = await api.get(`/queue/${outletId}`);
       set({ entries: res.data.data, loading: false });
     } catch {
+      if (!(outletId.startsWith('demo-outlet-') || outletId.includes('osm-') || outletId.includes('demo-'))) {
+        set({ entries: [], currentToken: 0, loading: false });
+        return;
+      }
       const demo = buildDemoQueue(outletId);
       set({ entries: demo.entries, currentToken: demo.currentToken, loading: false });
     }
@@ -127,7 +131,10 @@ export const useQueueStore = create<QueueState>()((set, get) => ({
       const entry: QueueEntry = res.data.data;
       set({ myEntry: entry });
       return entry;
-    } catch {
+    } catch (err: unknown) {
+      if (!(outletId.startsWith('demo-outlet-') || outletId.includes('osm-') || outletId.includes('demo-'))) {
+        throw err instanceof Error ? err : new Error('Failed to join queue');
+      }
       const demo = buildDemoQueue(outletId);
       const nextToken = demo.currentToken + demo.entries.filter((e) => e.status === 'WAITING').length + 1;
         const mockEntry: QueueEntry = {

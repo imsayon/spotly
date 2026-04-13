@@ -5,11 +5,13 @@ import { useAuthStore } from '@/store/auth.store';
 import api from '@/lib/api';
 import { Merchant, Outlet, QueueEntry } from '@spotly/types';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { Store, Users, MapPin, Building2, TrendingUp, Sparkles } from 'lucide-react';
 
 export default function DashboardPage() {
   const { user, loading } = useAuthStore();
+  const router = useRouter();
   const [merchant, setMerchant] = useState<Merchant | null>(null);
   const [outlets, setOutlets] = useState<Outlet[]>([]);
   const [queueCounts, setQueueCounts] = useState<Record<string, number>>({});
@@ -29,22 +31,25 @@ export default function DashboardPage() {
       const m: Merchant | null = merchantRes.data.data;
       setMerchant(m);
 
-      if (m) {
-        const outletsRes = await api.get(`/outlet/merchant/${m.id}`);
-        const outs: Outlet[] = outletsRes.data.data ?? [];
-        setOutlets(outs);
-
-        const counts: Record<string, number> = {};
-        await Promise.all(
-          outs.map(async (o) => {
-            const qRes = await api.get(`/queue/${o.id}`);
-            counts[o.id] = (qRes.data.data as QueueEntry[]).filter(
-              (e) => e.status === 'WAITING',
-            ).length;
-          }),
-        );
-        setQueueCounts(counts);
+      if (!m) {
+        router.replace('/onboarding');
+        return;
       }
+
+      const outletsRes = await api.get(`/outlet/merchant/${m.id}`);
+      const outs: Outlet[] = outletsRes.data.data ?? [];
+      setOutlets(outs);
+
+      const counts: Record<string, number> = {};
+      await Promise.all(
+        outs.map(async (o) => {
+          const qRes = await api.get(`/queue/${o.id}`);
+          counts[o.id] = (qRes.data.data as QueueEntry[]).filter(
+            (e) => e.status === 'WAITING',
+          ).length;
+        }),
+      );
+      setQueueCounts(counts);
     } finally {
       setFetching(false);
     }

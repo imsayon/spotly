@@ -5,14 +5,39 @@ import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { Store, Zap, Smartphone, ArrowRight } from 'lucide-react';
 import { useEffect } from 'react';
+import { getFirebaseToken } from '@/lib/firebase';
 
 export default function LandingPage() {
   const { user, signInWithGoogle, loading } = useAuthStore();
   const router = useRouter();
 
+  const routeAfterAuth = async () => {
+    try {
+      const token = await getFirebaseToken();
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001/api'}/merchant/me/profile`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+      // If profile is not available, send merchant to setup details page.
+      if (!res.ok) {
+        router.push('/onboarding');
+        return;
+      }
+      const payload = await res.json();
+      if (!payload?.data) {
+        router.push('/onboarding');
+        return;
+      }
+      router.push('/dashboard');
+    } catch {
+      router.push('/onboarding');
+    }
+  };
+
   useEffect(() => {
     if (user && !loading) {
-      router.push('/dashboard');
+      routeAfterAuth();
     }
   }, [user, loading, router]);
 
@@ -49,7 +74,7 @@ export default function LandingPage() {
           <button
             onClick={async () => {
               await signInWithGoogle();
-              router.push('/dashboard');
+              await routeAfterAuth();
             }}
             className="group relative inline-flex items-center justify-center px-8 py-4 text-base font-bold text-white transition-all duration-200 bg-brand-600 font-pj rounded-2xl hover:bg-brand-500 focus:outline-none shadow-[0_0_40px_rgba(34,197,94,0.3)] hover:shadow-[0_0_60px_rgba(34,197,94,0.5)] active:scale-95"
           >

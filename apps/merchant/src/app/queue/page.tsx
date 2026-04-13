@@ -5,10 +5,14 @@ import { useSearchParams } from 'next/navigation';
 import { QueueEntry, Outlet, QueueUpdatePayload } from '@spotly/types';
 import api from '@/lib/api';
 import { joinOutletRoom, leaveOutletRoom, getSocket } from '@/lib/socket';
+import { useAuthStore } from '@/store/auth.store';
+import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Bell, CheckSquare, Settings2, ShieldCheck, Sparkles, AlertCircle } from 'lucide-react';
 
 function QueueContent() {
+  const { user, loading } = useAuthStore();
+  const router = useRouter();
   const searchParams = useSearchParams();
   const outletId = searchParams.get('outletId') ?? '';
 
@@ -17,34 +21,55 @@ function QueueContent() {
   const [entries, setEntries] = useState<QueueEntry[]>([]);
   const [calling, setCalling] = useState(false);
   const [loadingQueue, setLoadingQueue] = useState(false);
+  const [error, setError] = useState('');
 
   useEffect(() => {
-    api.get('/merchant/me/profile').then(async (res) => {
-      const merchant = res.data.data;
-      if (!merchant) return;
-      const outRes = await api.get(`/outlet/merchant/${merchant.id}`);
-      const outs: Outlet[] = outRes.data.data ?? [];
-      setOutlets(outs);
-      if (!selectedOutlet && outs.length > 0) {
-        setSelectedOutlet(outs[0].id);
+    if (loading) return;
+    if (!user) {
+      router.replace('/');
+      return;
+    }
+
+    const loadOutlets = async () => {
+      try {
+        setError('');
+        const res = await api.get('/merchant/me/profile');
+        const merchant = res.data.data;
+        if (!merchant) return;
+        const outRes = await api.get(`/outlet/merchant/${merchant.id}`);
+        const outs: Outlet[] = outRes.data.data ?? [];
+        setOutlets(outs);
+        if (!selectedOutlet && outs.length > 0) {
+          setSelectedOutlet(outs[0].id);
+        }
+      } catch (err: unknown) {
+        setError(err instanceof Error ? err.message : 'Failed to load merchant queue');
       }
-    });
-  }, []);
+    };
+
+    loadOutlets();
+  }, [loading, user, router]);
 
   const fetchQueue = useCallback(async () => {
-    if (!selectedOutlet) return;
+    if (!selectedOutlet || !user) return;
     setLoadingQueue(true);
-    const res = await api.get(`/queue/${selectedOutlet}`);
-    setEntries(res.data.data ?? []);
-    setLoadingQueue(false);
-  }, [selectedOutlet]);
+    try {
+      setError('');
+      const res = await api.get(`/queue/${selectedOutlet}`);
+      setEntries(res.data.data ?? []);
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Failed to load queue');
+    } finally {
+      setLoadingQueue(false);
+    }
+  }, [selectedOutlet, user]);
 
   useEffect(() => {
     fetchQueue();
   }, [fetchQueue]);
 
   useEffect(() => {
-    if (!selectedOutlet) return;
+    if (!selectedOutlet || !user) return;
     joinOutletRoom(selectedOutlet);
     const socket = getSocket();
 
@@ -59,20 +84,32 @@ function QueueContent() {
       leaveOutletRoom(selectedOutlet);
       socket.off('queue_update', onQueueUpdate);
     };
-  }, [selectedOutlet]);
+  }, [selectedOutlet, user]);
+
+  if (loading || !user) {
+    return null;
+  }
 
   const callNext = async () => {
     if (!selectedOutlet) return;
     setCalling(true);
     try {
+      setError('');
       await api.post('/queue/next', { outletId: selectedOutlet });
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Failed to call next person');
     } finally {
       setCalling(false);
     }
   };
 
   const markServed = async (entryId: string) => {
-    await api.post(`/queue/served/${entryId}`, { outletId: selectedOutlet });
+    try {
+      setError('');
+      await api.post(`/queue/served/${entryId}`, { outletId: selectedOutlet });
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Failed to mark entry served');
+    }
   };
 
   const waiting = entries.filter((e) => e.status === 'WAITING');
@@ -103,6 +140,12 @@ function QueueContent() {
           </div>
         )}
       </motion.div>
+
+      {error && (
+        <div className="mb-6 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-300">
+          {error}
+        </div>
+      )}
 
       {/* Control Deck */}
       <div className="grid grid-cols-1 md:grid-cols-5 gap-6 mb-10">
