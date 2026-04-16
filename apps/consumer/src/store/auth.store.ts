@@ -1,11 +1,6 @@
 import { create } from 'zustand';
 import { getFirebaseAuth } from '@/lib/firebase';
-import {
-  GoogleAuthProvider,
-  signInWithPopup,
-  signOut as firebaseSignOut,
-  User as FirebaseUser,
-} from 'firebase/auth';
+import { GoogleAuthProvider, signInWithPopup, signOut as firebaseSignOut, onAuthStateChanged, type User as FirebaseUser } from 'firebase/auth';
 import api from '@/lib/api';
 import { User as BackendUser } from '@spotly/types';
 
@@ -37,15 +32,24 @@ export const useAuthStore = create<AuthState>()((set, get) => ({
 
   signInWithGoogle: async () => {
     const provider = new GoogleAuthProvider();
-    const result = await signInWithPopup(getFirebaseAuth(), provider);
-    set({ user: result.user });
-    await get().registerOnBackend();
-    await get().fetchProfile();
+    try {
+      await signInWithPopup(getFirebaseAuth(), provider);
+    } catch (error) {
+      console.error('Google Sign-In Error:', error);
+      throw error;
+    }
   },
 
   signOut: async () => {
-    await firebaseSignOut(getFirebaseAuth());
-    set({ user: null, profile: null, forceOnboarding: false });
+    try {
+      await firebaseSignOut(getFirebaseAuth());
+      set({ user: null, profile: null, forceOnboarding: false });
+      if (typeof window !== 'undefined') {
+        window.location.href = '/';
+      }
+    } catch (error) {
+      console.error('Sign-Out Error:', error);
+    }
   },
 
   fetchProfile: async () => {
@@ -65,7 +69,6 @@ export const useAuthStore = create<AuthState>()((set, get) => ({
   },
 
   clearProfile: async () => {
-    // Clear data on backend so we can re-trigger onboarding
     await api.patch('/user/me', { name: '', phone: '', location: '' });
     set({ profile: null, forceOnboarding: true });
   },
@@ -74,7 +77,7 @@ export const useAuthStore = create<AuthState>()((set, get) => ({
     try {
       await api.post('/user/register', { role });
     } catch {
-      // Silently fail — user already exists
+      // Silently fail
     }
   },
 }));

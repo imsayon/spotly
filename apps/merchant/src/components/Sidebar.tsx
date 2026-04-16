@@ -65,14 +65,14 @@ export function Sidebar() {
       <div className="border-t border-border pt-6 px-2">
         <div className="flex items-center gap-3 mb-4 opacity-75">
           {user.photoURL ? (
-            <img src={user.photoURL} alt="Avatar" className="w-8 h-8 rounded-full border border-gray-700" />
+            <img src={user.photoURL} alt="Avatar" className="w-8 h-8 rounded-full border border-zinc-700" />
           ) : (
-            <div className="w-8 h-8 rounded-full bg-gray-800 flex items-center justify-center text-xs">
+            <div className="w-8 h-8 rounded-full bg-zinc-800 flex items-center justify-center text-xs text-white">
               {user.email?.[0].toUpperCase()}
             </div>
           )}
           <div className="overflow-hidden">
-            <p className="text-sm text-gray-200 font-medium truncate">{user.displayName || 'Merchant'}</p>
+            <p className="text-sm text-zinc-200 font-medium truncate">{user.displayName || user.email?.split('@')[0] || 'Merchant'}</p>
           </div>
         </div>
         <button

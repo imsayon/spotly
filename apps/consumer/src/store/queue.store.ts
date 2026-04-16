@@ -96,61 +96,18 @@ export const useQueueStore = create<QueueState>()((set, get) => ({
       const res = await api.get(`/queue/${outletId}`);
       set({ entries: res.data.data, loading: false });
     } catch {
-      if (!(outletId.startsWith('demo-outlet-') || outletId.includes('osm-') || outletId.includes('demo-'))) {
-        set({ entries: [], currentToken: 0, loading: false });
-        return;
-      }
-      const demo = buildDemoQueue(outletId);
-      set({ entries: demo.entries, currentToken: demo.currentToken, loading: false });
+      set({ entries: [], currentToken: 0, loading: false });
     }
   },
 
   joinQueue: async (outletId: string) => {
-    if (outletId.startsWith('demo-outlet-') || outletId.includes('osm-') || outletId.includes('demo-')) {
-      const demo = buildDemoQueue(outletId);
-      const nextToken = demo.currentToken + demo.entries.filter((e) => e.status === 'WAITING').length + 1;
-      const mockEntry: QueueEntry = {
-        id: `mock-${Date.now()}`,
-        userId: 'mock-user',
-        outletId,
-        tokenNumber: nextToken,
-        status: 'WAITING',
-        joinedAt: new Date().toISOString(),
-      };
-
-      set({
-        entries: [...demo.entries, mockEntry],
-        currentToken: demo.currentToken,
-        myEntry: mockEntry,
-      });
-      return mockEntry;
-    }
-
     try {
       const res = await api.post('/queue/join', { outletId });
       const entry: QueueEntry = res.data.data;
       set({ myEntry: entry });
       return entry;
     } catch (err: unknown) {
-      if (!(outletId.startsWith('demo-outlet-') || outletId.includes('osm-') || outletId.includes('demo-'))) {
-        throw err instanceof Error ? err : new Error('Failed to join queue');
-      }
-      const demo = buildDemoQueue(outletId);
-      const nextToken = demo.currentToken + demo.entries.filter((e) => e.status === 'WAITING').length + 1;
-        const mockEntry: QueueEntry = {
-          id: `mock-${Date.now()}`,
-          userId: 'mock-user',
-          outletId,
-          tokenNumber: nextToken,
-          status: 'WAITING',
-          joinedAt: new Date().toISOString(),
-        };
-        set({
-          entries: [...demo.entries, mockEntry],
-          currentToken: demo.currentToken,
-          myEntry: mockEntry,
-        });
-        return mockEntry;
+      throw err instanceof Error ? err : new Error('Failed to join queue');
     }
   },
 

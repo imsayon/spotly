@@ -1,397 +1,258 @@
-'use client';
+"use client"
 
-import { useEffect, useState } from 'react';
-import { useParams, useRouter } from 'next/navigation';
-import { Merchant, Outlet, QueueEntry } from '@spotly/types';
-import { useAuthStore } from '@/store/auth.store';
-import { useQueueStore } from '@/store/queue.store';
-import api from '@/lib/api';
-import { motion } from 'framer-motion';
-import { ArrowLeft, MapPin, Users, ArrowRight, Loader, AlertCircle } from 'lucide-react';
-import Link from 'next/link';
+import React, { useEffect, useState } from "react"
+import { useParams, useRouter } from "next/navigation"
+import { motion, AnimatePresence } from "framer-motion"
+import { Ic, useToasts, THEME, Orb } from "@spotly/ui"
+import { useAuthStore } from "@/store/auth.store"
+import { useQueueStore } from "@/store/queue.store"
+import api from "@/lib/api"
+import { Merchant, Outlet, QueueEntry } from "@spotly/types"
+
+const s = {
+  ...THEME.styles,
+  banner: {
+    height: 240,
+    borderRadius: 28,
+    background: 'rgba(255,255,255,.02)',
+    border: '1px solid rgba(255,255,255,.05)',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    position: 'relative',
+    overflow: 'hidden',
+    marginBottom: 32,
+    boxShadow: 'inset 0 0 60px rgba(245,196,24,.03)'
+  } as React.CSSProperties,
+  outletCard: {
+    ...THEME.styles.card,
+    display: 'flex',
+    alignItems: 'center',
+    gap: 18,
+    padding: '24px',
+    cursor: 'pointer',
+    transition: 'all .3s ease',
+    marginBottom: 14,
+    borderRadius: 22,
+    background: 'rgba(255,255,255,.01)',
+    backdropFilter: 'blur(10px)',
+  } as React.CSSProperties,
+  btnJoin: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: 8,
+    padding: '12px 24px',
+    borderRadius: 14,
+    background: THEME.gradients.consumer,
+    color: '#000',
+    fontWeight: 900,
+    fontSize: 14,
+    border: 'none',
+    cursor: 'pointer',
+    transition: 'all .25s ease',
+    boxShadow: '0 8px 20px rgba(245,196,24,.2)'
+  } as React.CSSProperties,
+  badge: THEME.badge,
+};
 
 interface OutletWithQueue extends Outlet {
-  queueLength?: number;
-  estimatedWait?: string;
-  queueError?: string;
+  queueLength: number;
+  estimatedWait: string;
 }
 
-const seedFromString = (value: string): number => {
-  let hash = 0;
-  for (let i = 0; i < value.length; i += 1) {
-    hash = (hash * 31 + value.charCodeAt(i)) % 100000;
-  }
-  return Math.abs(hash);
-};
+export default function ConsumerMerchantPage() {
+  const { id } = useParams()
+  const router = useRouter()
+  const { user } = useAuthStore()
+  const { joinQueue, myEntry } = useQueueStore()
+  const { add: addToast } = useToasts()
 
-const toTitleCase = (value: string): string =>
-  value
-    .replace(/[-_]+/g, ' ')
-    .replace(/\s+/g, ' ')
-    .trim()
-    .replace(/\b\w/g, (ch) => ch.toUpperCase());
+  const [merchant, setMerchant] = useState<Merchant | null>(null)
+  const [outlets, setOutlets] = useState<OutletWithQueue[]>([])
+  const [loading, setLoading] = useState(true)
+  const [joiningId, setJoiningId] = useState<string | null>(null)
 
-const buildDemoMerchant = (merchantId: string): Merchant => {
-  const seed = seedFromString(merchantId);
-  const categories = ['Restaurant', 'Groceries', 'Pharmacy', 'Bakery', 'Retail'];
-  const category = categories[seed % categories.length];
-  const cleanId = merchantId.replace(/^osm-|^demo-+/, '').slice(0, 12);
-
-  return {
-    id: merchantId,
-    userId: 'demo-user',
-    name: `Demo ${toTitleCase(category)} ${cleanId || 'Shop'}`,
-    category,
-    description: `Popular ${category.toLowerCase()} outlet with fast-moving live queue updates.`,
-    location: 'Nearby',
-    rating: Number((4 + (seed % 10) / 10).toFixed(1)),
-    estimatedWaitTime: `${8 + (seed % 20)} MIN`,
-    createdAt: new Date().toISOString(),
-  };
-};
-
-const buildDemoOutlets = (merchantId: string): OutletWithQueue[] => {
-  const seed = seedFromString(merchantId);
-  const baseQueue = 3 + (seed % 10);
-  const count = 1 + (seed % 2);
-
-  return Array.from({ length: count }).map((_, index) => {
-    const queueLength = baseQueue + index;
-    return {
-      id: `demo-outlet-${merchantId}-${index + 1}`,
-      merchantId,
-      name: index === 0 ? 'Main Outlet' : `Branch ${index + 1}`,
-      address: `${10 + index} Market Street`,
-      createdAt: new Date().toISOString(),
-      queueLength,
-      estimatedWait: `${queueLength * 2} min`,
-    };
-  });
-};
-
-export default function MerchantPage() {
-  const { id } = useParams<{ id: string }>();
-  const router = useRouter();
-  const { user, signInWithGoogle } = useAuthStore();
-  const { joinQueue, myEntry } = useQueueStore();
-
-  const [merchant, setMerchant] = useState<Merchant | null>(null);
-  const [outlets, setOutlets] = useState<OutletWithQueue[]>([]);
-  const [joiningOutlet, setJoiningOutlet] = useState<string | null>(null);
-  const [alreadyInQueue, setAlreadyInQueue] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  // Fetch merchant and outlets
   useEffect(() => {
-    (async () => {
+    const loadData = async () => {
       try {
-        const [merchantRes, outletsRes] = await Promise.all([
+        const [mRes, oRes] = await Promise.all([
           api.get(`/merchant/${id}`),
-          api.get(`/outlet/merchant/${id}`),
+          api.get(`/outlet/merchant/${id}`)
         ]);
-        setMerchant(merchantRes.data.data);
+        setMerchant(mRes.data.data);
         
-        const outletList: OutletWithQueue[] = outletsRes.data.data ?? [];
-        
-        // Fetch queue info for each outlet
-        const outletsWithQueue = await Promise.all(
-          outletList.map(async (outlet) => {
-            try {
-              const queueRes = await api.get(`/queue/${outlet.id}`);
-              const queueEntries: QueueEntry[] = queueRes.data.data ?? [];
-              const waitingCount = queueEntries.filter((e) => e.status === 'WAITING').length;
-              
-              // Estimate wait time: ~2 minutes per person
-              const estimatedWait = waitingCount > 0 ? `${waitingCount * 2} min` : 'No wait';
-              
-              return {
-                ...outlet,
-                queueLength: waitingCount,
-                estimatedWait,
-              };
-            } catch {
-              return {
-                ...outlet,
-                queueLength: 0,
-                estimatedWait: 'Unable to load',
-                queueError: 'Could not fetch queue info',
-              };
-            }
-          }),
-        );
-        
-        setOutlets(outletsWithQueue);
-        setLoading(false);
-      } catch {
-        if (!id) {
-          setError('Failed to load merchant details. This merchant may not exist.');
-          setLoading(false);
-          return;
-        }
-
-        setMerchant(buildDemoMerchant(id));
-        setOutlets(buildDemoOutlets(id));
+        const outletList: Outlet[] = oRes.data.data || [];
+        const enriched = await Promise.all(outletList.map(async (o) => {
+          try {
+            const qRes = await api.get(`/queue/${o.id}`);
+            const entries: QueueEntry[] = qRes.data.data || [];
+            const waittime = entries.length * 5; // Simple heuristic
+            return { 
+              ...o, 
+              queueLength: entries.length, 
+              estimatedWait: waittime > 0 ? `${waittime}m` : 'No wait' 
+            };
+          } catch {
+            return { ...o, queueLength: 0, estimatedWait: '??' };
+          }
+        }));
+        setOutlets(enriched);
+      } catch (err) {
+        addToast('Failed to load merchant details', 'error');
+      } finally {
         setLoading(false);
       }
-    })();
-  }, [id]);
-
-  // Check if user is already in any queue
-  useEffect(() => {
-    if (myEntry) {
-      setAlreadyInQueue(myEntry.outletId);
-    }
-  }, [myEntry]);
+    };
+    if (id) loadData();
+  }, [id, addToast]);
 
   const handleJoin = async (outletId: string) => {
-    // Check if already in this queue
-    if (myEntry && myEntry.outletId === outletId) {
-      router.push(`/queue/${myEntry.id}`);
+    if (!user) {
+      addToast('Please sign in to join the queue', 'info');
       return;
     }
-
-    // Check if already in different queue
-    if (myEntry && myEntry.outletId !== outletId) {
-      if (!confirm('You are already in another queue. Leave that queue and join this one?')) {
+    
+    if (myEntry) {
+      if (myEntry.outletId === outletId) {
+        router.push(`/queue/${myEntry.id}`);
         return;
       }
-      try {
-        await useQueueStore.getState().leaveQueue(myEntry.id);
-      } catch {
-        // Ignore error, proceed with new join attempt
-      }
+      if (!confirm('You are already in another queue. Leave that and join this one?')) return;
+      try { await useQueueStore.getState().leaveQueue(myEntry.id); } catch {}
     }
 
-    // Require auth
-    if (!user) {
-      await signInWithGoogle();
-      return;
-    }
-
-    setJoiningOutlet(outletId);
+    setJoiningId(outletId);
     try {
       const entry = await joinQueue(outletId);
+      addToast('Joined queue successfully!', 'success');
       router.push(`/queue/${entry.id}`);
-    } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : 'Failed to join queue';
-      alert(message);
+    } catch (err: any) {
+      addToast(err.message || 'Failed to join', 'error');
     } finally {
-      setJoiningOutlet(null);
+      setJoiningId(null);
     }
   };
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <motion.div
-          animate={{ rotate: 360 }}
-          transition={{ duration: 2, repeat: Infinity, ease: 'linear' }}
-          className="w-12 h-12 rounded-full border-2 border-brand-500 border-t-transparent"
-        />
+      <div style={{ minHeight: '80vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <div style={{ width: 44, height: 44, border: '3px solid rgba(255,255,255,.03)', borderTopColor: '#f5c418', borderRadius: '50%', animation: 'spin 1s linear infinite' }} />
       </div>
     );
   }
 
-  if (error) {
-    return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="card p-8 max-w-md text-center">
-          <AlertCircle className="w-12 h-12 text-red-400 mx-auto mb-4" />
-          <h2 className="text-xl font-bold text-white mb-2">Error</h2>
-          <p className="text-gray-400 mb-6">{error}</p>
-          <Link href="/" className="btn-primary inline-block">
-            Back to Home
-          </Link>
-        </div>
-      </div>
-    );
-  }
+  if (!merchant) return null;
 
   return (
-    <div className="min-h-screen bg-background">
-      {/* Navigation */}
-      <nav className="sticky top-0 z-40 border-b border-border bg-background/80 backdrop-blur-md">
-        <div className="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between">
-          <Link href="/" className="flex items-center gap-2 text-gray-400 hover:text-brand-400 transition-colors">
-            <ArrowLeft className="w-5 h-5" />
-            <span className="text-sm font-medium">Back to Merchants</span>
-          </Link>
-          <h1 className="text-lg font-bold text-gradient hidden md:block">{merchant?.name}</h1>
-          <div className="w-12" /> {/* Spacer for centering */}
+    <motion.div 
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      style={{ padding: '24px 20px 100px', maxWidth: 640, margin: '0 auto' }}
+    >
+      
+      {/* HEADER */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 28 }}>
+        <motion.button 
+          whileHover={{ scale: 1.05, background: 'rgba(255,255,255,.08)' }}
+          whileTap={{ scale: 0.95 }}
+          onClick={() => router.push('/home')} 
+          style={{ width: 44, height: 44, borderRadius: 14, background: 'rgba(255,255,255,.04)', border: '1px solid rgba(255,255,255,.1)', color: 'rgba(255,255,255,.6)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+        >
+          <Ic.ChevronLeft />
+        </motion.button>
+        <h1 style={{ fontFamily: 'var(--font-sans)', fontSize: 20, fontWeight: 900, letterSpacing: -0.5 }}>Branch Selection</h1>
+      </div>
+
+      {/* BANNER */}
+      <div style={s.banner}>
+        <Orb x="-10%" y="-10%" size="80%" color="rgba(245,196,24,.1)" anim="orb1 15s infinite" />
+        <Orb x="60%" y="40%" size="60%" color="rgba(255,99,22,.05)" anim="orb2 20s infinite" />
+        <div style={{ position: 'relative', zIndex: 1, textAlign: 'center' }}>
+          <div style={{ width: 80, height: 80, borderRadius: 24, background: 'rgba(255,255,255,.03)', border: '1px solid rgba(255,255,255,.08)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 36, marginBottom: 16, margin: '0 auto', color: '#f5c418' }}>
+            {merchant.category?.toLowerCase()?.includes('coffee') ? <Ic.Clock /> : <Ic.Store />}
+          </div>
+          <div style={{ ...s.badge('consumer'), fontSize: 11, background: 'rgba(255,255,255,.05)', padding: '5px 14px', border: '1px solid rgba(255,255,255,0.08)' }}>{merchant.category}</div>
         </div>
-      </nav>
+      </div>
 
-      <div className="max-w-4xl mx-auto px-6 py-12">
-        {/* Merchant Header */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5 }}
-          className="mb-12"
-        >
-          <div className="relative overflow-hidden rounded-3xl mb-8">
-            {/* Background gradient banner */}
-            <div className="h-48 bg-gradient-brand relative flex items-center justify-center overflow-hidden">
-              <div className="absolute inset-0 opacity-20">
-                <div className="absolute top-0 right-0 w-64 h-64 bg-white rounded-full blur-[100px]" />
-              </div>
-              <div className="text-8xl relative z-10">🏪</div>
-            </div>
-          </div>
+      {/* INFO */}
+      <div style={{ marginBottom: 44 }}>
+        <h2 style={{ fontSize: 34, fontWeight: 900, marginBottom: 12, letterSpacing: -1.2, color: '#fff' }}>{merchant.name}</h2>
+        <p style={{ color: 'rgba(255,255,255,.4)', fontSize: 16, lineHeight: 1.6, fontWeight: 500 }}>{merchant.description || 'Welcome to our premium outlet. Join the queue digitally and save your time.'}</p>
+      </div>
 
-          <div className="card p-8">
-            <h1 className="text-4xl font-bold text-white mb-2">{merchant?.name}</h1>
-            <div className="flex items-center gap-2 text-brand-400 font-semibold text-lg mb-6">
-              <span className="px-3 py-1.5 rounded-full bg-brand-500/10 border border-brand-500/30">
-                {merchant?.category}
-              </span>
-              {id && (id.startsWith('osm-') || id.startsWith('demo-')) && (
-                <span className="px-3 py-1.5 rounded-full bg-blue-500/10 border border-blue-500/30 text-blue-400 text-sm">
-                  Nearby Place
-                </span>
-              )}
-            </div>
-            <p className="text-gray-400 max-w-2xl">
-              {id && (id.startsWith('osm-') || id.startsWith('demo-'))
-                ? 'Join the queue at this nearby location and get real-time updates on your token.'
-                : 'Join one of our outlets and get real-time updates on your token. Experience seamless queue management.'}
-            </p>
-          </div>
-        </motion.div>
-
-        {/* Outlets Section */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5, delay: 0.1 }}
-        >
-          <h2 className="text-2xl font-bold text-white mb-6 flex items-center gap-3">
-            <div className="w-8 h-8 rounded-lg bg-gradient-brand flex items-center justify-center">
-              <Users className="w-5 h-5 text-black" />
-            </div>
-            Select an Outlet
-          </h2>
-
-          {outlets.length === 0 ? (
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              className="card text-center py-16"
+      {/* OUTLETS */}
+      <div style={{ marginBottom: 48 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 20 }}>
+          <div style={{ width: 4, height: 16, borderRadius: 2, background: '#f5c418' }} />
+          <h3 style={{ fontSize: 16, fontWeight: 800, color: 'rgba(255,255,255,.7)', letterSpacing: 1, textTransform: 'uppercase' }}>Active Branches</h3>
+        </div>
+        
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+          {outlets.map((o, i) => (
+            <motion.div 
+              key={o.id} 
+              initial={{ opacity: 0, x: -10 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: i * 0.1 }}
+              whileHover={{ scale: 1.01, border: '1px solid rgba(255,255,255,.12)' }}
+              style={s.outletCard}
             >
-              <div className="text-6xl mb-4">📭</div>
-              <p className="text-gray-400 text-lg font-medium">No outlets available yet</p>
-              <p className="text-gray-500 text-sm mt-2">Please check back later</p>
-            </motion.div>
-          ) : (
-            <div className="space-y-4">
-              {outlets.map((outlet, index) => (
-                <motion.div
-                  key={outlet.id}
-                  id={`outlet-${outlet.id}`}
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: index * 0.05 }}
-                  whileHover={{ y: -2 }}
-                  className="group"
-                >
-                  <div className="card p-6 flex items-start justify-between cursor-pointer relative overflow-hidden">
-                    {/* Gradient overlay on hover */}
-                    <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-brand opacity-0 group-hover:opacity-5 rounded-full blur-3xl transition-opacity duration-300" />
-
-                    <div className="relative z-10 flex-1">
-                      <h3 className="text-xl font-bold text-white mb-2 group-hover:text-gradient transition-all">
-                        {outlet.name}
-                      </h3>
-                      {outlet.address && (
-                        <div className="flex items-center gap-2 text-gray-400 text-sm mb-3">
-                          <MapPin className="w-4 h-4 flex-shrink-0" />
-                          <span>{outlet.address}</span>
-                        </div>
-                      )}
-                      
-                      {/* Queue Info */}
-                      <div className="flex items-center gap-4 mt-4">
-                        <div className="flex items-center gap-2">
-                          <Users className="w-4 h-4 text-brand-400" />
-                          <span className="text-sm">
-                            <span className="font-bold text-brand-400">{outlet.queueLength ?? 0}</span>
-                            <span className="text-gray-500"> people ahead</span>
-                          </span>
-                        </div>
-                        <div className="text-sm">
-                          <span className="text-gray-500">Wait: </span>
-                          <span className={`font-semibold ${outlet.queueLength && outlet.queueLength > 10 ? 'text-yellow-400' : 'text-green-400'}`}>
-                            {outlet.estimatedWait}
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-
-                    <button
-                      id={`join-btn-${outlet.id}`}
-                      onClick={() => handleJoin(outlet.id)}
-                      disabled={joiningOutlet === outlet.id}
-                      className={`relative z-10 ml-4 btn-primary whitespace-nowrap disabled:opacity-75 disabled:cursor-not-allowed transition-all ${
-                        alreadyInQueue === outlet.id ? 'bg-green-600 hover:bg-green-700' : ''
-                      }`}
-                    >
-                      {joiningOutlet === outlet.id ? (
-                        <>
-                          <Loader className="w-4 h-4 animate-spin mr-2" />
-                          Joining...
-                        </>
-                      ) : alreadyInQueue === outlet.id ? (
-                        <>
-                          <span>View My Queue</span>
-                          <ArrowRight className="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform" />
-                        </>
-                      ) : (
-                        <>
-                          <span>Join Queue</span>
-                          <ArrowRight className="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform" />
-                        </>
-                      )}
-                    </button>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontWeight: 800, fontSize: 19, marginBottom: 6, color: '#fff' }}>{o.name}</div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, color: 'rgba(255,255,255,.3)', fontSize: 13, fontWeight: 600 }}>
+                  <Ic.MapPin /><span>{o.address || 'Bengaluru, India'}</span>
+                </div>
+                <div style={{ display: 'flex', gap: 16, marginTop: 18 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, fontWeight: 700, color: 'rgba(255,255,255,.5)' }}>
+                    <div style={{ width: 6, height: 6, borderRadius: '50%', background: '#1fd97c' }} />
+                    {o.queueLength} People
                   </div>
-                </motion.div>
-              ))}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, fontWeight: 800, color: '#f5c418' }}>
+                    <Ic.Clock /> {o.estimatedWait} wait
+                  </div>
+                </div>
+              </div>
+              <motion.button 
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={() => handleJoin(o.id)}
+                disabled={joiningId === o.id}
+                style={{ 
+                  ...s.btnJoin, 
+                  background: myEntry?.outletId === o.id ? 'rgba(31,217,124,.1)' : THEME.gradients.consumer,
+                  color: myEntry?.outletId === o.id ? '#1fd97c' : '#000',
+                  border: myEntry?.outletId === o.id ? '1px solid rgba(31,217,124,.2)' : 'none',
+                  boxShadow: myEntry?.outletId === o.id ? 'none' : s.btnJoin.boxShadow
+                }}
+              >
+                {joiningId === o.id ? '...' : myEntry?.outletId === o.id ? 'Active' : 'Get Token'}
+                {!myEntry && <Ic.ChevR />}
+              </motion.button>
+            </motion.div>
+          ))}
+          {outlets.length === 0 && (
+            <div style={{ ...s.card, padding: 60, textAlign: 'center', background: 'rgba(255,255,255,.01)', borderStyle: 'dashed' }}>
+              <p style={{ color: 'rgba(255,255,255,.2)', fontWeight: 600 }}>No active outlets for this merchant yet.</p>
             </div>
           )}
+        </div>
+      </div>
+
+      {/* FOOTER TIPS */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+        <motion.div whileHover={{ y: -2 }} style={{ ...s.card, padding: '20px', background: 'rgba(255,255,255,.02)', borderRadius: 22 }}>
+          <div style={{ color: '#f5c418', marginBottom: 12 }}><Ic.Bell /></div>
+          <div style={{ fontWeight: 800, fontSize: 14, marginBottom: 4 }}>Real-time Alerts</div>
+          <div style={{ fontSize: 12, color: 'rgba(255,255,255,.25)', lineHeight: 1.4 }}>Instant push notifications when your turn is approaching.</div>
         </motion.div>
-
-        {/* Info Section */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5, delay: 0.2 }}
-          className="mt-16 grid grid-cols-1 md:grid-cols-3 gap-4"
-        >
-          <div className="glass-panel p-6 rounded-2xl">
-            <div className="w-10 h-10 rounded-lg bg-yellow-500/20 flex items-center justify-center mb-4">
-              <span className="text-xl">⚡</span>
-            </div>
-            <h4 className="font-semibold text-white mb-2">Instant Join</h4>
-            <p className="text-sm text-gray-400">Join any outlet with just one tap</p>
-          </div>
-
-          <div className="glass-panel p-6 rounded-2xl">
-            <div className="w-10 h-10 rounded-lg bg-orange-500/20 flex items-center justify-center mb-4">
-              <span className="text-xl">📲</span>
-            </div>
-            <h4 className="font-semibold text-white mb-2">Live Updates</h4>
-            <p className="text-sm text-gray-400">Real-time notifications for your token</p>
-          </div>
-
-          <div className="glass-panel p-6 rounded-2xl">
-            <div className="w-10 h-10 rounded-lg bg-yellow-500/20 flex items-center justify-center mb-4">
-              <span className="text-xl">🎯</span>
-            </div>
-            <h4 className="font-semibold text-white mb-2">No Waiting Area</h4>
-            <p className="text-sm text-gray-400">Come when it&apos;s your turn</p>
-          </div>
+        <motion.div whileHover={{ y: -2 }} style={{ ...s.card, padding: '20px', background: 'rgba(255,255,255,.02)', borderRadius: 22 }}>
+          <div style={{ color: '#1fd97c', marginBottom: 12 }}><Ic.Shield /></div>
+          <div style={{ fontWeight: 800, fontSize: 14, marginBottom: 4 }}>Secured Entry</div>
+          <div style={{ fontSize: 12, color: 'rgba(255,255,255,.25)', lineHeight: 1.4 }}>Verified tokens ensure a fair and organized experience.</div>
         </motion.div>
       </div>
-    </div>
-  );
+
+    </motion.div>
+  )
 }

@@ -1,5 +1,5 @@
 import {
-  Body, Controller, Get, Param, Post, UseGuards,
+  Body, Controller, Get, Param, Patch, Post, UseGuards,
 } from '@nestjs/common';
 import { OutletService } from './outlet.service';
 import { MerchantService } from '../merchant/merchant.service';
@@ -52,6 +52,21 @@ export class OutletController {
       return { success: false, message: 'You must register as a merchant first' };
     }
     const data = await this.outletService.create(merchant.id, body.name, body.address);
+    return { success: true, data };
+  }
+  /** PATCH /api/outlet/:id — merchant updates an outlet */
+  @Patch(':id')
+  @UseGuards(FirebaseAuthGuard)
+  async update(
+    @CurrentUser() user: DecodedUser,
+    @Param('id') id: string,
+    @Body() body: Partial<CreateOutletDto> & { isActive?: boolean },
+  ) {
+    const merchant = await this.merchantService.findByUser(user.uid);
+    if (!merchant) {
+      return { success: false, message: 'Merchant record not found' };
+    }
+    const data = await this.outletService.update(id, merchant.id, body as any);
     return { success: true, data };
   }
 }

@@ -1,171 +1,206 @@
 "use client"
 
-import { useEffect } from "react"
+import React, { useState, useEffect } from "react"
+import { motion, AnimatePresence } from "framer-motion"
+import { Ic, AuthModal, THEME, Orb } from "@spotly/ui"
 import { useAuthStore } from "@/store/auth.store"
-import { motion } from "framer-motion"
-import {
-	Clock,
-	Smartphone,
-	Zap,
-	ArrowRight,
-} from "lucide-react"
 import { useRouter } from "next/navigation"
 
 export default function LandingPage() {
-	const { user, signInWithGoogle, loading } = useAuthStore()
-	const router = useRouter()
+  const { user, signInWithGoogle, loading: authLoading } = useAuthStore()
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false)
+  const [mounted, setMounted] = useState(false)
+  const router = useRouter()
 
-	useEffect(() => {
-		if (!loading && user) {
-			router.push("/home")
-		}
-	}, [loading, user, router])
+  useEffect(() => {
+    setMounted(true)
+    if (!authLoading && user) router.push('/home')
+  }, [user, authLoading, router])
 
-	if (loading) return null
+  if (!mounted) return (
+    <div style={{ height: '100vh', background: '#050509', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <div style={{ width: 40, height: 40, border: '2px solid rgba(255,255,255,.05)', borderTopColor: '#f5c418', borderRadius: '50%', animation: 'spin 1s linear infinite' }} />
+    </div>
+  )
 
-	return (
-		<div className="min-h-screen bg-background">
-			{/* Navigation */}
-			<nav className="sticky top-0 z-50 border-b border-border bg-background/80 backdrop-blur-md">
-				<div className="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between">
-					<motion.div
-						initial={{ opacity: 0, x: -20 }}
-						animate={{ opacity: 1, x: 0 }}
-						className="flex items-center gap-3"
-					>
-						<div className="w-10 h-10 rounded-xl bg-gradient-brand flex items-center justify-center">
-							<Clock className="w-6 h-6 text-black" />
-						</div>
-						<div>
-							<h1 className="text-xl font-bold text-gradient">
-								Spotly
-							</h1>
-							<p className="text-xs text-gray-500 font-medium">
-								Skip the Wait
-							</p>
-						</div>
-					</motion.div>
+  const containerVars = {
+    hidden: { opacity: 0 },
+    visible: { 
+      opacity: 1,
+      transition: { staggerChildren: 0.1, delayChildren: 0.1 }
+    }
+  }
 
-					<motion.div
-						initial={{ opacity: 0, x: 20 }}
-						animate={{ opacity: 1, x: 0 }}
-						className="flex items-center gap-3"
-					>
-						{!user && (
-							<button
-								onClick={signInWithGoogle}
-								className="btn-primary"
-							>
-								<span>Sign in</span>
-								<ArrowRight className="w-4 h-4 ml-2" />
-							</button>
-						)}
-					</motion.div>
-				</div>
-			</nav>
+  const itemVars = {
+    hidden: { opacity: 0, y: 15 },
+    visible: { opacity: 1, y: 0, transition: { duration: 0.6, ease: [0.16, 1, 0.3, 1] as any } }
+  }
 
-			{/* Hero Section */}
-			<motion.section
-				initial={{ opacity: 0 }}
-				animate={{ opacity: 1 }}
-				transition={{ duration: 0.8 }}
-				className="relative py-20 overflow-hidden min-h-[90vh] flex flex-col justify-center"
-			>
-				{/* Glowing orbs background */}
-				<div className="absolute top-1/4 -left-1/4 w-[800px] h-[800px] bg-yellow-500/15 rounded-full blur-[150px] opacity-60 pointer-events-none" />
-				<div className="absolute bottom-0 -right-1/4 w-[900px] h-[900px] bg-orange-500/10 rounded-full blur-[150px] opacity-50 pointer-events-none" />
+  return (
+    <div style={{ 
+      minHeight: '100vh', 
+      background: '#050509', 
+      color: '#fff', 
+      position: 'relative', 
+      overflow: 'hidden',
+      display: 'flex',
+      flexDirection: 'column'
+    }}>
+      {/* BACKGROUND ELEMENTS */}
+      <div style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, overflow: 'hidden', pointerEvents: 'none' }}>
+        <Orb x="-10%" y="-10%" size="80%" color="rgba(245,196,24,.07)" anim="orb1 20s infinite" />
+        <Orb x="70%" y="20%" size="60%" color="rgba(255,99,22,.04)" anim="orb2 25s infinite" />
+        <div style={{ position: 'absolute', inset: 0, background: 'radial-gradient(circle at 50% 50%, transparent, #050509 95%)' }} />
+      </div>
 
-				<div className="relative z-10 max-w-6xl mx-auto px-6 text-center">
-					<motion.div
-						initial={{ opacity: 0, y: 30 }}
-						animate={{ opacity: 1, y: 0 }}
-						transition={{ duration: 0.8, ease: "easeOut" }}
-						className="flex flex-col items-center"
-					>
-						<div className="inline-flex items-center gap-2 px-4 py-2 rounded-full border border-yellow-500/30 bg-yellow-500/10 text-yellow-400 font-semibold text-sm mb-8 backdrop-blur-md mb-6">
-							<div className="w-2 h-2 rounded-full bg-yellow-400 animate-pulse" />
-							Queue Management Reimagined
-						</div>
+      {/* TOP NAV */}
+      <nav style={{ 
+        padding: '24px clamp(24px, 5vw, 64px)', 
+        display: 'flex', 
+        justifyContent: 'space-between', 
+        alignItems: 'center',
+        position: 'relative',
+        zIndex: 10
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <div style={{ width: 34, height: 34, borderRadius: 10, background: THEME.gradients.consumer, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <Ic.Zap />
+          </div>
+          <span style={{ fontWeight: 900, fontSize: 22, letterSpacing: -1 }}>spotly.</span>
+        </div>
+        <button 
+          onClick={() => window.open('http://localhost:3001', '_blank')}
+          style={{ 
+            background: 'rgba(255,255,255,.03)', 
+            border: '1px solid rgba(255,255,255,.08)', 
+            padding: '10px 20px', 
+            borderRadius: 12, 
+            color: 'rgba(255,255,255,.6)', 
+            fontSize: 14, 
+            fontWeight: 700,
+            cursor: 'pointer'
+          }}
+        >
+          For Partners
+        </button>
+      </nav>
 
-						<h1 className="text-5xl md:text-7xl font-bold tracking-tight text-white mb-6 leading-tight">
-							Skip the line,{" "}
-							<span className="text-gradient">join remotely</span>
-						</h1>
+      {/* MAIN CONTENT */}
+      <motion.main 
+        variants={containerVars}
+        initial="hidden"
+        animate="visible"
+        style={{ 
+          flex: 1, 
+          display: 'flex', 
+          flexDirection: 'column', 
+          alignItems: 'center', 
+          justifyContent: 'center',
+          padding: '0 24px',
+          textAlign: 'center',
+          position: 'relative',
+          zIndex: 1
+        }}
+      >
+        <motion.div variants={itemVars} style={{ marginBottom: 24 }}>
+          <div style={{ 
+            display: 'inline-flex', 
+            alignItems: 'center', 
+            gap: 8, 
+            padding: '8px 16px', 
+            borderRadius: 99, 
+            background: 'rgba(245,196,24,.05)', 
+            border: '1px solid rgba(245,196,24,.15)',
+            color: '#f5c418',
+            fontSize: 11,
+            fontWeight: 800,
+            textTransform: 'uppercase',
+            letterSpacing: 1.5
+          }}>
+            <Ic.Sparkle /> Skip lines in Bengaluru
+          </div>
+        </motion.div>
 
-						<p className="text-lg md:text-xl text-gray-400 max-w-2xl mx-auto mb-12">
-							Browse local restaurants, clinics, and stores. Join
-							queues from anywhere and get real-time token
-							updates. No more waiting around.
-						</p>
+        <motion.h2 variants={itemVars} style={{ 
+          fontSize: 'clamp(48px, 9vw, 92px)', 
+          fontWeight: 900, 
+          lineHeight: 0.9, 
+          letterSpacing: -4,
+          marginBottom: 32,
+          maxWidth: 900
+        }}>
+          Skip the line.<br/>
+          <span style={{ background: THEME.gradients.consumer, WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>Reclaim your time.</span>
+        </motion.h2>
 
-						{!user && (
-							<button
-								onClick={signInWithGoogle}
-								className="group relative inline-flex items-center justify-center px-8 py-4 text-base font-bold text-black transition-all duration-200 bg-gradient-brand rounded-2xl hover:shadow-[0_0_60px_rgba(250,204,21,0.6)] active:scale-95"
-							>
-								<span>Get Started with Google</span>
-								<ArrowRight className="ml-2 w-5 h-5 group-hover:translate-x-1 transition-transform" />
-							</button>
-						)}
-					</motion.div>
+        <motion.p variants={itemVars} style={{ 
+          fontSize: 'clamp(17px, 2vw, 21px)', 
+          color: 'rgba(255,255,255,.35)', 
+          maxWidth: 640, 
+          lineHeight: 1.6,
+          marginBottom: 48,
+          fontWeight: 500
+        }}>
+          Join any queue digitally. Track your status live. Arrive only when you’re next.
+          The absolute finest way to wait.
+        </motion.p>
 
-					{/* Feature Cards */}
-					<motion.div
-						initial={{ opacity: 0, y: 40 }}
-						animate={{ opacity: 1, y: 0 }}
-						transition={{
-							duration: 0.8,
-							delay: 0.2,
-							ease: "easeOut",
-						}}
-						className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-24 text-left"
-					>
-						<div className="glass-panel p-8 rounded-3xl relative overflow-hidden group">
-							<div className="absolute top-0 right-0 w-32 h-32 bg-yellow-500/10 rounded-full blur-3xl -mr-16 -mt-16 transition-all group-hover:bg-yellow-500/20" />
-							<div className="w-12 h-12 bg-gradient-brand rounded-2xl flex items-center justify-center mb-6">
-								<Clock className="w-6 h-6 text-black" />
-							</div>
-							<h3 className="text-xl font-bold text-white mb-3">
-								Real-time Updates
-							</h3>
-							<p className="text-sm text-gray-400">
-								Get instant notifications when your token is
-								called. Never miss your turn, even from miles
-								away.
-							</p>
-						</div>
+        <motion.div variants={itemVars}>
+          <motion.button 
+            whileHover={{ scale: 1.05, y: -4, boxShadow: '0 25px 50px rgba(245,196,24,.25)' }}
+            whileTap={{ scale: 0.95 }}
+            onClick={() => setIsAuthModalOpen(true)}
+            style={{ 
+              background: THEME.gradients.consumer, 
+              color: '#000', 
+              padding: '20px 56px', 
+              borderRadius: 20, 
+              fontSize: 18, 
+              fontWeight: 900, 
+              border: 'none', 
+              cursor: 'pointer',
+              boxShadow: '0 15px 35px rgba(245,196,24,.2)',
+            }}
+          >
+            Start Discovering
+          </motion.button>
+        </motion.div>
+      </motion.main>
 
-						<div className="glass-panel p-8 rounded-3xl relative overflow-hidden group">
-							<div className="absolute top-0 right-0 w-32 h-32 bg-orange-500/10 rounded-full blur-3xl -mr-16 -mt-16 transition-all group-hover:bg-orange-500/20" />
-							<div className="w-12 h-12 bg-gradient-brand rounded-2xl flex items-center justify-center mb-6">
-								<Smartphone className="w-6 h-6 text-black" />
-							</div>
-							<h3 className="text-xl font-bold text-white mb-3">
-								Browse & Join
-							</h3>
-							<p className="text-sm text-gray-400">
-								Discover merchants near you, check queue
-								lengths, and join with a single tap. That
-								simple.
-							</p>
-						</div>
+      {/* FOOTER STATS */}
+      <motion.div 
+        initial={{ opacity: 0, y: 30 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 1, duration: 0.8 }}
+        style={{ 
+          padding: '40px', 
+          borderTop: '1px solid rgba(255,255,255,.05)',
+          display: 'flex',
+          justifyContent: 'center',
+          gap: 'clamp(24px, 8vw, 96px)',
+          background: 'rgba(255,255,255,.01)'
+        }}
+      >
+        {[
+          { label: 'Time Saved', val: '12k hrs+' },
+          { label: 'Live Spots', val: '200+' },
+          { label: 'Partner Outlets', val: '85' }
+        ].map((s, i) => (
+          <div key={i} style={{ textAlign: 'center' }}>
+            <div style={{ fontSize: 26, fontWeight: 900, color: '#fff', marginBottom: 2 }}>{s.val}</div>
+            <div style={{ fontSize: 10, fontWeight: 800, color: 'rgba(255,255,255,.2)', textTransform: 'uppercase', letterSpacing: 1.5 }}>{s.label}</div>
+          </div>
+        ))}
+      </motion.div>
 
-						<div className="glass-panel p-8 rounded-3xl relative overflow-hidden group">
-							<div className="absolute top-0 right-0 w-32 h-32 bg-yellow-500/10 rounded-full blur-3xl -mr-16 -mt-16 transition-all group-hover:bg-yellow-500/20" />
-							<div className="w-12 h-12 bg-gradient-brand rounded-2xl flex items-center justify-center mb-6">
-								<Zap className="w-6 h-6 text-black" />
-							</div>
-							<h3 className="text-xl font-bold text-white mb-3">
-								Save Time Daily
-							</h3>
-							<p className="text-sm text-gray-400">
-								Spend less time waiting and more time enjoying.
-								Reclaim your time with smart queue management.
-							</p>
-						</div>
-					</motion.div>
-				</div>
-			</motion.section>
-		</div>
-	)
+      <AuthModal 
+        isOpen={isAuthModalOpen} 
+        onClose={() => setIsAuthModalOpen(false)} 
+        onGoogleAuth={signInWithGoogle}
+        isLoading={authLoading}
+        title="Elevate your experience"
+        variant="consumer"
+      />
+    </div>
+  )
 }

@@ -1,0 +1,2272 @@
+import { useState, useEffect, useRef, useCallback } from "react";
+
+// ============================================================
+// CSS + FONTS
+// ============================================================
+const CSS = `
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Syne:wght@700;800;900&family=JetBrains+Mono:wght@600;700;800&display=swap');
+
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#050509;--s1:#0c0c12;--s2:#12121a;--s3:#1a1a24;
+  --bdr:rgba(255,255,255,.06);--bdr2:rgba(255,255,255,.12);--bdr3:rgba(255,255,255,.2);
+  --gold:#f5c418;--orange:#ff6316;--gC:linear-gradient(135deg,#f5c418 0%,#ff6316 100%);
+  --em:#1fd97c;--teal:#00cfff;--gM:linear-gradient(135deg,#1fd97c,#0ea860);
+  --pu:#a78bfa;--red:#ff4d6d;
+  --t1:#fff;--t2:rgba(255,255,255,.6);--t3:rgba(255,255,255,.35);--t4:rgba(255,255,255,.15);
+}
+html,body{height:100%;font-family:'Inter',system-ui,sans-serif;-webkit-font-smoothing:antialiased;background:var(--bg);color:var(--t1);overflow-x:hidden}
+::-webkit-scrollbar{width:3px;height:3px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:rgba(255,255,255,.1);border-radius:2px}
+::selection{background:rgba(245,196,24,.22)}
+input:focus,textarea:focus,select:focus{outline:none}
+input::placeholder,textarea::placeholder{color:var(--t4)}
+select option{background:#1a1a22}
+*{-webkit-tap-highlight-color:transparent}
+
+@keyframes fadeUp{from{opacity:0;transform:translateY(22px)}to{opacity:1;transform:translateY(0)}}
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
+@keyframes scaleIn{from{opacity:0;transform:scale(.94)}to{opacity:1;transform:scale(1)}}
+@keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-13px)}}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.35}}
+@keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
+@keyframes ticker{0%{transform:translateX(0)}100%{transform:translateX(-50%)}}
+@keyframes orb1{0%,100%{transform:translate(0,0)scale(1)}40%{transform:translate(55px,-75px)scale(1.18)}75%{transform:translate(-28px,32px)scale(.87)}}
+@keyframes orb2{0%,100%{transform:translate(0,0)scale(1)}38%{transform:translate(-48px,55px)scale(.85)}72%{transform:translate(38px,-40px)scale(1.12)}}
+@keyframes shimmer{0%{background-position:-600px 0}100%{background-position:600px 0}}
+@keyframes ripple{0%{transform:scale(.7);opacity:.7}100%{transform:scale(2.8);opacity:0}}
+@keyframes countBounce{0%{transform:scale(.55);opacity:0}65%{transform:scale(1.06)}100%{transform:scale(1);opacity:1}}
+@keyframes slideInR{from{transform:translateX(110%);opacity:0}to{transform:translateX(0);opacity:1}}
+@keyframes slideOutR{from{transform:translateX(0);opacity:1}to{transform:translateX(110%);opacity:0}}
+@keyframes slideUp{from{transform:translateY(100%);opacity:0}to{transform:translateY(0);opacity:1}}
+@keyframes slideDown{from{opacity:0;transform:translateY(-8px)}to{opacity:1;transform:translateY(0)}}
+@keyframes heartPop{0%{transform:scale(1)}40%{transform:scale(1.5)}70%{transform:scale(.9)}100%{transform:scale(1)}}
+@keyframes tokenY{0%,100%{box-shadow:0 0 0 0 rgba(245,196,24,.5)}70%{box-shadow:0 0 0 28px rgba(245,196,24,0)}}
+@keyframes tokenG{0%,100%{box-shadow:0 0 0 0 rgba(31,217,124,.5)}70%{box-shadow:0 0 0 32px rgba(31,217,124,0)}}
+@keyframes drawLine{from{stroke-dashoffset:800}to{stroke-dashoffset:0}}
+@keyframes gradFlow{0%,100%{background-position:0% 50%}50%{background-position:100% 50%}}
+@keyframes notifSlide{from{opacity:0;transform:translateY(-6px)}to{opacity:1;transform:translateY(0)}}
+@keyframes barGrow{from{transform:scaleY(0);transform-origin:bottom}to{transform:scaleY(1);transform-origin:bottom}}
+
+.au{animation:fadeUp .55s cubic-bezier(.22,1,.36,1) both}
+.ai{animation:fadeIn .4s ease both}
+.as{animation:scaleIn .35s cubic-bezier(.22,1,.36,1) both}
+.af{animation:float 5s ease-in-out infinite}
+.ap{animation:pulse 2.2s ease-in-out infinite}
+.app-shell{min-height:100vh;display:flex;background:var(--bg);color:#fff;overflow:hidden}
+.consumer-shell{display:flex;min-height:100vh;background:var(--bg);overflow:hidden}
+.consumer-sidebar{width:280px;flex-shrink:0;display:flex;flex-direction:column;gap:18px;padding:20px 16px;border-right:1px solid var(--bdr);background:rgba(255,255,255,.018);backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px)}
+.consumer-brand{display:flex;align-items:center;gap:10px;padding:4px 6px 16px}
+.consumer-brand h2{font-family:'Syne',sans-serif;font-size:17px;font-weight:900;letter-spacing:-.4px}
+.consumer-nav{display:flex;flex-direction:column;gap:6px;flex:1}
+.consumer-nav button{display:flex;align-items:center;gap:10px;width:100%;padding:12px 14px;border-radius:14px;border:1px solid transparent;background:transparent;color:var(--t2);font:600 13px/1.2 Inter,sans-serif;cursor:pointer;transition:all .18s;text-align:left}
+.consumer-nav button:hover{background:rgba(255,255,255,.04);color:#fff}
+.consumer-nav button[data-active='true']{background:rgba(245,196,24,.12);border-color:rgba(245,196,24,.22);color:#f5c418;box-shadow:0 10px 24px rgba(245,196,24,.06)}
+.consumer-sidebar-card{margin-top:auto;padding:14px;border-radius:16px;border:1px solid var(--bdr);background:rgba(255,255,255,.03)}
+.consumer-main{flex:1;min-width:0;display:flex;flex-direction:column;position:relative}
+.consumer-content{flex:1;min-width:0;overflow-y:auto;padding-bottom:0}
+.consumer-topbar{height:72px;display:flex;align-items:center;justify-content:space-between;padding:0 20px;border-bottom:1px solid var(--bdr);background:rgba(255,255,255,.03);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px)}
+.consumer-topbar .brand{display:flex;align-items:center;gap:8px}
+.consumer-mobile-nav{display:none}
+@media (max-width: 980px){
+  .consumer-shell{display:block}
+  .consumer-sidebar{display:none}
+  .consumer-main{height:100vh}
+  .consumer-content{padding-bottom:84px}
+  .consumer-mobile-nav{display:flex}
+}
+@media (min-width: 981px){
+  .consumer-topbar{display:none}
+  .consumer-content{padding-bottom:0}
+}
+`;
+
+// ============================================================
+// ICONS
+// ============================================================
+const Ic = {
+  Clock:()=><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>,
+  Search:()=><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>,
+  Map:()=><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><polygon points="3 6 9 3 15 6 21 3 21 18 15 21 9 18 3 21"/><line x1="9" y1="3" x2="9" y2="18"/><line x1="15" y1="6" x2="15" y2="21"/></svg>,
+  Star:({fill})=><svg width="14" height="14" viewBox="0 0 24 24" fill={fill||"#f5c418"} stroke={fill||"#f5c418"} strokeWidth="1"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>,
+  User:()=><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>,
+  Grid:()=><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>,
+  Home:()=><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>,
+  Bell:()=><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>,
+  Check:()=><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><polyline points="20 6 9 17 4 12"/></svg>,
+  Arrow:()=><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>,
+  Plus:()=><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>,
+  X:()=><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>,
+  Heart:({f})=><svg width="18" height="18" viewBox="0 0 24 24" fill={f?"#ff4d6d":"none"} stroke={f?"#ff4d6d":"currentColor"} strokeWidth="2" strokeLinecap="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>,
+  ChevR:()=><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><polyline points="9 18 15 12 9 6"/></svg>,
+  ChevD:()=><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><polyline points="6 9 12 15 18 9"/></svg>,
+  ChevL:()=><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><polyline points="15 18 9 12 15 6"/></svg>,
+  Shield:()=><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>,
+  Settings:()=><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>,
+  LogOut:()=><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>,
+  Users:()=><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>,
+  Bar:()=><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><line x1="12" y1="20" x2="12" y2="10"/><line x1="18" y1="20" x2="18" y2="4"/><line x1="6" y1="20" x2="6" y2="16"/></svg>,
+  MapPin:()=><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>,
+  Zap:()=><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>,
+  Eye:()=><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>,
+  Store:()=><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="m2 7 4.41-4.41A2 2 0 0 1 7.83 2h8.34a2 2 0 0 1 1.42.59L22 7"/><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><path d="M2 7h20"/></svg>,
+  Building:()=><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><rect x="4" y="2" width="16" height="20" rx="2"/><line x1="9" y1="22" x2="9" y2="12"/><line x1="15" y1="22" x2="15" y2="12"/></svg>,
+  Tag:()=><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>,
+  Filter:()=><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>,
+  Sparkle:()=><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/></svg>,
+  Upload:()=><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><polyline points="16 16 12 12 8 16"/><line x1="12" y1="12" x2="12" y2="21"/><path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3"/></svg>,
+  TrendUp:()=><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/></svg>,
+  Walk:()=><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><circle cx="12" cy="5" r="1"/><path d="m9 20 3-6 3 6"/><path d="m6 8 6 2 4-2"/></svg>,
+};
+
+// ============================================================
+// MOCK DATA
+// ============================================================
+const MERCHANTS = [
+  {id:'1',name:'The Coffee Lab',cat:'Coffee',emoji:'☕',rating:4.9,wait:6,waitStr:'6 MIN',area:'Indiranagar',queue:8,color:'#f5c418',dist:'0.4km',offerTag:'Popular',hot:true,reviews:312},
+  {id:'2',name:'Green Valley Pharmacy',cat:'Pharmacy',emoji:'💊',rating:4.7,wait:12,waitStr:'12 MIN',area:'Koramangala',queue:15,color:'#1fd97c',dist:'0.9km',reviews:189},
+  {id:'3',name:'Artisan Bakehouse',cat:'Bakery',emoji:'🥐',rating:4.8,wait:4,waitStr:'4 MIN',area:'HSR Layout',queue:5,color:'#fb923c',dist:'1.2km',offerTag:'Flash',hot:true,reviews:256},
+  {id:'4',name:'FreshMart Groceries',cat:'Groceries',emoji:'🥬',rating:4.6,wait:18,waitStr:'18 MIN',area:'Whitefield',queue:22,color:'#34d399',dist:'2.1km',reviews:143},
+  {id:'5',name:'City Dental Clinic',cat:'Healthcare',emoji:'🦷',rating:4.9,wait:25,waitStr:'25 MIN',area:'Jayanagar',queue:4,color:'#a78bfa',dist:'1.8km',reviews:88},
+  {id:'6',name:'Brew Republic',cat:'Coffee',emoji:'🍵',rating:4.7,wait:3,waitStr:'3 MIN',area:'MG Road',queue:3,color:'#fbbf24',dist:'0.6km',offerTag:'Flash',hot:true,reviews:201},
+  {id:'7',name:'QuickMeds 24/7',cat:'Pharmacy',emoji:'🏥',rating:4.5,wait:8,waitStr:'8 MIN',area:'Koramangala',queue:9,color:'#22d3ee',dist:'1.1km',reviews:175},
+  {id:'8',name:'Bloom Salon',cat:'Beauty',emoji:'💅',rating:4.8,wait:20,waitStr:'20 MIN',area:'Indiranagar',queue:7,color:'#f472b6',dist:'0.7km',reviews:394},
+  {id:'9',name:'Axis Bank Branch',cat:'Finance',emoji:'🏦',rating:4.3,wait:35,waitStr:'35 MIN',area:'MG Road',queue:28,color:'#60a5fa',dist:'1.4km',reviews:67},
+  {id:'10',name:'SpiceMaster Restaurant',cat:'Dining',emoji:'🍛',rating:4.7,wait:15,waitStr:'15 MIN',area:'HSR Layout',queue:12,color:'#f87171',dist:'0.8km',offerTag:'Popular',reviews:520},
+];
+
+const CATEGORIES = [
+  {id:'all',label:'All',icon:'✦'},
+  {id:'Coffee',label:'Coffee',icon:'☕'},
+  {id:'Pharmacy',label:'Pharmacy',icon:'💊'},
+  {id:'Bakery',label:'Bakery',icon:'🥐'},
+  {id:'Groceries',label:'Groceries',icon:'🥬'},
+  {id:'Healthcare',label:'Healthcare',icon:'🏥'},
+  {id:'Beauty',label:'Beauty',icon:'💅'},
+  {id:'Finance',label:'Finance',icon:'🏦'},
+  {id:'Dining',label:'Dining',icon:'🍛'},
+];
+
+const OUTLETS = [
+  {id:'o1',name:'Main Branch',addr:'12 Church Street, Indiranagar',open:true,queue:8,hours:'7:00 AM – 10:00 PM',lat:48,lng:42},
+  {id:'o2',name:'Airport Terminal',addr:'BIAL, Terminal 1, Level 2',open:true,queue:3,hours:'5:00 AM – 11:00 PM',lat:32,lng:68},
+  {id:'o3',name:'UB City Mall',addr:'UB City, Vittal Mallya Rd',open:false,queue:0,hours:'10:00 AM – 9:00 PM',lat:62,lng:55},
+];
+
+const QUEUE_ENTRIES = [
+  {id:'q1',token:41,status:'CALLED',wait:'Now',initials:'RK'},
+  {id:'q2',token:42,status:'WAITING',wait:'~2 min',initials:'AP'},
+  {id:'q3',token:43,status:'WAITING',wait:'~6 min',initials:'SM'},
+  {id:'q4',token:44,status:'WAITING',wait:'~10 min',initials:'VR'},
+  {id:'q5',token:45,status:'WAITING',wait:'~14 min',initials:'NK'},
+];
+
+const OFFERS = [
+  {id:1,title:'Lightning Fast',sub:'Brew Republic — only 3 min wait right now!',emoji:'⚡',color:'#fbbf24',bg:'rgba(251,191,36,.1)'},
+  {id:2,title:'No Queue Now',sub:'Coffee Lab just cleared — join instantly',emoji:'🟢',color:'#1fd97c',bg:'rgba(31,217,124,.1)'},
+  {id:3,title:'Beat the Rush',sub:'Visit Artisan Bakehouse before 10 AM',emoji:'🎯',color:'#a78bfa',bg:'rgba(167,139,250,.1)'},
+];
+
+const ANALYTICS = {
+  hours:[8,22,45,68,82,95,88,72,54,40,28,35,58,80,76,68,55,42,30,20,14,10,7,5],
+  weekly:[120,145,98,210,185,230,190],
+  wLabels:['Mon','Tue','Wed','Thu','Fri','Sat','Sun'],
+  daily:[{time:'8AM',v:8},{time:'9AM',v:22},{time:'10AM',v:45},{time:'11AM',v:68},{time:'12PM',v:82},{time:'1PM',v:95},{time:'2PM',v:88},{time:'3PM',v:72},{time:'4PM',v:54},{time:'5PM',v:40},{time:'6PM',v:58},{time:'7PM',v:80},{time:'8PM',v:68},{time:'9PM',v:42}],
+};
+
+const ACTIVITY_FEED = [
+  {id:1,token:41,action:'served',outlet:'Main Branch',time:'just now',color:'#1fd97c'},
+  {id:2,token:40,action:'joined',outlet:'Airport Terminal',time:'1m ago',color:'#f5c418'},
+  {id:3,token:39,action:'missed',outlet:'Main Branch',time:'3m ago',color:'#ff4d6d'},
+  {id:4,token:38,action:'served',outlet:'UB City Mall',time:'5m ago',color:'#1fd97c'},
+  {id:5,token:37,action:'joined',outlet:'Main Branch',time:'7m ago',color:'#f5c418'},
+];
+
+// ============================================================
+// SHARED STYLES
+// ============================================================
+const s = {
+  glass: {background:'rgba(255,255,255,.035)',backdropFilter:'blur(24px)',WebkitBackdropFilter:'blur(24px)',border:'1px solid var(--bdr)'},
+  glassStrong: {background:'rgba(255,255,255,.07)',backdropFilter:'blur(32px)',WebkitBackdropFilter:'blur(32px)',border:'1px solid var(--bdr2)'},
+  card: {background:'var(--s1)',border:'1px solid var(--bdr)',borderRadius:18,padding:22,transition:'all .3s cubic-bezier(.25,.46,.45,.94)'},
+  gradC: {background:'linear-gradient(135deg,#f5c418,#ff6316)'},
+  gradM: {background:'linear-gradient(135deg,#1fd97c,#0ea860)'},
+  gradCText: {background:'linear-gradient(135deg,#f5c418,#ff6316)',WebkitBackgroundClip:'text',WebkitTextFillColor:'transparent',backgroundClip:'text'},
+  gradMText: {background:'linear-gradient(135deg,#1fd97c,#0ea860)',WebkitBackgroundClip:'text',WebkitTextFillColor:'transparent',backgroundClip:'text'},
+  btnC: {display:'inline-flex',alignItems:'center',justifyContent:'center',gap:8,padding:'13px 26px',borderRadius:12,background:'linear-gradient(135deg,#f5c418,#ff6316)',color:'#000',fontWeight:700,fontSize:14,border:'none',cursor:'pointer',transition:'all .22s',fontFamily:'Inter,sans-serif'},
+  btnM: {display:'inline-flex',alignItems:'center',justifyContent:'center',gap:8,padding:'13px 26px',borderRadius:12,background:'linear-gradient(135deg,#1fd97c,#0ea860)',color:'#fff',fontWeight:700,fontSize:14,border:'none',cursor:'pointer',transition:'all .22s',fontFamily:'Inter,sans-serif'},
+  btnGhost: {display:'inline-flex',alignItems:'center',justifyContent:'center',gap:8,padding:'11px 18px',borderRadius:11,background:'rgba(255,255,255,.05)',color:'rgba(255,255,255,.7)',fontWeight:600,fontSize:14,border:'1px solid var(--bdr2)',cursor:'pointer',transition:'all .2s',fontFamily:'Inter,sans-serif'},
+  btnDanger: {display:'inline-flex',alignItems:'center',justifyContent:'center',gap:8,padding:'11px 18px',borderRadius:11,background:'rgba(255,77,109,.1)',color:'#ff4d6d',fontWeight:600,fontSize:14,border:'1px solid rgba(255,77,109,.2)',cursor:'pointer',transition:'all .2s',fontFamily:'Inter,sans-serif'},
+  input: {background:'rgba(255,255,255,.05)',border:'1px solid var(--bdr2)',borderRadius:11,padding:'12px 15px',color:'#fff',fontSize:14,fontFamily:'Inter,sans-serif',transition:'all .2s',width:'100%'},
+  badge: c=>({display:'inline-flex',alignItems:'center',gap:4,padding:'3px 9px',borderRadius:999,fontSize:11,fontWeight:700,letterSpacing:.3,...({
+    yellow:{background:'rgba(245,196,24,.12)',color:'#f5c418',border:'1px solid rgba(245,196,24,.22)'},
+    green:{background:'rgba(31,217,124,.12)',color:'#1fd97c',border:'1px solid rgba(31,217,124,.22)'},
+    blue:{background:'rgba(99,102,241,.12)',color:'#a78bfa',border:'1px solid rgba(99,102,241,.22)'},
+    red:{background:'rgba(255,77,109,.12)',color:'#ff4d6d',border:'1px solid rgba(255,77,109,.22)'},
+    gray:{background:'rgba(255,255,255,.07)',color:'rgba(255,255,255,.5)',border:'1px solid var(--bdr)'},
+    cyan:{background:'rgba(0,207,255,.1)',color:'#00cfff',border:'1px solid rgba(0,207,255,.2)'},
+  }[c])}),
+};
+
+// ============================================================
+// TOAST SYSTEM
+// ============================================================
+function ToastContainer({toasts}){
+  return(
+    <div style={{position:'fixed',bottom:90,right:20,zIndex:9999,display:'flex',flexDirection:'column',gap:10,pointerEvents:'none'}}>
+      {toasts.map(t=>(
+        <div key={t.id} style={{
+          display:'flex',alignItems:'center',gap:10,padding:'12px 18px',
+          borderRadius:14,backdropFilter:'blur(20px)',WebkitBackdropFilter:'blur(20px)',
+          background:t.type==='success'?'rgba(31,217,124,.15)':t.type==='error'?'rgba(255,77,109,.15)':'rgba(255,255,255,.1)',
+          border:`1px solid ${t.type==='success'?'rgba(31,217,124,.3)':t.type==='error'?'rgba(255,77,109,.3)':'rgba(255,255,255,.15)'}`,
+          color:'#fff',fontSize:13,fontWeight:600,maxWidth:300,pointerEvents:'auto',
+          animation:'slideInR .35s cubic-bezier(.22,1,.36,1)',boxShadow:'0 8px 32px rgba(0,0,0,.4)',
+        }}>
+          <span style={{fontSize:18}}>{t.type==='success'?'✅':t.type==='error'?'❌':'ℹ️'}</span>
+          {t.msg}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function useToasts(){
+  const [toasts,setToasts]=useState([]);
+  const add=useCallback((msg,type='info')=>{
+    const id=Date.now();
+    setToasts(p=>[...p,{id,msg,type}]);
+    setTimeout(()=>setToasts(p=>p.filter(t=>t.id!==id)),3200);
+  },[]);
+  return{toasts,add};
+}
+
+// ============================================================
+// SHARED COMPONENTS
+// ============================================================
+const Orb=({x,y,size,color,anim,opacity=.28})=>(
+  <div style={{position:'absolute',left:x,top:y,width:size,height:size,borderRadius:'50%',background:color,filter:'blur(90px)',opacity,pointerEvents:'none',animation:anim}}/>
+);
+
+function Shimmer({w='100%',h=20,r=10}){
+  return(
+    <div style={{width:w,height:h,borderRadius:r,background:'linear-gradient(90deg,rgba(255,255,255,.04) 0%,rgba(255,255,255,.1) 50%,rgba(255,255,255,.04) 100%)',backgroundSize:'600px 100%',animation:'shimmer 1.4s ease infinite'}}/>
+  );
+}
+
+function CountUp({target,duration=1500,suffix='',prefix='',style={}}){
+  const [val,setVal]=useState(0);
+  const ref=useRef(null);
+  useEffect(()=>{
+    const start=Date.now();
+    const isFloat=String(target).includes('.');
+    const t=setInterval(()=>{
+      const elapsed=Date.now()-start;
+      const p=Math.min(elapsed/duration,1);
+      const ease=1-Math.pow(1-p,3);
+      setVal(isFloat?(ease*target).toFixed(1):Math.round(ease*target));
+      if(p>=1)clearInterval(t);
+    },16);
+    return()=>clearInterval(t);
+  },[target,duration]);
+  return <span style={style}>{prefix}{val}{suffix}</span>;
+}
+
+function RatingModal({onClose,onSubmit,merchantName}){
+  const [stars,setStars]=useState(0);
+  const [hov,setHov]=useState(0);
+  const [note,setNote]=useState('');
+  return(
+    <div style={{position:'fixed',inset:0,zIndex:9000,background:'rgba(0,0,0,.75)',display:'flex',alignItems:'flex-end',justifyContent:'center',animation:'fadeIn .25s ease'}} onClick={onClose}>
+      <div style={{...s.glassStrong,borderRadius:'28px 28px 0 0',padding:'32px 28px',width:'100%',maxWidth:480,animation:'slideUp .4s cubic-bezier(.22,1,.36,1)'}} onClick={e=>e.stopPropagation()}>
+        <div style={{width:44,height:4,background:'rgba(255,255,255,.15)',borderRadius:2,margin:'0 auto 28px'}}/>
+        <div style={{textAlign:'center',marginBottom:24}}>
+          <div style={{fontSize:52,marginBottom:10}}>🌟</div>
+          <h2 style={{fontFamily:'Syne,sans-serif',fontSize:22,fontWeight:800,marginBottom:6}}>How was your visit?</h2>
+          <p style={{color:'var(--t3)',fontSize:14}}>{merchantName}</p>
+        </div>
+        <div style={{display:'flex',justifyContent:'center',gap:10,marginBottom:24}}>
+          {[1,2,3,4,5].map(i=>(
+            <div key={i} style={{cursor:'pointer',transform:(hov||stars)>=i?'scale(1.2)':'scale(1)',transition:'all .18s'}} onClick={()=>setStars(i)} onMouseEnter={()=>setHov(i)} onMouseLeave={()=>setHov(0)}>
+              <svg width="40" height="40" viewBox="0 0 24 24" fill={(hov||stars)>=i?'#f5c418':'none'} stroke={(hov||stars)>=i?'#f5c418':'rgba(255,255,255,.2)'} strokeWidth="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+            </div>
+          ))}
+        </div>
+        <textarea value={note} onChange={e=>setNote(e.target.value)} placeholder="Share your experience (optional)..." style={{...s.input,resize:'none',height:80,marginBottom:16}} onFocus={e=>e.target.style.borderColor='rgba(245,196,24,.4)'} onBlur={e=>e.target.style.borderColor='var(--bdr2)'}/>
+        <div style={{display:'flex',gap:10}}>
+          <button style={{...s.btnGhost,flex:1,justifyContent:'center'}} onClick={onClose}>Skip</button>
+          <button style={{...s.btnC,flex:2,justifyContent:'center'}} onClick={()=>stars>0&&onSubmit(stars)}>Submit Review</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function FilterDrawer({onClose,onApply}){
+  const [maxWait,setMaxWait]=useState(30);
+  const [minRating,setMinRating]=useState(4);
+  const [openOnly,setOpenOnly]=useState(true);
+  return(
+    <div style={{position:'fixed',inset:0,zIndex:8000,background:'rgba(0,0,0,.7)',display:'flex',alignItems:'flex-end',animation:'fadeIn .2s ease'}} onClick={onClose}>
+      <div style={{...s.glassStrong,borderRadius:'24px 24px 0 0',padding:'28px 24px',width:'100%',maxWidth:480,margin:'0 auto',animation:'slideUp .35s cubic-bezier(.22,1,.36,1)'}} onClick={e=>e.stopPropagation()}>
+        <div style={{width:40,height:3,background:'rgba(255,255,255,.15)',borderRadius:2,margin:'0 auto 24px'}}/>
+        <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:24}}>
+          <h3 style={{fontFamily:'Syne,sans-serif',fontSize:20,fontWeight:800}}>Filter Queues</h3>
+          <button style={{background:'none',border:'none',color:'var(--t3)',cursor:'pointer'}} onClick={onClose}><Ic.X/></button>
+        </div>
+        <div style={{marginBottom:22}}>
+          <div style={{display:'flex',justifyContent:'space-between',marginBottom:12}}>
+            <span style={{fontWeight:600,fontSize:14}}>Max wait time</span>
+            <span style={{color:'#f5c418',fontWeight:700,fontFamily:'JetBrains Mono,monospace'}}>{maxWait} min</span>
+          </div>
+          <input type="range" min={5} max={60} value={maxWait} onChange={e=>setMaxWait(+e.target.value)} style={{width:'100%',accentColor:'#f5c418',height:4}}/>
+          <div style={{display:'flex',justifyContent:'space-between',fontSize:11,color:'var(--t3)',marginTop:6}}><span>5 min</span><span>60 min</span></div>
+        </div>
+        <div style={{marginBottom:22}}>
+          <div style={{fontWeight:600,fontSize:14,marginBottom:12}}>Minimum rating</div>
+          <div style={{display:'flex',gap:8}}>
+            {[3,3.5,4,4.5,5].map(r=>(
+              <button key={r} onClick={()=>setMinRating(r)} style={{flex:1,padding:'9px 0',borderRadius:10,border:`1px solid ${minRating===r?'rgba(245,196,24,.5)':'var(--bdr)'}`,background:minRating===r?'rgba(245,196,24,.12)':'rgba(255,255,255,.03)',color:minRating===r?'#f5c418':'var(--t2)',fontWeight:700,fontSize:13,cursor:'pointer',fontFamily:'Inter,sans-serif',transition:'all .2s'}}>
+                {r}★
+              </button>
+            ))}
+          </div>
+        </div>
+        <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:28,padding:'14px 16px',background:'rgba(255,255,255,.04)',borderRadius:12,border:'1px solid var(--bdr)'}}>
+          <span style={{fontWeight:600,fontSize:14}}>Open outlets only</span>
+          <div style={{position:'relative',width:44,height:24,cursor:'pointer'}} onClick={()=>setOpenOnly(!openOnly)}>
+            <div style={{width:'100%',height:'100%',borderRadius:12,background:openOnly?'rgba(31,217,124,.35)':'rgba(255,255,255,.1)',border:openOnly?'1px solid rgba(31,217,124,.5)':'1px solid var(--bdr)',transition:'all .3s'}}/>
+            <div style={{position:'absolute',top:2,left:openOnly?22:2,width:20,height:20,borderRadius:'50%',background:openOnly?'#1fd97c':'rgba(255,255,255,.5)',transition:'all .3s'}}/>
+          </div>
+        </div>
+        <button style={{...s.btnC,width:'100%',justifyContent:'center',padding:'14px'}} onClick={()=>onApply({maxWait,minRating,openOnly})}>Apply Filters</button>
+      </div>
+    </div>
+  );
+}
+
+// ============================================================
+// LANDING PAGE
+// ============================================================
+function Landing({onConsumer,onMerchant}){
+  const cats=['☕ Coffee','💊 Health','🥐 Bakery','🥬 Grocery','✂️ Salon','🏦 Finance','🍽️ Dining','💅 Beauty'];
+  const stats=[{n:50000,s:'K+',l:'Tokens daily'},{n:4.2,s:'min',l:'Avg wait saved'},{n:98,s:'%',l:'Notification accuracy'},{n:200,s:'+',l:'Partner merchants'}];
+
+  return(
+    <div style={{minHeight:'100vh',background:'var(--bg)',overflow:'hidden auto'}}>
+      <style>{CSS}</style>
+
+      {/* NAV */}
+      <nav style={{...s.glass,padding:'0 44px',height:70,display:'flex',alignItems:'center',justifyContent:'space-between',position:'sticky',top:0,zIndex:100}}>
+        <div style={{display:'flex',alignItems:'center',gap:10}}>
+          <div style={{width:34,height:34,borderRadius:10,...s.gradC,display:'flex',alignItems:'center',justifyContent:'center',fontSize:16}}>⏱</div>
+          <span style={{fontSize:22,fontWeight:900,letterSpacing:-1,fontFamily:'Syne,sans-serif'}}>spotly</span>
+        </div>
+        <div style={{display:'flex',gap:8}}>
+          <button style={{...s.btnGhost,padding:'9px 20px',fontSize:13}} onClick={onConsumer}>Consumer App</button>
+          <button style={{...s.btnM,padding:'9px 20px',fontSize:13}} onClick={onMerchant}>Merchant Portal</button>
+        </div>
+      </nav>
+
+      {/* HERO */}
+      <section style={{minHeight:'92vh',display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',position:'relative',padding:'80px 24px 60px',textAlign:'center',overflow:'hidden'}}>
+        <Orb x="-18%" y="-14%" size="62%" color="rgba(245,196,24,.22)" anim="orb1 13s ease-in-out infinite"/>
+        <Orb x="58%" y="15%" size="56%" color="rgba(255,99,22,.18)" anim="orb2 17s ease-in-out infinite"/>
+        <Orb x="18%" y="62%" size="42%" color="rgba(31,217,124,.1)" anim="orb1 10s ease-in-out infinite 3s"/>
+
+        {/* noise overlay */}
+        <div style={{position:'absolute',inset:0,backgroundImage:`url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.035'/%3E%3C/svg%3E")`,pointerEvents:'none',opacity:.6}}/>
+
+        <div className="au" style={{display:'inline-flex',alignItems:'center',gap:8,padding:'6px 16px',borderRadius:999,...s.glass,marginBottom:28,fontSize:11,fontWeight:700,color:'#f5c418',textTransform:'uppercase',letterSpacing:1.5}}>
+          <div style={{width:6,height:6,borderRadius:'50%',background:'#1fd97c',animation:'pulse 2s infinite'}}/>
+          Live in Bengaluru — 200+ merchants
+        </div>
+
+        <h1 className="au" style={{fontSize:'clamp(52px,7.5vw,104px)',fontWeight:900,letterSpacing:'-4px',lineHeight:.88,fontFamily:'Syne,sans-serif',marginBottom:28,maxWidth:980}}>
+          Skip the line.<br/><span style={s.gradCText}>Live your time.</span>
+        </h1>
+        <p className="au" style={{fontSize:'clamp(16px,2vw,20px)',color:'var(--t2)',maxWidth:520,lineHeight:1.7,marginBottom:52}}>
+          Join queues at cafés, clinics & shops from anywhere. Get real-time alerts. Arrive only when it's your turn.
+        </p>
+
+        <div className="au" style={{display:'flex',gap:12,flexWrap:'wrap',justifyContent:'center',marginBottom:72}}>
+          <button style={{...s.btnC,padding:'16px 40px',fontSize:16,borderRadius:14,gap:10}} onClick={onConsumer}
+            onMouseEnter={e=>{e.currentTarget.style.transform='translateY(-3px)';e.currentTarget.style.boxShadow='0 28px 60px rgba(245,196,24,.45)'}}
+            onMouseLeave={e=>{e.currentTarget.style.transform='';e.currentTarget.style.boxShadow=''}}>
+            Find Nearby <Ic.Arrow/>
+          </button>
+          <button style={{...s.btnGhost,padding:'16px 36px',fontSize:16,borderRadius:14}} onClick={onMerchant}
+            onMouseEnter={e=>e.currentTarget.style.borderColor='rgba(255,255,255,.3)'}
+            onMouseLeave={e=>e.currentTarget.style.borderColor='var(--bdr2)'}>
+            For Merchants <Ic.ChevR/>
+          </button>
+        </div>
+
+        {/* Floating cards */}
+        <div style={{display:'flex',gap:14,flexWrap:'wrap',justifyContent:'center',maxWidth:720,zIndex:1,position:'relative'}}>
+          {MERCHANTS.slice(0,4).map((m,i)=>(
+            <div key={m.id} className="af" style={{...s.glass,borderRadius:18,padding:'14px 18px',display:'flex',alignItems:'center',gap:12,width:200,animationDelay:`${i*1.4}s`,cursor:'pointer',transition:'all .3s'}}
+              onMouseEnter={e=>{e.currentTarget.style.transform='translateY(-8px) scale(1.04)';e.currentTarget.style.borderColor='rgba(245,196,24,.35)'}}
+              onMouseLeave={e=>{e.currentTarget.style.transform='';e.currentTarget.style.borderColor='var(--bdr)'}}>
+              <div style={{fontSize:30}}>{m.emoji}</div>
+              <div>
+                <div style={{fontWeight:700,fontSize:13,marginBottom:3}}>{m.name}</div>
+                <div style={{display:'flex',alignItems:'center',gap:6}}>
+                  <span style={{...s.badge('yellow'),fontSize:10,padding:'2px 7px'}}>⏱ {m.waitStr}</span>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* TICKER */}
+      <div style={{...s.glass,padding:'16px 0',overflow:'hidden'}}>
+        <div style={{display:'inline-flex',animation:'ticker 24s linear infinite',gap:56,whiteSpace:'nowrap'}}>
+          {[...cats,...cats].map((c,i)=>(
+            <span key={i} style={{fontSize:13,fontWeight:600,color:'var(--t3)',display:'flex',alignItems:'center',gap:8}}>
+              {c}<span style={{color:'rgba(255,255,255,.12)'}}>◆</span>
+            </span>
+          ))}
+        </div>
+      </div>
+
+      {/* STATS */}
+      <section style={{...s.glassStrong,borderRadius:24,maxWidth:920,margin:'80px auto',padding:'56px 48px'}}>
+        <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:40,textAlign:'center'}}>
+          {stats.map((st,i)=>(
+            <div key={i}>
+              <div style={{fontFamily:'Syne,sans-serif',fontSize:52,fontWeight:900,...s.gradCText,marginBottom:6,lineHeight:1}}>
+                {st.n === 4.2 ? '4.2' : `${st.n/1000 > 1 ? '50' : st.n}`}{st.s}
+              </div>
+              <div style={{color:'var(--t3)',fontSize:13,fontWeight:500}}>{st.l}</div>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* FEATURES */}
+      <section style={{padding:'40px 44px 100px',maxWidth:1100,margin:'0 auto'}}>
+        <div style={{textAlign:'center',marginBottom:56}}>
+          <div style={{...s.badge('green'),marginBottom:14,padding:'5px 14px',display:'inline-flex'}}>How it works</div>
+          <h2 style={{fontFamily:'Syne,sans-serif',fontSize:52,fontWeight:900,letterSpacing:-2}}>Queue smarter,<br/><span style={s.gradCText}>not harder</span></h2>
+        </div>
+        <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(290px,1fr))',gap:20}}>
+          {[
+            {icon:<Ic.Search/>,color:'#f5c418',title:'Discover nearby',desc:'Browse merchants with live queue counts. Filter by wait time, category, or rating.'},
+            {icon:<Ic.Zap/>,color:'#1fd97c',title:'Join instantly',desc:'One tap to join any queue remotely. No paper tokens. Your phone is your ticket.'},
+            {icon:<Ic.Bell/>,color:'#a78bfa',title:'Arrive on time',desc:'Get alerts when you\'re next. Real-time position updates so you never miss your turn.'},
+          ].map((f,i)=>(
+            <div key={i} style={{...s.card,padding:34,cursor:'default'}}
+              onMouseEnter={e=>{e.currentTarget.style.transform='translateY(-8px)';e.currentTarget.style.borderColor=f.color+'44';e.currentTarget.style.boxShadow=`0 32px 80px rgba(0,0,0,.5),0 0 40px ${f.color}18`}}
+              onMouseLeave={e=>{e.currentTarget.style.transform='';e.currentTarget.style.borderColor='var(--bdr)';e.currentTarget.style.boxShadow=''}}>
+              <div style={{width:52,height:52,borderRadius:14,background:`${f.color}18`,border:`1px solid ${f.color}30`,display:'flex',alignItems:'center',justifyContent:'center',color:f.color,marginBottom:22}}>
+                {f.icon}
+              </div>
+              <h3 style={{fontFamily:'Syne,sans-serif',fontSize:21,fontWeight:800,marginBottom:10}}>{f.title}</h3>
+              <p style={{color:'var(--t2)',lineHeight:1.7,fontSize:15}}>{f.desc}</p>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* MERCHANT CTA */}
+      <section style={{padding:'0 44px 100px',maxWidth:900,margin:'0 auto'}}>
+        <div style={{...s.card,padding:'60px',background:'linear-gradient(135deg,rgba(31,217,124,.07),rgba(14,168,96,.03))',borderColor:'rgba(31,217,124,.18)',textAlign:'center'}}>
+          <div style={{...s.badge('green'),marginBottom:14,padding:'5px 14px',display:'inline-flex'}}>For Business Owners</div>
+          <h2 style={{fontFamily:'Syne,sans-serif',fontSize:44,fontWeight:900,letterSpacing:-2,marginBottom:14}}>
+            Transform your <span style={s.gradMText}>queue experience</span>
+          </h2>
+          <p style={{color:'var(--t2)',fontSize:16,lineHeight:1.7,maxWidth:520,margin:'0 auto 36px'}}>
+            Replace chaotic lines with digital queues. Manage outlets, track stats, and delight customers — from one dashboard.
+          </p>
+          <button style={{...s.btnM,padding:'15px 40px',fontSize:16,borderRadius:14}} onClick={onMerchant}
+            onMouseEnter={e=>{e.currentTarget.style.transform='translateY(-3px)';e.currentTarget.style.boxShadow='0 24px 60px rgba(31,217,124,.35)'}}
+            onMouseLeave={e=>{e.currentTarget.style.transform='';e.currentTarget.style.boxShadow=''}}>
+            Open Merchant Portal <Ic.Arrow/>
+          </button>
+        </div>
+      </section>
+
+      {/* FOOTER */}
+      <footer style={{padding:'36px 44px',borderTop:'1px solid var(--bdr)',display:'flex',alignItems:'center',justifyContent:'space-between',color:'var(--t3)',fontSize:13,flexWrap:'wrap',gap:12}}>
+        <div style={{display:'flex',alignItems:'center',gap:10}}>
+          <div style={{width:26,height:26,borderRadius:8,...s.gradC,display:'flex',alignItems:'center',justifyContent:'center',fontSize:13}}>⏱</div>
+          <span style={{fontFamily:'Syne,sans-serif',fontWeight:800,color:'var(--t2)'}}>spotly</span>
+        </div>
+        <p>© 2026 Spotly Technologies · Bengaluru, India</p>
+        <div style={{display:'flex',gap:20,fontSize:12}}>
+          {['Privacy','Terms','Support'].map(l=><span key={l} style={{cursor:'pointer',transition:'color .2s'}} onMouseEnter={e=>e.target.style.color='#fff'} onMouseLeave={e=>e.target.style.color='var(--t3)'}>{l}</span>)}
+        </div>
+      </footer>
+    </div>
+  );
+}
+
+// ============================================================
+// CONSUMER APP
+// ============================================================
+
+function ConsumerApp({onBack,addToast}){
+  const [page,setPage]=useState('home');
+  const [selectedMerchant,setSelectedMerchant]=useState(null);
+  const [activeCat,setActiveCat]=useState('all');
+  const [search,setSearch]=useState('');
+  const [inQueue,setInQueue]=useState(false);
+  const [myToken,setMyToken]=useState(null);
+  const [showAuth,setShowAuth]=useState(true);
+  const [favorites,setFavorites]=useState(new Set(['1','3']));
+  const [showFilter,setShowFilter]=useState(false);
+  const [filters,setFilters]=useState({maxWait:60,minRating:0,openOnly:false});
+  const [showNotif,setShowNotif]=useState(false);
+  const [notifCount]=useState(3);
+  const [showRating,setShowRating]=useState(false);
+
+  const navItems = [
+    {id:'home',icon:<Ic.Home/>,label:'Home'},
+    {id:'explore',icon:<Ic.Map/>,label:'Explore'},
+    {id:'queue',icon:<Ic.Clock/>,label:'Queue'},
+    {id:'favorites',icon:<Ic.Heart f={false} />,label:'Saved'},
+    {id:'profile',icon:<Ic.User/>,label:'Profile'},
+  ];
+
+  const goToPage = (next)=>{
+    if(next==='queue' && !myToken){
+      addToast('Join a queue first to view your live token.','info');
+      setPage('home');
+      return;
+    }
+    setPage(next);
+    if(next !== 'queue') setShowNotif(false);
+  };
+
+  if(showAuth) return <ConsumerAuth onDone={()=>setShowAuth(false)} onBack={onBack} addToast={addToast}/>;
+
+  const toggleFav=(id)=>{
+    setFavorites(prev=>{
+      const n=new Set(prev);
+      if(n.has(id)){n.delete(id);addToast('Removed from favorites','info');}
+      else{n.add(id);addToast('Added to favorites ❤️','success');}
+      return n;
+    });
+  };
+
+  const filtered=MERCHANTS.filter(m=>{
+    const catMatch=activeCat==='all'||m.cat===activeCat;
+    const searchMatch=!search||m.name.toLowerCase().includes(search.toLowerCase())||m.cat.toLowerCase().includes(search.toLowerCase());
+    const waitMatch=m.wait<=filters.maxWait;
+    const ratingMatch=m.rating>=filters.minRating;
+    return catMatch&&searchMatch&&waitMatch&&ratingMatch;
+  });
+
+  const flashQueues=MERCHANTS.filter(m=>m.wait<=5);
+
+  return(
+    <div className="consumer-shell">
+      <style>{CSS}</style>
+
+      <aside className="consumer-sidebar">
+        <div className="consumer-brand">
+          <div style={{width:34,height:34,borderRadius:10,...s.gradC,display:'flex',alignItems:'center',justifyContent:'center',fontSize:16}}>⏱</div>
+          <div>
+            <h2>spotly</h2>
+            <div style={{fontSize:10,color:'var(--t4)',fontWeight:700,letterSpacing:.5}}>CONSUMER DASHBOARD</div>
+          </div>
+        </div>
+
+        <nav className="consumer-nav">
+          {navItems.map(n=>(
+            <button
+              key={n.id}
+              data-active={page===n.id}
+              onClick={()=>goToPage(n.id)}
+              title={n.label}
+            >
+              <span style={{display:'inline-flex',alignItems:'center',justifyContent:'center'}}>{n.icon}</span>
+              <span style={{flex:1}}>{n.label}</span>
+              {n.id==='queue' && inQueue && <span style={{width:8,height:8,borderRadius:'50%',background:'#1fd97c',boxShadow:'0 0 0 4px rgba(31,217,124,.12)'}}/>}
+            </button>
+          ))}
+        </nav>
+
+        <div className="consumer-sidebar-card">
+          <div style={{display:'flex',alignItems:'center',gap:10,marginBottom:12}}>
+            <div style={{width:36,height:36,borderRadius:'50%',...s.gradC,display:'flex',alignItems:'center',justifyContent:'center',fontSize:14,fontWeight:800,color:'#000'}}>A</div>
+            <div style={{minWidth:0}}>
+              <div style={{fontWeight:800,fontSize:13,color:'#fff'}}>Arjun Sharma</div>
+              <div style={{fontSize:11,color:'var(--t3)'}}>Indiranagar, Bengaluru</div>
+            </div>
+          </div>
+          <div style={{display:'flex',gap:8,flexWrap:'wrap'}}>
+            <span style={s.badge('green')}>Verified</span>
+            <span style={s.badge('yellow')}>Live alerts</span>
+          </div>
+        </div>
+      </aside>
+
+      <div className="consumer-main">
+        <div className="consumer-topbar">
+          <button onClick={onBack} style={{background:'none',border:'none',color:'var(--t3)',cursor:'pointer',fontSize:12,display:'flex',alignItems:'center',gap:5,fontFamily:'Inter,sans-serif'}}>
+            <Ic.ChevL/> Back
+          </button>
+
+          <div className="brand">
+            <div style={{width:28,height:28,borderRadius:8,...s.gradC,display:'flex',alignItems:'center',justifyContent:'center',fontSize:14}}>⏱</div>
+            <span style={{fontWeight:900,letterSpacing:-0.5,fontFamily:'Syne,sans-serif',fontSize:17}}>spotly</span>
+          </div>
+
+          <div style={{display:'flex',alignItems:'center',gap:8}}>
+            <div style={{position:'relative',cursor:'pointer'}} onClick={()=>setShowNotif(!showNotif)}>
+              <div style={{width:36,height:36,borderRadius:10,background:'rgba(255,255,255,.06)',border:'1px solid var(--bdr)',display:'flex',alignItems:'center',justifyContent:'center',color:'var(--t2)'}}>
+                <Ic.Bell/>
+              </div>
+              {notifCount>0&&<div style={{position:'absolute',top:-4,right:-4,width:18,height:18,borderRadius:'50%',background:'var(--red)',fontSize:9,fontWeight:800,display:'flex',alignItems:'center',justifyContent:'center',border:'2px solid var(--bg)'}}>{notifCount}</div>}
+            </div>
+            <div style={{width:34,height:34,borderRadius:'50%',...s.gradC,display:'flex',alignItems:'center',justifyContent:'center',cursor:'pointer',fontSize:13,fontWeight:800,color:'#000'}}>A</div>
+          </div>
+        </div>
+
+        {showNotif&&(
+          <div style={{position:'absolute',top:72,right:16,width:300,zIndex:200,animation:'slideDown .25s ease'}}>
+            <div style={{...s.glassStrong,borderRadius:16,overflow:'hidden'}}>
+              <div style={{padding:'14px 16px 10px',borderBottom:'1px solid var(--bdr)',display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+                <span style={{fontWeight:700,fontSize:14}}>Notifications</span>
+                <button style={{background:'none',border:'none',color:'var(--t3)',cursor:'pointer',fontSize:11}} onClick={()=>setShowNotif(false)}>Clear all</button>
+              </div>
+              {[
+                {icon:'🔔',text:'Your token #43 is coming up soon!',time:'2m ago',c:'yellow'},
+                {icon:'✅',text:'Artisan Bakehouse confirmed your spot',time:'8m ago',c:'green'},
+                {icon:'⚡',text:'Coffee Lab has 0 queue — join now!',time:'15m ago',c:'yellow'},
+              ].map((n,i)=>(
+                <div key={i} style={{padding:'12px 16px',borderBottom:'1px solid var(--bdr)',display:'flex',gap:10,cursor:'pointer',transition:'all .2s'}} onMouseEnter={e=>e.currentTarget.style.background='rgba(255,255,255,.04)'} onMouseLeave={e=>e.currentTarget.style.background='transparent'}>
+                  <span style={{fontSize:20,flexShrink:0}}>{n.icon}</span>
+                  <div>
+                    <p style={{fontSize:13,lineHeight:1.45,marginBottom:3}}>{n.text}</p>
+                    <span style={{fontSize:11,color:'var(--t3)'}}>{n.time}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        <div className="consumer-content" onClick={()=>showNotif&&setShowNotif(false)}>
+          {page==='home'&&<ConsumerHome search={search} setSearch={setSearch} activeCat={activeCat} setActiveCat={setActiveCat} filtered={filtered} flashQueues={flashQueues} onMerchant={m=>{setSelectedMerchant(m);setPage('merchant')}} favorites={favorites} toggleFav={toggleFav} setShowFilter={setShowFilter} addToast={addToast}/>}
+          {page==='explore'&&<ConsumerExplore merchants={MERCHANTS} onMerchant={m=>{setSelectedMerchant(m);setPage('merchant')}} favorites={favorites} toggleFav={toggleFav}/>}
+          {page==='merchant'&&selectedMerchant&&<ConsumerMerchantDetail merchant={selectedMerchant} onJoin={()=>{setMyToken({token:43,outlet:selectedMerchant.name,merchant:selectedMerchant});setInQueue(true);setPage('queue');addToast(`Joined queue at ${selectedMerchant.name}! 🎉`,'success')}} onBack={()=>setPage('home')} favorites={favorites} toggleFav={toggleFav}/>}
+          {page==='queue'&&(myToken
+            ? <ConsumerQueue entry={myToken} onLeave={()=>{setInQueue(false);setMyToken(null);setPage('home');addToast('Left the queue','info')}} onServed={()=>setShowRating(true)} addToast={addToast}/>
+            : <div style={{padding:'28px 18px 96px',maxWidth:760,margin:'0 auto'}}>
+                <div style={{...s.card,padding:'28px',textAlign:'center'}}>
+                  <div style={{fontSize:54,marginBottom:12}}>⏳</div>
+                  <h2 style={{fontFamily:'Syne,sans-serif',fontSize:24,fontWeight:900,marginBottom:8}}>No active queue</h2>
+                  <p style={{color:'var(--t3)',fontSize:14,lineHeight:1.6,marginBottom:20}}>Join a merchant from Home or Explore to see your live position, ETA, and alerts here.</p>
+                  <button style={{...s.btnC,padding:'14px 24px'}} onClick={()=>goToPage('home')}>Find a queue</button>
+                </div>
+              </div>
+          )}
+          {page==='favorites'&&<ConsumerFavorites merchants={MERCHANTS} favorites={favorites} toggleFav={toggleFav} onMerchant={m=>{setSelectedMerchant(m);setPage('merchant')}}/>}
+          {page==='profile'&&<ConsumerProfile addToast={addToast}/>}
+        </div>
+
+        {showRating&&<RatingModal onClose={()=>{setShowRating(false);setInQueue(false);setMyToken(null);setPage('home')}} onSubmit={(stars)=>{setShowRating(false);setInQueue(false);setMyToken(null);setPage('home');addToast(`Thanks for ${stars}★ review! 🙏`,'success')}} merchantName={myToken?.outlet||''}/>}
+
+        {showFilter&&<FilterDrawer onClose={()=>setShowFilter(false)} onApply={f=>{setFilters(f);setShowFilter(false);addToast('Filters applied','success')}}/>}
+
+        <div className="consumer-mobile-nav" style={{...s.glass,height:72,alignItems:'center',justifyContent:'space-around',flexShrink:0,padding:'0 6px',zIndex:50,borderTop:'1px solid var(--bdr)',position:'absolute',bottom:0,left:0,right:0}}>
+          {navItems.map(n=>(
+            <button key={n.id} onClick={()=>goToPage(n.id)} style={{background:'none',border:'none',cursor:'pointer',display:'flex',flexDirection:'column',alignItems:'center',gap:3,padding:'8px 14px',borderRadius:12,transition:'all .2s',color:page===n.id?'#f5c418':'rgba(255,255,255,.32)',fontFamily:'Inter,sans-serif',fontSize:9,fontWeight:700,textTransform:'uppercase',letterSpacing:.6}}>
+              <div style={{position:'relative'}}>
+                <div style={{transition:'transform .2s',transform:page===n.id?'scale(1.2)':'scale(1)'}}>{n.icon}</div>
+                {n.id==='queue'&&inQueue&&<div style={{position:'absolute',top:-4,right:-4,width:8,height:8,borderRadius:'50%',background:'#1fd97c',animation:'pulse 2s infinite'}}/>}
+              </div>
+              {n.label}
+            </button>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+
+function ConsumerAuth({onDone,onBack,addToast}){
+  const [step,setStep]=useState('welcome');
+  const [phone,setPhone]=useState('');
+  const [otp,setOtp]=useState(['','','','','','']);
+  const [name,setName]=useState('');
+  const [location,setLocation]=useState('');
+  const [loading,setLoading]=useState(false);
+  const otpRefs=useRef([]);
+
+  const handleOtpChange=(i,val)=>{
+    if(!/^\d?$/.test(val)) return;
+    const n=[...otp]; n[i]=val; setOtp(n);
+    if(val&&i<5) otpRefs.current[i+1]?.focus();
+  };
+
+  const handleNext=()=>{
+    if(step==='welcome') setStep('phone');
+    else if(step==='phone'){setLoading(true);setTimeout(()=>{setLoading(false);setStep('otp');addToast('OTP sent to +91 '+phone,'success')},1000);}
+    else if(step==='otp'){setLoading(true);setTimeout(()=>{setLoading(false);setStep('profile')},900);}
+    else if(step==='profile') onDone();
+  };
+
+  return(
+    <div style={{minHeight:'100vh',background:'var(--bg)',display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',padding:24,position:'relative',overflow:'hidden'}}>
+      <style>{CSS}</style>
+      <Orb x="-20%" y="-20%" size="60%" color="rgba(245,196,24,.18)" anim="orb1 11s ease-in-out infinite"/>
+      <Orb x="55%" y="55%" size="52%" color="rgba(255,99,22,.12)" anim="orb2 14s ease-in-out infinite"/>
+      <button onClick={onBack} style={{position:'absolute',top:24,left:24,background:'none',border:'none',color:'var(--t3)',cursor:'pointer',fontSize:13,fontFamily:'Inter,sans-serif',display:'flex',alignItems:'center',gap:4}}><Ic.ChevL/>Back</button>
+
+      {/* STEP DOTS */}
+      {step!=='welcome'&&(
+        <div style={{position:'absolute',top:24,left:'50%',transform:'translateX(-50%)',display:'flex',gap:6}}>
+          {['phone','otp','profile'].map((s,i)=>{
+            const idx=['phone','otp','profile'].indexOf(step);
+            return <div key={s} style={{width:idx>=i?24:6,height:6,borderRadius:3,background:idx>=i?'#f5c418':'rgba(255,255,255,.15)',transition:'all .3s'}}/>;
+          })}
+        </div>
+      )}
+
+      <div style={{...s.glassStrong,borderRadius:24,padding:40,width:'100%',maxWidth:420,position:'relative',zIndex:1}}>
+        {step==='welcome'&&(
+          <div className="as">
+            <div style={{textAlign:'center',marginBottom:32}}>
+              <div style={{fontSize:56,marginBottom:14}}>👋</div>
+              <h2 style={{fontFamily:'Syne,sans-serif',fontSize:26,fontWeight:900,marginBottom:8}}>Welcome to Spotly</h2>
+              <p style={{color:'var(--t2)',fontSize:15,lineHeight:1.6}}>Skip lines. Join queues remotely. Save your time.</p>
+            </div>
+            <div style={{display:'flex',flexDirection:'column',gap:10}}>
+              <button style={{...s.btnC,width:'100%',padding:'15px',fontSize:15,borderRadius:14,justifyContent:'center'}} onClick={handleNext}>Get Started →</button>
+              <button style={{...s.btnGhost,width:'100%',padding:'14px',fontSize:13,borderRadius:13,justifyContent:'center',gap:10}} onClick={handleNext}>
+                <span style={{fontSize:17,fontWeight:800}}>G</span>Continue with Google
+              </button>
+            </div>
+            <div style={{...s.card,marginTop:20,padding:'16px',background:'rgba(245,196,24,.05)',borderColor:'rgba(245,196,24,.15)'}}>
+              {['No waiting in line','Real-time alerts','Join 50K+ users'].map(f=>(
+                <div key={f} style={{display:'flex',alignItems:'center',gap:8,marginBottom:6,fontSize:13,color:'var(--t2)'}}>
+                  <span style={{color:'#1fd97c'}}>✓</span>{f}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {step==='phone'&&(
+          <div className="as">
+            <h2 style={{fontFamily:'Syne,sans-serif',fontSize:24,fontWeight:900,marginBottom:6}}>Your phone number</h2>
+            <p style={{color:'var(--t3)',fontSize:14,marginBottom:28}}>We'll send a 6-digit OTP to verify</p>
+            <label style={{fontSize:11,fontWeight:700,color:'var(--t3)',textTransform:'uppercase',letterSpacing:.8,display:'block',marginBottom:8}}>Mobile Number</label>
+            <div style={{display:'flex',gap:8,marginBottom:20}}>
+              <div style={{...s.input,width:64,flexShrink:0,textAlign:'center',fontSize:14,fontWeight:600}}>+91</div>
+              <input style={s.input} placeholder="98765 43210" value={phone} onChange={e=>setPhone(e.target.value)} onFocus={e=>e.target.style.borderColor='rgba(245,196,24,.4)'} onBlur={e=>e.target.style.borderColor='var(--bdr2)'}/>
+            </div>
+            <button style={{...s.btnC,width:'100%',padding:'14px',borderRadius:13,justifyContent:'center'}} onClick={handleNext}>
+              {loading?<div style={{width:18,height:18,border:'2px solid rgba(0,0,0,.3)',borderTop:'2px solid #000',borderRadius:'50%',animation:'spin .7s linear infinite'}}/>:'Send OTP →'}
+            </button>
+          </div>
+        )}
+
+        {step==='otp'&&(
+          <div className="as">
+            <h2 style={{fontFamily:'Syne,sans-serif',fontSize:24,fontWeight:900,marginBottom:6}}>Enter OTP</h2>
+            <p style={{color:'var(--t3)',fontSize:14,marginBottom:28}}>Sent to +91 {phone||'XXXXXXXXXX'}</p>
+            <div style={{display:'flex',gap:8,marginBottom:24,justifyContent:'center'}}>
+              {otp.map((d,i)=>(
+                <input key={i} ref={r=>otpRefs.current[i]=r} value={d} maxLength={1} onChange={e=>handleOtpChange(i,e.target.value)} onKeyDown={e=>{if(e.key==='Backspace'&&!d&&i>0)otpRefs.current[i-1]?.focus()}} style={{...s.input,width:46,height:52,textAlign:'center',fontSize:22,fontWeight:800,fontFamily:'JetBrains Mono,monospace',padding:'0'}} onFocus={e=>e.target.style.borderColor='rgba(245,196,24,.5)'} onBlur={e=>e.target.style.borderColor='var(--bdr2)'}/>
+              ))}
+            </div>
+            <button style={{...s.btnC,width:'100%',padding:'14px',borderRadius:13,justifyContent:'center'}} onClick={handleNext}>
+              {loading?<div style={{width:18,height:18,border:'2px solid rgba(0,0,0,.3)',borderTop:'2px solid #000',borderRadius:'50%',animation:'spin .7s linear infinite'}}/>:'Verify & Continue →'}
+            </button>
+            <p style={{textAlign:'center',marginTop:14,color:'var(--t3)',fontSize:13}}>Didn't receive? <span style={{color:'#f5c418',cursor:'pointer',fontWeight:600}}>Resend in 28s</span></p>
+          </div>
+        )}
+
+        {step==='profile'&&(
+          <div className="as">
+            <h2 style={{fontFamily:'Syne,sans-serif',fontSize:24,fontWeight:900,marginBottom:6}}>Complete your profile</h2>
+            <p style={{color:'var(--t3)',fontSize:14,marginBottom:28}}>Just two quick fields</p>
+            {[{label:'Full Name',placeholder:'Arjun Sharma',val:name,set:setName},{label:'Your Locality',placeholder:'Indiranagar, Bengaluru',val:location,set:setLocation}].map(f=>(
+              <div key={f.label} style={{marginBottom:16}}>
+                <label style={{fontSize:11,fontWeight:700,color:'var(--t3)',textTransform:'uppercase',letterSpacing:.8,display:'block',marginBottom:8}}>{f.label}</label>
+                <input style={s.input} placeholder={f.placeholder} value={f.val} onChange={e=>f.set(e.target.value)} onFocus={e=>e.target.style.borderColor='rgba(245,196,24,.4)'} onBlur={e=>e.target.style.borderColor='var(--bdr2)'}/>
+              </div>
+            ))}
+            <button style={{...s.btnC,width:'100%',padding:'14px',borderRadius:13,marginTop:8,justifyContent:'center'}} onClick={handleNext}>
+              Explore My City 🗺️
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ============================================================
+// CONSUMER HOME
+// ============================================================
+function ConsumerHome({search,setSearch,activeCat,setActiveCat,filtered,flashQueues,onMerchant,favorites,toggleFav,setShowFilter,addToast}){
+  const [searchFocus,setSearchFocus]=useState(false);
+  const [offerIdx,setOfferIdx]=useState(0);
+  const searchRef=useRef(null);
+
+  // Auto-advance offer carousel
+  useEffect(()=>{
+    const t=setInterval(()=>setOfferIdx(i=>(i+1)%OFFERS.length),3500);
+    return()=>clearInterval(t);
+  },[]);
+
+  const suggestions=MERCHANTS.filter(m=>search&&m.name.toLowerCase().includes(search.toLowerCase())).slice(0,4);
+
+  return(
+    <div style={{padding:'20px 18px 0'}}>
+      {/* GREETING */}
+      <div style={{marginBottom:20}}>
+        <h1 style={{fontFamily:'Syne,sans-serif',fontSize:24,fontWeight:900,marginBottom:3}}>
+          Hey Arjun 👋
+        </h1>
+        <div style={{display:'flex',alignItems:'center',gap:6,color:'var(--t3)',fontSize:13}}>
+          <Ic.MapPin/><span>Indiranagar, Bengaluru</span>
+          <span style={{...s.badge('green'),fontSize:10,padding:'2px 7px'}}>● Live</span>
+        </div>
+      </div>
+
+      {/* SEARCH */}
+      <div style={{position:'relative',marginBottom:16}}>
+        <div style={{position:'absolute',left:13,top:'50%',transform:'translateY(-50%)',color:'var(--t3)',pointerEvents:'none'}}><Ic.Search/></div>
+        <input ref={searchRef} style={{...s.input,paddingLeft:40,paddingRight:80,borderColor:searchFocus?'rgba(245,196,24,.4)':'var(--bdr2)'}} placeholder="Search shops, clinics, cafés..." value={search} onChange={e=>setSearch(e.target.value)} onFocus={()=>setSearchFocus(true)} onBlur={()=>setTimeout(()=>setSearchFocus(false),150)}/>
+        <div style={{position:'absolute',right:8,top:'50%',transform:'translateY(-50%)',display:'flex',gap:6}}>
+          {search&&<button style={{background:'none',border:'none',cursor:'pointer',color:'var(--t3)',padding:4}} onClick={()=>setSearch('')}><Ic.X/></button>}
+          <button style={{...s.btnGhost,padding:'6px 10px',fontSize:11,gap:4,height:30}} onClick={()=>setShowFilter(true)}><Ic.Filter/>Filter</button>
+        </div>
+
+        {/* SEARCH DROPDOWN */}
+        {searchFocus&&suggestions.length>0&&(
+          <div style={{position:'absolute',top:'calc(100% + 6px)',left:0,right:0,zIndex:100,animation:'slideDown .2s ease'}}>
+            <div style={{...s.glassStrong,borderRadius:14,overflow:'hidden'}}>
+              {suggestions.map(m=>(
+                <div key={m.id} style={{display:'flex',alignItems:'center',gap:12,padding:'11px 14px',cursor:'pointer',transition:'all .15s',borderBottom:'1px solid var(--bdr)'}} onMouseDown={()=>onMerchant(m)} onMouseEnter={e=>e.currentTarget.style.background='rgba(255,255,255,.05)'} onMouseLeave={e=>e.currentTarget.style.background='transparent'}>
+                  <span style={{fontSize:22}}>{m.emoji}</span>
+                  <div style={{flex:1}}>
+                    <div style={{fontWeight:700,fontSize:14}}>{m.name}</div>
+                    <div style={{fontSize:12,color:'var(--t3)'}}>{m.cat} · {m.area}</div>
+                  </div>
+                  <span style={{...s.badge('yellow'),fontSize:10}}>⏱ {m.waitStr}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* OFFER CAROUSEL */}
+      {!search&&(
+        <div style={{marginBottom:20}}>
+          <div style={{position:'relative',overflow:'hidden',borderRadius:16}}>
+            <div style={{display:'flex',transition:'transform .5s cubic-bezier(.25,.46,.45,.94)',transform:`translateX(-${offerIdx*100}%)`}}>
+              {OFFERS.map(o=>(
+                <div key={o.id} style={{minWidth:'100%',padding:'18px 20px',background:o.bg,border:`1px solid ${o.color}30`,borderRadius:16,display:'flex',alignItems:'center',gap:14,cursor:'pointer'}}>
+                  <div style={{fontSize:36}}>{o.emoji}</div>
+                  <div style={{flex:1}}>
+                    <div style={{fontFamily:'Syne,sans-serif',fontWeight:800,fontSize:17,marginBottom:3,color:o.color}}>{o.title}</div>
+                    <div style={{fontSize:13,color:'var(--t2)',lineHeight:1.4}}>{o.sub}</div>
+                  </div>
+                  <Ic.Arrow/>
+                </div>
+              ))}
+            </div>
+            <div style={{display:'flex',justifyContent:'center',gap:5,marginTop:10}}>
+              {OFFERS.map((_,i)=>(
+                <div key={i} style={{width:i===offerIdx?18:5,height:5,borderRadius:3,background:i===offerIdx?'#f5c418':'rgba(255,255,255,.2)',transition:'all .3s',cursor:'pointer'}} onClick={()=>setOfferIdx(i)}/>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* CATEGORIES */}
+      <div style={{display:'flex',gap:8,overflowX:'auto',paddingBottom:4,scrollbarWidth:'none',marginBottom:20}}>
+        {CATEGORIES.map(c=>(
+          <button key={c.id} onClick={()=>setActiveCat(c.id)} style={{whiteSpace:'nowrap',display:'flex',alignItems:'center',gap:6,padding:'8px 16px',borderRadius:999,border:'1px solid rgba(255,255,255,.1)',background:activeCat===c.id?'linear-gradient(135deg,#f5c418,#ff6316)':'rgba(255,255,255,.04)',color:activeCat===c.id?'#000':'rgba(255,255,255,.6)',fontWeight:700,fontSize:13,cursor:'pointer',transition:'all .2s',fontFamily:'Inter,sans-serif',boxShadow:activeCat===c.id?'0 6px 20px rgba(245,196,24,.3)':'none',flexShrink:0}}>
+            <span style={{fontSize:14}}>{c.icon}</span>{c.label}
+          </button>
+        ))}
+      </div>
+
+      {/* FLASH QUEUES */}
+      {!search&&flashQueues.length>0&&activeCat==='all'&&(
+        <div style={{marginBottom:22}}>
+          <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:12}}>
+            <Ic.Zap/>
+            <h2 style={{fontFamily:'Syne,sans-serif',fontWeight:800,fontSize:16}}>Flash Queues</h2>
+            <span style={{...s.badge('yellow'),fontSize:10}}>Join now — under 5 min!</span>
+          </div>
+          <div style={{display:'flex',gap:10,overflowX:'auto',scrollbarWidth:'none'}}>
+            {flashQueues.map(m=>(
+              <div key={m.id} style={{minWidth:170,background:`linear-gradient(135deg,${m.color}18,${m.color}08)`,border:`1px solid ${m.color}30`,borderRadius:14,padding:'14px',cursor:'pointer',transition:'all .28s',flexShrink:0}}
+                onClick={()=>onMerchant(m)}
+                onMouseEnter={e=>{e.currentTarget.style.transform='translateY(-4px)';e.currentTarget.style.boxShadow=`0 16px 40px ${m.color}22`}}
+                onMouseLeave={e=>{e.currentTarget.style.transform='';e.currentTarget.style.boxShadow=''}}>
+                <div style={{fontSize:28,marginBottom:6}}>{m.emoji}</div>
+                <div style={{fontWeight:700,fontSize:14,marginBottom:4,lineHeight:1.3}}>{m.name}</div>
+                <div style={{display:'flex',alignItems:'center',gap:4}}>
+                  <div style={{width:6,height:6,borderRadius:'50%',background:'#1fd97c',animation:'pulse 2s infinite'}}/>
+                  <span style={{fontFamily:'JetBrains Mono,monospace',fontWeight:800,fontSize:14,color:'#1fd97c'}}>{m.waitStr}</span>
+                </div>
+                <div style={{fontSize:11,color:'var(--t3)',marginTop:3}}>{m.queue} ahead · {m.dist}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* MERCHANT GRID */}
+      <div style={{marginBottom:8}}>
+        <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:14}}>
+          <h2 style={{fontFamily:'Syne,sans-serif',fontWeight:800,fontSize:16}}>
+            {search?`Results for "${search}"`:'Near You'}
+          </h2>
+          <span style={{fontSize:12,color:'var(--t3)',fontWeight:500}}>{filtered.length} places</span>
+        </div>
+
+        {filtered.length===0?(
+          <div style={{textAlign:'center',padding:'52px 20px',color:'var(--t3)'}}>
+            <div style={{fontSize:44,marginBottom:10}}>🔍</div>
+            <p style={{fontSize:16,fontWeight:700,marginBottom:6}}>Nothing found</p>
+            <p style={{fontSize:13}}>Try adjusting filters or search</p>
+          </div>
+        ):(
+          <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}}>
+            {filtered.map((m,i)=>(
+              <MerchantCard key={m.id} merchant={m} idx={i} onOpen={()=>onMerchant(m)} isFav={favorites.has(m.id)} toggleFav={()=>toggleFav(m.id)}/>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function MerchantCard({merchant:m,idx,onOpen,isFav,toggleFav}){
+  const [favAnim,setFavAnim]=useState(false);
+  const handleFav=(e)=>{
+    e.stopPropagation();
+    setFavAnim(true);
+    toggleFav();
+    setTimeout(()=>setFavAnim(false),400);
+  };
+  return(
+    <div className="au" style={{animationDelay:`${idx*.055}s`}}>
+      <div style={{...s.card,padding:0,overflow:'hidden',cursor:'pointer',borderRadius:16,position:'relative'}}
+        onMouseEnter={e=>{e.currentTarget.style.transform='translateY(-5px)';e.currentTarget.style.borderColor='rgba(245,196,24,.25)';e.currentTarget.style.boxShadow='0 20px 50px rgba(0,0,0,.5)'}}
+        onMouseLeave={e=>{e.currentTarget.style.transform='';e.currentTarget.style.borderColor='var(--bdr)';e.currentTarget.style.boxShadow=''}}
+        onClick={onOpen}>
+        {/* Image area */}
+        <div style={{height:108,background:`linear-gradient(145deg,${m.color}20,${m.color}06)`,display:'flex',alignItems:'center',justifyContent:'center',fontSize:44,position:'relative'}}>
+          {m.emoji}
+          {m.offerTag&&<div style={{position:'absolute',top:8,left:8,...s.badge(m.offerTag==='Flash'?'yellow':'cyan'),fontSize:9,padding:'2px 7px',gap:3}}><Ic.Zap/>{m.offerTag}</div>}
+          <div style={{position:'absolute',top:8,right:8,cursor:'pointer',transform:favAnim?'scale(1.5)':'scale(1)',transition:'transform .2s'}} onClick={handleFav}>
+            <Ic.Heart f={isFav} />
+          </div>
+          <div style={{position:'absolute',bottom:8,left:8,display:'flex',alignItems:'center',gap:3,background:'rgba(0,0,0,.55)',borderRadius:6,padding:'3px 7px',fontSize:10,fontWeight:700,backdropFilter:'blur(4px)'}}>
+            <div style={{width:5,height:5,borderRadius:'50%',background:'#1fd97c',animation:'pulse 2s infinite'}}/>
+            {m.queue} waiting
+          </div>
+        </div>
+        <div style={{padding:'12px'}}>
+          <div style={{fontWeight:700,fontSize:13,marginBottom:3,lineHeight:1.3}}>{m.name}</div>
+          <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:8}}>
+            <span style={{fontSize:11,color:'var(--t3)'}}>{m.cat}</span>
+            <span style={{display:'flex',alignItems:'center',gap:2,fontSize:12,fontWeight:700}}>
+              <Ic.Star/>{m.rating}
+            </span>
+          </div>
+          {/* Wait time bar */}
+          <div style={{display:'flex',alignItems:'center',gap:6}}>
+            <div style={{flex:1,height:3,background:'rgba(255,255,255,.06)',borderRadius:2,overflow:'hidden'}}>
+              <div style={{height:'100%',width:`${Math.min(100,(m.wait/40)*100)}%`,background:`linear-gradient(90deg,${m.wait<=5?'#1fd97c':m.wait<=15?'#f5c418':'#ff4d6d'},transparent)`,borderRadius:2,transition:'width .8s ease'}}/>
+            </div>
+            <span style={{fontFamily:'JetBrains Mono,monospace',fontWeight:800,fontSize:11,color:m.wait<=5?'#1fd97c':m.wait<=15?'#f5c418':'#ff4d6d'}}>{m.waitStr}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ============================================================
+// CONSUMER EXPLORE
+// ============================================================
+function ConsumerExplore({merchants,onMerchant,favorites,toggleFav}){
+  const [view,setView]=useState('map');
+  const [selected,setSelected]=useState(null);
+
+  return(
+    <div style={{padding:'20px 18px 0'}}>
+      <h1 style={{fontFamily:'Syne,sans-serif',fontSize:24,fontWeight:900,marginBottom:16}}>Explore <span style={s.gradCText}>Nearby</span></h1>
+
+      <div style={{display:'flex',gap:3,background:'rgba(255,255,255,.04)',padding:3,borderRadius:11,marginBottom:18,border:'1px solid var(--bdr)'}}>
+        {[{v:'map',l:'🗺 Map'},{v:'list',l:'📋 List'}].map(({v,l})=>(
+          <button key={v} onClick={()=>setView(v)} style={{flex:1,padding:'9px',borderRadius:9,border:'none',background:view===v?'rgba(255,255,255,.1)':'transparent',color:view===v?'#fff':'var(--t3)',fontWeight:700,fontSize:13,cursor:'pointer',fontFamily:'Inter,sans-serif',transition:'all .2s'}}>
+            {l}
+          </button>
+        ))}
+      </div>
+
+      {view==='map'?(
+        <div style={{height:400,background:'linear-gradient(150deg,#070b14,#0d1626,#131e30)',borderRadius:18,overflow:'hidden',position:'relative',border:'1px solid var(--bdr)',marginBottom:16}}>
+          {/* Grid */}
+          <div style={{position:'absolute',inset:0,backgroundImage:'linear-gradient(rgba(255,255,255,.025) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.025) 1px,transparent 1px)',backgroundSize:'36px 36px'}}/>
+          {/* Roads */}
+          {[[0,55,100,55],[50,0,50,100],[0,30,100,30],[70,0,70,100]].map((r,i)=>(
+            <div key={i} style={{position:'absolute',left:`${r[0]}%`,top:`${r[1]}%`,width:r[2]==='100'?'100%':'2px',height:r[3]==='100'?'100%':'2px',background:'rgba(255,255,255,.04)',borderRadius:1}}/>
+          ))}
+          {/* Pins */}
+          {merchants.map((m,i)=>{
+            const positions=[[22,28],[48,52],[18,60],[62,25],[30,72],[68,48],[80,32],[40,18],[55,72],[75,60]];
+            const [lx,ly]=positions[i]||[50,50];
+            return(
+              <div key={m.id} style={{position:'absolute',left:`${lx}%`,top:`${ly}%`,transform:'translate(-50%,-50%)',cursor:'pointer',zIndex:selected===m.id?10:2,transition:'all .2s'}} onClick={()=>setSelected(selected===m.id?null:m)}>
+                <div style={{width:42,height:42,borderRadius:'50%',background:m.color,display:'flex',alignItems:'center',justifyContent:'center',fontSize:18,boxShadow:`0 0 0 ${selected===m.id?10:4}px ${m.color}${selected===m.id?'44':'22'}`,transition:'all .25s',animation:m.hot?'pulse 2.5s infinite':'none'}}>
+                  {m.emoji}
+                </div>
+                {selected===m.id&&(
+                  <div style={{position:'absolute',top:48,left:'50%',transform:'translateX(-50%)',background:'rgba(0,0,0,.88)',border:'1px solid rgba(255,255,255,.15)',borderRadius:10,padding:'8px 12px',whiteSpace:'nowrap',fontSize:12,fontWeight:700,backdropFilter:'blur(8px)',zIndex:20}}>
+                    <div>{m.name}</div>
+                    <div style={{color:'#f5c418',fontFamily:'JetBrains Mono,monospace',fontSize:11,marginTop:2}}>⏱ {m.waitStr}</div>
+                  </div>
+                )}
+              </div>
+            );
+          })}
+          <div style={{position:'absolute',bottom:14,left:'50%',transform:'translateX(-50%)',background:'rgba(0,0,0,.7)',backdropFilter:'blur(10px)',border:'1px solid rgba(255,255,255,.12)',borderRadius:8,padding:'6px 14px',fontSize:11,color:'rgba(255,255,255,.6)',whiteSpace:'nowrap'}}>
+            📍 Indiranagar, Bengaluru
+          </div>
+          {selected&&(
+            <div style={{position:'absolute',bottom:50,left:12,right:12}}>
+              <div style={{...s.glassStrong,borderRadius:14,padding:'14px 16px',display:'flex',alignItems:'center',gap:12,cursor:'pointer',animation:'slideUp .3s ease'}} onClick={()=>onMerchant(selected)}>
+                <div style={{fontSize:26}}>{selected.emoji}</div>
+                <div style={{flex:1}}>
+                  <div style={{fontWeight:700,fontSize:15,marginBottom:2}}>{selected.name}</div>
+                  <div style={{fontSize:12,color:'var(--t3)'}}>{selected.queue} waiting · {selected.dist}</div>
+                </div>
+                <button style={{...s.btnC,padding:'8px 14px',fontSize:12,gap:5}} onClick={e=>{e.stopPropagation();onMerchant(selected)}}>Join <Ic.Arrow/></button>
+              </div>
+            </div>
+          )}
+        </div>
+      ):(
+        <div style={{display:'flex',flexDirection:'column',gap:10}}>
+          {merchants.map(m=>(
+            <div key={m.id} style={{...s.card,padding:'14px',display:'flex',alignItems:'center',gap:12,cursor:'pointer'}}
+              onClick={()=>onMerchant(m)}
+              onMouseEnter={e=>{e.currentTarget.style.borderColor='rgba(245,196,24,.25)';e.currentTarget.style.transform='translateX(4px)'}}
+              onMouseLeave={e=>{e.currentTarget.style.borderColor='var(--bdr)';e.currentTarget.style.transform=''}}>
+              <div style={{width:50,height:50,borderRadius:13,background:`${m.color}18`,display:'flex',alignItems:'center',justifyContent:'center',fontSize:26,flexShrink:0}}>{m.emoji}</div>
+              <div style={{flex:1}}>
+                <div style={{fontWeight:700,fontSize:15,marginBottom:2}}>{m.name}</div>
+                <div style={{fontSize:12,color:'var(--t3)',marginBottom:6}}>{m.cat} · {m.area} · {m.dist}</div>
+                <div style={{display:'flex',gap:7}}>
+                  <span style={{...s.badge('yellow'),fontSize:10}}>⏱ {m.waitStr}</span>
+                  <span style={{...s.badge('gray'),fontSize:10}}>{m.queue} in queue</span>
+                  {m.offerTag&&<span style={{...s.badge('cyan'),fontSize:10}}><Ic.Zap/>{m.offerTag}</span>}
+                </div>
+              </div>
+              <div style={{display:'flex',flexDirection:'column',alignItems:'center',gap:8}}>
+                <div onClick={e=>{e.stopPropagation();toggleFav(m.id)}}>
+                  <Ic.Heart f={favorites.has(m.id)} />
+                </div>
+                <Ic.ChevR/>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ============================================================
+// CONSUMER MERCHANT DETAIL
+// ============================================================
+function ConsumerMerchantDetail({merchant,onJoin,onBack,favorites,toggleFav}){
+  const [joining,setJoining]=useState(false);
+  const [selectedOutlet,setSelectedOutlet]=useState('o1');
+  const handleJoin=()=>{setJoining(true);setTimeout(()=>{setJoining(false);onJoin()},1400)};
+
+  return(
+    <div className="ai">
+      {/* HERO */}
+      <div style={{height:190,background:`linear-gradient(160deg,${merchant.color}30,${merchant.color}08)`,display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',position:'relative'}}>
+        <button onClick={onBack} style={{position:'absolute',top:16,left:16,background:'rgba(0,0,0,.45)',backdropFilter:'blur(8px)',border:'1px solid rgba(255,255,255,.12)',borderRadius:10,padding:'7px 13px',color:'#fff',cursor:'pointer',fontSize:12,fontFamily:'Inter,sans-serif',display:'flex',alignItems:'center',gap:5}}><Ic.ChevL/>Back</button>
+        <div onClick={e=>{e.stopPropagation();toggleFav(merchant.id)}} style={{position:'absolute',top:16,right:16,width:38,height:38,borderRadius:10,background:'rgba(0,0,0,.45)',backdropFilter:'blur(8px)',border:'1px solid rgba(255,255,255,.12)',display:'flex',alignItems:'center',justifyContent:'center',cursor:'pointer'}}>
+          <Ic.Heart f={favorites.has(merchant.id)} />
+        </div>
+        <div style={{fontSize:64,marginBottom:6}}>{merchant.emoji}</div>
+        <div style={{...s.badge('green')}}> Live</div>
+      </div>
+
+      <div style={{padding:'20px 18px'}}>
+        <div style={{marginBottom:18}}>
+          <div style={{display:'flex',alignItems:'start',justifyContent:'space-between',marginBottom:4}}>
+            <h1 style={{fontFamily:'Syne,sans-serif',fontSize:26,fontWeight:900}}>{merchant.name}</h1>
+            <div style={{...s.badge('green'),fontSize:12}}>✓ Open</div>
+          </div>
+          <div style={{display:'flex',alignItems:'center',gap:12,color:'var(--t2)',fontSize:13,flexWrap:'wrap',gap:10}}>
+            <span style={{display:'flex',alignItems:'center',gap:4}}><Ic.Star/>{merchant.rating} ({merchant.reviews} reviews)</span>
+            <span>·</span>
+            <span>{merchant.cat}</span>
+            <span>·</span>
+            <span style={{display:'flex',alignItems:'center',gap:3}}><Ic.MapPin/>{merchant.area}</span>
+            <span>·</span>
+            <span style={{display:'flex',alignItems:'center',gap:3}}><Ic.Walk/>{merchant.dist}</span>
+          </div>
+        </div>
+
+        {/* LIVE QUEUE STATUS */}
+        <div style={{...s.card,background:`${merchant.color}08`,borderColor:`${merchant.color}28`,marginBottom:18,padding:'18px'}}>
+          <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:14}}>
+            <span style={{fontWeight:700,fontSize:15}}>Live Queue Status</span>
+            <div style={{display:'flex',alignItems:'center',gap:6,fontSize:12,color:'#1fd97c',fontWeight:700}}>
+              <div style={{width:6,height:6,borderRadius:'50%',background:'#1fd97c',animation:'pulse 2s infinite'}}/>
+              LIVE
+            </div>
+          </div>
+          <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:10}}>
+            {[{v:merchant.queue,l:'Waiting',c:'#f5c418'},{v:merchant.waitStr,l:'Est. Wait',c:'#ff6316'},{v:'#41',l:'Now Serving',c:'#a78bfa'}].map(st=>(
+              <div key={st.l} style={{background:'rgba(255,255,255,.04)',borderRadius:12,padding:'12px 8px',textAlign:'center'}}>
+                <div style={{fontFamily:'JetBrains Mono,monospace',fontSize:22,fontWeight:800,color:st.c,marginBottom:4}}>{st.v}</div>
+                <div style={{fontSize:10,color:'var(--t3)',fontWeight:700,textTransform:'uppercase',letterSpacing:.5}}>{st.l}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* BEST TIME */}
+        <div style={{...s.card,padding:'14px 16px',marginBottom:18,display:'flex',alignItems:'center',gap:12,background:'rgba(167,139,250,.06)',borderColor:'rgba(167,139,250,.2)'}}>
+          <div style={{fontSize:22}}>🤖</div>
+          <div style={{flex:1}}>
+            <div style={{fontWeight:700,fontSize:13,color:'#a78bfa',marginBottom:2}}>AI Suggestion</div>
+            <div style={{fontSize:12,color:'var(--t2)'}}>Best time to visit: <strong>2 PM–4 PM</strong> (avg 2 min wait)</div>
+          </div>
+        </div>
+
+        {/* SELECT OUTLET */}
+        <h3 style={{fontFamily:'Syne,sans-serif',fontWeight:800,fontSize:16,marginBottom:12}}>Select Outlet</h3>
+        {OUTLETS.map(o=>(
+          <div key={o.id} style={{...s.card,padding:'14px',marginBottom:10,cursor:'pointer',borderColor:selectedOutlet===o.id?'rgba(245,196,24,.4)':'var(--bdr)',background:selectedOutlet===o.id?'rgba(245,196,24,.06)':'var(--s1)'}} onClick={()=>o.open&&setSelectedOutlet(o.id)}>
+            <div style={{display:'flex',justifyContent:'space-between',alignItems:'start',marginBottom:10}}>
+              <div>
+                <div style={{fontWeight:700,fontSize:14,marginBottom:3}}>{o.name}</div>
+                <div style={{fontSize:12,color:'var(--t3)',display:'flex',alignItems:'center',gap:4}}><Ic.MapPin/>{o.addr}</div>
+              </div>
+              <div style={{display:'flex',flexDirection:'column',alignItems:'flex-end',gap:6}}>
+                <span style={{...s.badge(o.open?'green':'red')}}>{o.open?'Open':'Closed'}</span>
+                {o.open&&<span style={{fontFamily:'JetBrains Mono,monospace',fontSize:12,fontWeight:800,color:'#f5c418'}}>{o.queue} waiting</span>}
+              </div>
+            </div>
+            {o.open&&<button style={{...s.btnC,width:'100%',padding:'12px',borderRadius:11,justifyContent:'center',fontSize:14,opacity:selectedOutlet===o.id?1:.7}} onClick={e=>{e.stopPropagation();handleJoin()}}>
+              {joining&&selectedOutlet===o.id?<div style={{width:16,height:16,border:'2px solid rgba(0,0,0,.3)',borderTop:'2px solid #000',borderRadius:'50%',animation:'spin .7s linear infinite'}}/>:'Join Queue →'}
+            </button>}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ============================================================
+// CONSUMER QUEUE
+// ============================================================
+function ConsumerQueue({entry,onLeave,onServed,addToast}){
+  const [status,setStatus]=useState('WAITING');
+  const [position,setPosition]=useState(2);
+  const [currentToken,setCurrentToken]=useState(41);
+  const [seconds,setSeconds]=useState(position*240);
+  const [queueEntries,setQueueEntries]=useState(QUEUE_ENTRIES);
+
+  useEffect(()=>{
+    const t=setInterval(()=>{
+      setPosition(p=>{
+        if(p<=0){clearInterval(t);setStatus('CALLED');addToast("It's your turn! 🔔",'success');return 0;}
+        setCurrentToken(ct=>ct+1);
+        setSeconds(s=>Math.max(0,s-240));
+        return p-1;
+      });
+    },5000);
+    return()=>clearInterval(t);
+  },[]);
+
+  // Countdown timer
+  useEffect(()=>{
+    if(status!=='WAITING') return;
+    const t=setInterval(()=>setSeconds(s=>Math.max(0,s-1)),1000);
+    return()=>clearInterval(t);
+  },[status]);
+
+  const mins=Math.floor(seconds/60);
+  const secs=seconds%60;
+
+  const statusStyle={
+    WAITING:{color:'#f5c418',bg:'rgba(245,196,24,.07)',border:'rgba(245,196,24,.25)',icon:'⏳',anim:'tokenY'},
+    CALLED:{color:'#1fd97c',bg:'rgba(31,217,124,.1)',border:'rgba(31,217,124,.3)',icon:'🔔',anim:'tokenG'},
+  };
+  const st=statusStyle[status]||statusStyle.WAITING;
+
+  return(
+    <div style={{padding:'20px 18px'}}>
+      <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:24}}>
+        <div>
+          <h1 style={{fontFamily:'Syne,sans-serif',fontSize:22,fontWeight:900,marginBottom:2}}>Your Queue</h1>
+          <p style={{color:'var(--t3)',fontSize:13}}>{entry.outlet}</p>
+        </div>
+        <span style={{...s.badge(status==='CALLED'?'green':'yellow')}}>{status==='CALLED'?'🔔 CALLED':'⏳ WAITING'}</span>
+      </div>
+
+      {/* TOKEN CIRCLE */}
+      <div style={{textAlign:'center',marginBottom:28,position:'relative'}}>
+        {status==='CALLED'&&[1,2,3].map(i=>(
+          <div key={i} style={{position:'absolute',top:'50%',left:'50%',transform:'translate(-50%,-50%)',width:200+i*40,height:200+i*40,borderRadius:'50%',border:`2px solid rgba(31,217,124,${0.3/i})`,animation:`ripple ${1.8+i*.4}s ease-out ${i*.4}s infinite`,pointerEvents:'none'}}/>
+        ))}
+        <div style={{width:200,height:200,borderRadius:'50%',margin:'0 auto',background:st.bg,border:`2px solid ${st.border}`,display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',animation:`${st.anim} 2.5s infinite`,transition:'all .6s',position:'relative',zIndex:2}}>
+          <div style={{fontSize:10,fontWeight:700,color:st.color,textTransform:'uppercase',letterSpacing:1.5,marginBottom:2}}>Token</div>
+          <div style={{fontFamily:'JetBrains Mono,monospace',fontSize:80,fontWeight:800,color:st.color,lineHeight:1,animation:'countBounce .5s ease'}}>{entry.token}</div>
+          <div style={{fontSize:12,fontWeight:700,color:st.color}}>{st.icon} {status==='CALLED'?"YOUR TURN!":"Waiting"}</div>
+        </div>
+      </div>
+
+      {status==='CALLED'?(
+        <div className="as" style={{...s.card,background:'rgba(31,217,124,.08)',borderColor:'rgba(31,217,124,.28)',marginBottom:18,padding:'20px',textAlign:'center'}}>
+          <div style={{fontSize:40,marginBottom:8}}>🎉</div>
+          <div style={{fontFamily:'Syne,sans-serif',fontWeight:900,fontSize:20,color:'#1fd97c',marginBottom:4}}>Proceed to the counter!</div>
+          <p style={{color:'var(--t2)',fontSize:14}}>Don't keep them waiting</p>
+          <button style={{...s.btnM,marginTop:16,width:'100%',justifyContent:'center'}} onClick={onServed}>Mark as Served ✓</button>
+        </div>
+      ):(
+        <>
+          {/* COUNTDOWN */}
+          <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:12,marginBottom:18}}>
+            {[
+              {label:'People Ahead',val:<span style={{fontFamily:'JetBrains Mono,monospace',fontSize:36,fontWeight:800,...s.gradCText}}>{position}</span>},
+              {label:'Est. Time',val:<span style={{fontFamily:'JetBrains Mono,monospace',fontSize:28,fontWeight:800,color:'#ff6316'}}>{mins}:{String(secs).padStart(2,'0')}</span>},
+              {label:'Now Serving',val:<span style={{fontFamily:'JetBrains Mono,monospace',fontSize:36,fontWeight:800,color:'#a78bfa'}}>#{currentToken}</span>},
+            ].map(st=>(
+              <div key={st.label} style={{...s.card,padding:'14px',textAlign:'center'}}>
+                <div style={{fontSize:10,color:'var(--t3)',fontWeight:700,textTransform:'uppercase',letterSpacing:.6,marginBottom:8}}>{st.label}</div>
+                {st.val}
+              </div>
+            ))}
+          </div>
+
+          {/* PROGRESS */}
+          <div style={{...s.card,padding:'16px',marginBottom:18}}>
+            <div style={{display:'flex',justifyContent:'space-between',marginBottom:10,fontSize:13,fontWeight:600}}>
+              <span style={{color:'var(--t3)'}}>Queue Progress</span>
+              <span style={{color:'#f5c418'}}>#{entry.token - position} / #{entry.token + 3}</span>
+            </div>
+            <div style={{height:6,background:'rgba(255,255,255,.06)',borderRadius:3,overflow:'hidden'}}>
+              <div style={{height:'100%',width:`${Math.max(10,((5-position)/5)*100)}%`,background:'linear-gradient(90deg,#1fd97c,#f5c418)',borderRadius:3,transition:'width 1s ease'}}/>
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* LIVE QUEUE LIST */}
+      <div style={{...s.card,padding:'16px',marginBottom:18}}>
+        <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:14}}>
+          <span style={{fontWeight:700,fontSize:14}}>Live Queue</span>
+          <span style={{...s.badge('green'),fontSize:10}}>● Real-time</span>
+        </div>
+        {queueEntries.map(q=>(
+          <div key={q.id} style={{display:'flex',alignItems:'center',gap:10,padding:'10px 12px',borderRadius:11,marginBottom:7,background:q.token===entry.token?'rgba(245,196,24,.08)':'rgba(255,255,255,.02)',border:q.token===entry.token?'1px solid rgba(245,196,24,.28)':'1px solid var(--bdr)',transition:'all .3s'}}>
+            <div style={{width:32,height:32,borderRadius:9,background:q.token===entry.token?'rgba(245,196,24,.2)':q.status==='CALLED'?'rgba(31,217,124,.15)':'rgba(255,255,255,.06)',display:'flex',alignItems:'center',justifyContent:'center',fontFamily:'JetBrains Mono,monospace',fontWeight:800,fontSize:12,color:q.token===entry.token?'#f5c418':q.status==='CALLED'?'#1fd97c':'var(--t2)',flexShrink:0}}>
+              #{q.token}
+            </div>
+            <div style={{width:28,height:28,borderRadius:'50%',background:`hsl(${q.token*40%360},60%,55%)`,display:'flex',alignItems:'center',justifyContent:'center',fontSize:10,fontWeight:800,color:'#fff',flexShrink:0}}>
+              {q.initials}
+            </div>
+            <span style={{...s.badge(q.status==='CALLED'?'green':q.status==='WAITING'?'yellow':'gray'),fontSize:10}}>{q.status}</span>
+            <span style={{marginLeft:'auto',fontSize:11,color:'var(--t3)'}}>{q.wait}</span>
+            {q.token===entry.token&&<span style={{fontSize:10,fontWeight:800,color:'#f5c418'}}>← You</span>}
+          </div>
+        ))}
+      </div>
+
+      <button onClick={onLeave} style={{...s.btnDanger,width:'100%',justifyContent:'center',padding:'14px'}}>
+        <Ic.LogOut/> Leave Queue
+      </button>
+    </div>
+  );
+}
+
+// ============================================================
+// CONSUMER FAVORITES
+// ============================================================
+function ConsumerFavorites({merchants,favorites,toggleFav,onMerchant}){
+  const favMerchants=merchants.filter(m=>favorites.has(m.id));
+  return(
+    <div style={{padding:'20px 18px'}}>
+      <h1 style={{fontFamily:'Syne,sans-serif',fontSize:24,fontWeight:900,marginBottom:4}}>Saved Places ❤️</h1>
+      <p style={{color:'var(--t3)',fontSize:13,marginBottom:20}}>{favMerchants.length} saved merchants</p>
+      {favMerchants.length===0?(
+        <div style={{textAlign:'center',padding:'60px 20px',color:'var(--t3)'}}>
+          <div style={{fontSize:48,marginBottom:12}}>💔</div>
+          <p style={{fontWeight:700,fontSize:16,marginBottom:6}}>No saved places yet</p>
+          <p style={{fontSize:13}}>Tap the heart on any merchant to save</p>
+        </div>
+      ):(
+        <div style={{display:'flex',flexDirection:'column',gap:10}}>
+          {favMerchants.map(m=>(
+            <div key={m.id} style={{...s.card,padding:'16px',display:'flex',alignItems:'center',gap:14,cursor:'pointer'}}
+              onClick={()=>onMerchant(m)}
+              onMouseEnter={e=>e.currentTarget.style.borderColor='rgba(255,77,109,.25)'}
+              onMouseLeave={e=>e.currentTarget.style.borderColor='var(--bdr)'}>
+              <div style={{width:52,height:52,borderRadius:14,background:`${m.color}18`,display:'flex',alignItems:'center',justifyContent:'center',fontSize:28,flexShrink:0}}>{m.emoji}</div>
+              <div style={{flex:1}}>
+                <div style={{fontWeight:700,fontSize:15,marginBottom:2}}>{m.name}</div>
+                <div style={{fontSize:12,color:'var(--t3)',marginBottom:5}}>{m.cat} · {m.area}</div>
+                <div style={{display:'flex',gap:7}}>
+                  <span style={{...s.badge('yellow'),fontSize:10}}>⏱ {m.waitStr}</span>
+                  <span style={{...s.badge('gray'),fontSize:10}}>{m.queue} in queue</span>
+                </div>
+              </div>
+              <div style={{display:'flex',flexDirection:'column',gap:8,alignItems:'center'}}>
+                <div onClick={e=>{e.stopPropagation();toggleFav(m.id)}}><Ic.Heart f={true} /></div>
+                <Ic.ChevR/>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ============================================================
+// CONSUMER PROFILE
+// ============================================================
+function ConsumerProfile({addToast}){
+  const stats=[{n:23,l:'Queues Joined'},{n:'4.1h',l:'Time Saved'},{n:18,l:'Merchants'}];
+  return(
+    <div style={{padding:'20px 18px'}}>
+      <div style={{textAlign:'center',marginBottom:28}}>
+        <div style={{width:88,height:88,borderRadius:'50%',margin:'0 auto 14px',...s.gradC,display:'flex',alignItems:'center',justifyContent:'center',fontSize:38,fontWeight:900,color:'#000',boxShadow:'0 0 0 6px rgba(245,196,24,.15)'}}>A</div>
+        <h2 style={{fontFamily:'Syne,sans-serif',fontSize:22,fontWeight:900,marginBottom:3}}>Arjun Sharma</h2>
+        <p style={{color:'var(--t3)',fontSize:13}}>+91 98765 43210 · Indiranagar</p>
+        <div style={{display:'flex',justifyContent:'center',gap:6,marginTop:10}}>
+          <span style={s.badge('yellow')}>Consumer</span>
+          <span style={s.badge('green')}>✓ Verified</span>
+        </div>
+      </div>
+
+      <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:10,marginBottom:24}}>
+        {stats.map(st=>(
+          <div key={st.l} style={{...s.card,padding:'14px',textAlign:'center'}}>
+            <div style={{fontFamily:'JetBrains Mono,monospace',fontSize:22,fontWeight:800,...s.gradCText,marginBottom:4}}>{st.n}</div>
+            <div style={{fontSize:11,color:'var(--t3)',fontWeight:600}}>{st.l}</div>
+          </div>
+        ))}
+      </div>
+
+      <h3 style={{fontWeight:800,fontFamily:'Syne,sans-serif',fontSize:16,marginBottom:12}}>Recent History</h3>
+      {MERCHANTS.slice(0,4).map((m,i)=>(
+        <div key={m.id} style={{...s.card,padding:'12px',marginBottom:8,display:'flex',alignItems:'center',gap:12}}>
+          <div style={{fontSize:24,flexShrink:0}}>{m.emoji}</div>
+          <div style={{flex:1}}>
+            <div style={{fontWeight:700,fontSize:13,marginBottom:2}}>{m.name}</div>
+            <div style={{fontSize:11,color:'var(--t3)'}}>{['Yesterday 2:15PM','Last week','3 days ago','This morning'][i]} · Token #{40+i}</div>
+          </div>
+          <span style={s.badge('green')}>Served</span>
+        </div>
+      ))}
+
+      <div style={{...s.card,marginTop:18,padding:'6px'}}>
+        {[{l:'Notifications',ic:'🔔'},{l:'Privacy & Data',ic:'🔒'},{l:'Help & Support',ic:'❓'},{l:'Sign Out',ic:'🚪',d:true}].map(item=>(
+          <div key={item.l} style={{display:'flex',alignItems:'center',gap:12,padding:'13px 12px',borderRadius:11,cursor:'pointer',color:item.d?'#ff4d6d':'var(--t2)',transition:'all .2s'}} onMouseEnter={e=>e.currentTarget.style.background='rgba(255,255,255,.04)'} onMouseLeave={e=>e.currentTarget.style.background='transparent'} onClick={()=>item.l==='Sign Out'&&addToast('Signing out...','info')}>
+            <span style={{fontSize:18}}>{item.ic}</span>
+            <span style={{fontWeight:500,fontSize:14,flex:1}}>{item.l}</span>
+            <Ic.ChevR/>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ============================================================
+// MERCHANT APP
+// ============================================================
+function MerchantApp({onBack,addToast}){
+  const [page,setPage]=useState('auth');
+  const [selectedOutlet,setSelectedOutlet]=useState(null);
+  if(page==='auth') return <MerchantAuth onDone={()=>setPage('dashboard')} onBack={onBack} addToast={addToast}/>;
+  return(
+    <div style={{height:'100vh',display:'flex',background:'var(--bg)',overflow:'hidden'}}>
+      <style>{CSS}</style>
+      <MerchantSidebar page={page} setPage={setPage} onBack={onBack}/>
+      <main style={{flex:1,overflowY:'auto',background:'var(--bg)'}}>
+        {page==='dashboard'&&<MerchantDashboard setPage={setPage} addToast={addToast}/>}
+        {page==='queue'&&<MerchantQueue addToast={addToast}/>}
+        {page==='outlets'&&<MerchantOutlets onOutlet={o=>{setSelectedOutlet(o);setPage('outlet-detail')}} addToast={addToast}/>}
+        {page==='outlet-detail'&&selectedOutlet&&<MerchantOutletDetail outlet={selectedOutlet} onBack={()=>setPage('outlets')} addToast={addToast}/>}
+        {page==='business'&&<MerchantBusiness addToast={addToast}/>}
+        {page==='analytics'&&<MerchantAnalytics/>}
+        {page==='settings'&&<MerchantSettings addToast={addToast}/>}
+      </main>
+    </div>
+  );
+}
+
+function MerchantAuth({onDone,onBack,addToast}){
+  const [step,setStep]=useState('signin');
+  const [bizName,setBizName]=useState('');
+  const [bizCat,setBizCat]=useState('');
+  const [aadhaar,setAadhaar]=useState('');
+  const [verifying,setVerifying]=useState(false);
+  const [verified,setVerified]=useState(false);
+  const [signing,setSigning]=useState(false);
+
+  const handleVerify=()=>{setVerifying(true);setTimeout(()=>{setVerifying(false);setVerified(true);addToast('Identity verified! ✅','success')},2200)};
+  const handleSign=()=>{setSigning(true);setTimeout(()=>{setSigning(false);setStep('onboard')},1300)};
+
+  return(
+    <div style={{minHeight:'100vh',background:'#05080d',display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',padding:24,position:'relative',overflow:'hidden'}}>
+      <style>{CSS}</style>
+      <Orb x="8%" y="3%" size="52%" color="rgba(31,217,124,.15)" anim="orb1 13s ease-in-out infinite"/>
+      <Orb x="55%" y="58%" size="46%" color="rgba(14,168,96,.1)" anim="orb2 16s ease-in-out infinite"/>
+      <button onClick={onBack} style={{position:'absolute',top:24,left:24,background:'none',border:'none',color:'var(--t3)',cursor:'pointer',fontSize:13,fontFamily:'Inter,sans-serif',display:'flex',alignItems:'center',gap:4}}><Ic.ChevL/>Back</button>
+
+      <div style={{...s.glassStrong,borderRadius:24,padding:44,width:'100%',maxWidth:480,position:'relative',zIndex:1}}>
+        {step!=='signin'&&(
+          <div style={{display:'flex',alignItems:'center',marginBottom:32,gap:4}}>
+            {['Business Info','Identity Verify'].map((s,i)=>{
+              const idx=step==='onboard'?0:1;
+              return(
+                <div key={s} style={{display:'flex',alignItems:'center',gap:6,flex:i<1?1:'auto'}}>
+                  <div style={{width:26,height:26,borderRadius:'50%',display:'flex',alignItems:'center',justifyContent:'center',fontSize:11,fontWeight:800,background:idx>=i?'linear-gradient(135deg,#f5c418,#ff6316)':verified&&i===1?'rgba(31,217,124,.2)':'rgba(255,255,255,.07)',color:idx>=i?'#000':verified&&i===1?'#1fd97c':'var(--t3)',border:verified&&i===1?'1px solid rgba(31,217,124,.4)':'none',flexShrink:0}}>
+                    {(verified&&i===1)?'✓':i+1}
+                  </div>
+                  <span style={{fontSize:12,fontWeight:600,color:idx>=i?'#fff':'var(--t3)'}}>{s}</span>
+                  {i<1&&<div style={{flex:1,height:1,background:step==='verify'?'rgba(31,217,124,.3)':'rgba(255,255,255,.07)',marginLeft:6}}/>}
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        {step==='signin'&&(
+          <div className="as">
+            <div style={{display:'flex',alignItems:'center',gap:12,marginBottom:28}}>
+              <div style={{width:44,height:44,borderRadius:12,...s.gradM,display:'flex',alignItems:'center',justifyContent:'center',fontSize:22}}>🏪</div>
+              <div>
+                <h2 style={{fontFamily:'Syne,sans-serif',fontSize:22,fontWeight:900}}>Merchant Portal</h2>
+                <p style={{color:'var(--t3)',fontSize:13}}>Manage your business queues</p>
+              </div>
+            </div>
+            <div style={{...s.card,padding:'18px',background:'rgba(31,217,124,.05)',borderColor:'rgba(31,217,124,.15)',marginBottom:22}}>
+              <div style={{fontWeight:700,fontSize:13,color:'#1fd97c',marginBottom:10}}>✓ What you get</div>
+              {['Live queue management','Multi-outlet dashboard','Real-time customer alerts','Business analytics & insights'].map(f=>(
+                <div key={f} style={{display:'flex',gap:8,marginBottom:6,fontSize:13,color:'var(--t2)'}}><span style={{color:'#1fd97c',fontSize:10}}>●</span>{f}</div>
+              ))}
+            </div>
+            <button style={{...s.btnM,width:'100%',padding:'14px',borderRadius:13,justifyContent:'center',gap:12}} onClick={handleSign}>
+              {signing?<div style={{width:16,height:16,border:'2px solid rgba(255,255,255,.3)',borderTop:'2px solid #fff',borderRadius:'50%',animation:'spin .7s linear infinite'}}/>:<><span style={{fontSize:18,fontWeight:800}}>G</span>Continue with Google</>}
+            </button>
+          </div>
+        )}
+
+        {step==='onboard'&&(
+          <div className="as">
+            <h2 style={{fontFamily:'Syne,sans-serif',fontSize:22,fontWeight:900,marginBottom:4}}>Business Details</h2>
+            <p style={{color:'var(--t3)',fontSize:14,marginBottom:24}}>Tell us about your business</p>
+            {[{l:'Business Name',p:'e.g. The Coffee Lab',v:bizName,s:setBizName},{l:'Business Category',p:'e.g. Cafe, Pharmacy, Clinic',v:bizCat,s:setBizCat}].map(f=>(
+              <div key={f.l} style={{marginBottom:16}}>
+                <label style={{fontSize:11,fontWeight:700,color:'var(--t3)',textTransform:'uppercase',letterSpacing:.8,display:'block',marginBottom:8}}>{f.l}</label>
+                <input style={s.input} placeholder={f.p} value={f.v} onChange={e=>f.s(e.target.value)} onFocus={e=>e.target.style.borderColor='rgba(31,217,124,.4)'} onBlur={e=>e.target.style.borderColor='var(--bdr2)'}/>
+              </div>
+            ))}
+            <button style={{...s.btnM,width:'100%',padding:'13px',borderRadius:13,marginTop:4,justifyContent:'center'}} onClick={()=>setStep('verify')}>Continue → Identity Verification</button>
+          </div>
+        )}
+
+        {step==='verify'&&(
+          <div className="as">
+            <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:4}}><Ic.Shield/><h2 style={{fontFamily:'Syne,sans-serif',fontSize:20,fontWeight:900}}>Identity Verification</h2></div>
+            <p style={{color:'var(--t3)',fontSize:13,marginBottom:22}}>Required by Indian regulations for merchant accounts</p>
+            {!verified?(
+              <>
+                <label style={{fontSize:11,fontWeight:700,color:'var(--t3)',textTransform:'uppercase',letterSpacing:.8,display:'block',marginBottom:8}}>Aadhaar Number</label>
+                <input style={{...s.input,marginBottom:4,fontFamily:'JetBrains Mono,monospace',fontSize:16,letterSpacing:3}} placeholder="XXXX XXXX XXXX" value={aadhaar} onChange={e=>setAadhaar(e.target.value.replace(/\D/g,'').slice(0,12).replace(/(.{4})(?=.)/g,'$1 '))} onFocus={e=>e.target.style.borderColor='rgba(31,217,124,.4)'} onBlur={e=>e.target.style.borderColor='var(--bdr2)'}/>
+                <p style={{fontSize:11,color:'var(--t4)',marginBottom:18}}>Encrypted and stored securely</p>
+                <div style={{border:'2px dashed var(--bdr2)',borderRadius:14,padding:'24px',textAlign:'center',marginBottom:18,cursor:'pointer',transition:'all .2s'}} onMouseEnter={e=>{e.currentTarget.style.borderColor='rgba(31,217,124,.35)';e.currentTarget.style.background='rgba(31,217,124,.04)'}} onMouseLeave={e=>{e.currentTarget.style.borderColor='var(--bdr2)';e.currentTarget.style.background='transparent'}}>
+                  <div style={{fontSize:28,marginBottom:6}}>📄</div>
+                  <div style={{fontWeight:700,fontSize:13,marginBottom:3}}>Upload Supporting Document</div>
+                  <div style={{fontSize:12,color:'var(--t3)'}}>PAN Card / GST Certificate / Shop License</div>
+                </div>
+                <button style={{...s.btnM,width:'100%',padding:'13px',borderRadius:13,justifyContent:'center',gap:8}} onClick={handleVerify}>
+                  {verifying?<><div style={{width:15,height:15,border:'2px solid rgba(255,255,255,.3)',borderTop:'2px solid #fff',borderRadius:'50%',animation:'spin .7s linear infinite'}}/> Verifying...</>:<><Ic.Shield/>Verify Identity</>}
+                </button>
+              </>
+            ):(
+              <div className="as">
+                <div style={{...s.card,padding:'28px',textAlign:'center',background:'rgba(31,217,124,.07)',borderColor:'rgba(31,217,124,.28)',marginBottom:18}}>
+                  <div style={{fontSize:52,marginBottom:10}}>✅</div>
+                  <div style={{fontFamily:'Syne,sans-serif',fontWeight:900,fontSize:20,color:'#1fd97c',marginBottom:6}}>Identity Verified!</div>
+                  <p style={{fontSize:13,color:'var(--t2)'}}>Your merchant account is fully activated</p>
+                </div>
+                <button style={{...s.btnM,width:'100%',padding:'13px',borderRadius:13,justifyContent:'center'}} onClick={onDone}>Open Merchant Dashboard →</button>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function MerchantSidebar({page,setPage,onBack}){
+  const nav=[
+    {id:'dashboard',ic:<Ic.Grid/>,l:'Dashboard'},
+    {id:'queue',ic:<Ic.Users/>,l:'Queue Operator'},
+    {id:'outlets',ic:<Ic.Store/>,l:'Outlets'},
+    {id:'business',ic:<Ic.Building/>,l:'Business Profile'},
+    {id:'analytics',ic:<Ic.Bar/>,l:'Analytics'},
+    {id:'settings',ic:<Ic.Settings/>,l:'Settings'},
+  ];
+  return(
+    <div style={{width:232,height:'100vh',borderRight:'1px solid var(--bdr)',display:'flex',flexDirection:'column',padding:'20px 10px',flexShrink:0,overflowY:'auto',background:'rgba(255,255,255,.012)'}}>
+      <div style={{display:'flex',alignItems:'center',gap:8,padding:'6px 8px 22px'}}>
+        <div style={{width:30,height:30,borderRadius:9,...s.gradM,display:'flex',alignItems:'center',justifyContent:'center',fontSize:15}}>⏱</div>
+        <div>
+          <div style={{fontFamily:'Syne,sans-serif',fontWeight:900,fontSize:15,...s.gradMText}}>spotly</div>
+          <div style={{fontSize:9,color:'var(--t4)',fontWeight:700,letterSpacing:.5}}>MERCHANT PORTAL</div>
+        </div>
+      </div>
+      <nav style={{flex:1,display:'flex',flexDirection:'column',gap:2}}>
+        {nav.map(n=>(
+          <button key={n.id} onClick={()=>setPage(n.id)} style={{display:'flex',alignItems:'center',gap:9,padding:'10px 11px',borderRadius:11,border:'none',background:page===n.id?'rgba(31,217,124,.1)':'transparent',color:page===n.id?'#1fd97c':'rgba(255,255,255,.45)',fontWeight:600,fontSize:13,cursor:'pointer',fontFamily:'Inter,sans-serif',borderLeft:`2px solid ${page===n.id?'#1fd97c':'transparent'}`,textAlign:'left',transition:'all .18s'}}>
+            {n.ic}{n.l}
+          </button>
+        ))}
+      </nav>
+      <div style={{borderTop:'1px solid var(--bdr)',paddingTop:14,display:'flex',flexDirection:'column',gap:8}}>
+        <div style={{display:'flex',alignItems:'center',gap:9,padding:'7px 11px'}}>
+          <div style={{width:32,height:32,borderRadius:'50%',...s.gradM,display:'flex',alignItems:'center',justifyContent:'center',fontSize:13,fontWeight:800,color:'#fff',flexShrink:0}}>R</div>
+          <div style={{overflow:'hidden'}}>
+            <div style={{fontWeight:700,fontSize:12,color:'var(--t2)',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>Rahul Verma</div>
+            <div style={{display:'inline-flex',gap:4,padding:'1px 6px',borderRadius:5,background:'rgba(31,217,124,.12)',color:'#1fd97c',fontSize:9,fontWeight:700}}>✓ Verified</div>
+          </div>
+        </div>
+        <button onClick={onBack} style={{display:'flex',alignItems:'center',gap:8,padding:'9px 11px',borderRadius:10,border:'none',background:'rgba(255,77,109,.07)',color:'rgba(255,77,109,.8)',fontWeight:600,fontSize:12,cursor:'pointer',fontFamily:'Inter,sans-serif',transition:'all .2s'}} onMouseEnter={e=>e.currentTarget.style.background='rgba(255,77,109,.14)'} onMouseLeave={e=>e.currentTarget.style.background='rgba(255,77,109,.07)'}>
+          <Ic.LogOut/>Sign Out
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ============================================================
+// MERCHANT DASHBOARD
+// ============================================================
+function MerchantDashboard({setPage,addToast}){
+  const [activityFeed,setActivityFeed]=useState(ACTIVITY_FEED);
+
+  // Simulate live activity
+  useEffect(()=>{
+    const t=setInterval(()=>{
+      const actions=['joined','served','joined','missed'];
+      const tokens=[46,47,48,49];
+      const outlets=['Main Branch','Airport Terminal'];
+      setActivityFeed(prev=>[{
+        id:Date.now(),
+        token:tokens[Math.floor(Math.random()*tokens.length)],
+        action:actions[Math.floor(Math.random()*actions.length)],
+        outlet:outlets[Math.floor(Math.random()*outlets.length)],
+        time:'just now',
+        color:Math.random()>.5?'#1fd97c':'#f5c418',
+      },...prev.slice(0,7)]);
+    },6000);
+    return()=>clearInterval(t);
+  },[]);
+
+  const stats=[
+    {n:23,s:'',l:'Waiting now',c:'#f5c418',ic:'⏳',sub:'+3 last hour',trend:true},
+    {n:148,s:'',l:'Served today',c:'#1fd97c',ic:'✓',sub:'+12% vs yesterday',trend:true},
+    {n:'4.2',s:'m',l:'Avg wait',c:'#a78bfa',ic:'⏱',sub:'↓ 0.8 min',trend:false},
+    {n:'4.8',s:'★',l:'Rating',c:'#fb923c',ic:'★',sub:'98 reviews',trend:true},
+  ];
+
+  // Mini SVG bar chart for traffic
+  const maxH=Math.max(...ANALYTICS.daily.map(d=>d.v));
+
+  return(
+    <div style={{padding:'36px 36px 40px'}}>
+      {/* HEADER */}
+      <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:28}}>
+        <div>
+          <h1 style={{fontFamily:'Syne,sans-serif',fontSize:30,fontWeight:900,marginBottom:4}}>Good morning, Rahul 👋</h1>
+          <p style={{color:'var(--t3)',fontSize:14}}>The Coffee Lab · 3 outlets · April 15, 2026</p>
+        </div>
+        <div style={{display:'flex',gap:10}}>
+          <button style={{...s.btnGhost,gap:6,fontSize:13}} onClick={()=>setPage('outlets')}><Ic.Plus/>New Outlet</button>
+          <button style={{...s.btnM,gap:6,fontSize:13}} onClick={()=>{setPage('queue');addToast('Queue operator opened','info')}}><Ic.Zap/>Open Queue</button>
+        </div>
+      </div>
+
+      {/* STAT CARDS */}
+      <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:14,marginBottom:22}}>
+        {stats.map((st,i)=>(
+          <div key={i} style={{...s.card,padding:'20px',cursor:'pointer',position:'relative',overflow:'hidden'}} onMouseEnter={e=>{e.currentTarget.style.borderColor=st.c+'44';e.currentTarget.style.transform='translateY(-4px)'}} onMouseLeave={e=>{e.currentTarget.style.borderColor='var(--bdr)';e.currentTarget.style.transform=''}}>
+            <div style={{position:'absolute',top:-20,right:-20,width:90,height:90,borderRadius:'50%',background:st.c,opacity:.06,filter:'blur(20px)'}}/>
+            <div style={{width:38,height:38,borderRadius:11,background:`${st.c}18`,display:'flex',alignItems:'center',justifyContent:'center',fontSize:18,marginBottom:14}}>{st.ic}</div>
+            <div style={{fontFamily:'JetBrains Mono,monospace',fontSize:28,fontWeight:800,color:st.c,marginBottom:3,letterSpacing:-1}}>{st.n}{st.s}</div>
+            <div style={{fontSize:12,color:'var(--t3)',marginBottom:6}}>{st.l}</div>
+            <div style={{fontSize:11,color:`${st.c}bb`,fontWeight:700,display:'flex',alignItems:'center',gap:4}}>{st.trend&&<Ic.TrendUp/>}{st.sub}</div>
+          </div>
+        ))}
+      </div>
+
+      {/* TWO COL */}
+      <div style={{display:'grid',gridTemplateColumns:'3fr 2fr',gap:16,marginBottom:16}}>
+        {/* TRAFFIC CHART */}
+        <div style={{...s.card,padding:'22px'}}>
+          <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:18}}>
+            <h3 style={{fontFamily:'Syne,sans-serif',fontWeight:800,fontSize:16}}>Today's Traffic</h3>
+            <span style={{...s.badge('gray'),fontSize:11}}>Live · {ANALYTICS.daily.length} hours</span>
+          </div>
+          <div style={{display:'flex',alignItems:'flex-end',gap:4,height:100,marginBottom:8}}>
+            {ANALYTICS.daily.map((d,i)=>{
+              const pct=(d.v/maxH)*100;
+              const isHigh=pct>75;
+              return(
+                <div key={i} style={{flex:1,height:'100%',display:'flex',alignItems:'flex-end',position:'relative',cursor:'pointer'}} title={`${d.time}: ${d.v} tokens`}>
+                  <div style={{width:'100%',borderRadius:'3px 3px 0 0',background:isHigh?'linear-gradient(180deg,#f5c418,#ff6316)':'linear-gradient(180deg,#1fd97c,#0ea860)',height:`${pct}%`,minHeight:3,transition:'height .8s cubic-bezier(.34,1.56,.64,1)',opacity:.85}}
+                    onMouseEnter={e=>e.currentTarget.style.opacity='1'}
+                    onMouseLeave={e=>e.currentTarget.style.opacity='.85'}/>
+                </div>
+              );
+            })}
+          </div>
+          <div style={{display:'flex',justifyContent:'space-between',fontSize:9,color:'var(--t4)'}}>
+            {ANALYTICS.daily.filter((_,i)=>i%3===0).map(d=><span key={d.time}>{d.time}</span>)}
+          </div>
+          <div style={{marginTop:12,display:'flex',gap:16,fontSize:12,color:'var(--t3)'}}>
+            <span style={{display:'flex',alignItems:'center',gap:5}}><span style={{width:10,height:10,borderRadius:2,background:'linear-gradient(135deg,#f5c418,#ff6316)',flexShrink:0}}/>Peak</span>
+            <span style={{display:'flex',alignItems:'center',gap:5}}><span style={{width:10,height:10,borderRadius:2,background:'linear-gradient(135deg,#1fd97c,#0ea860)',flexShrink:0}}/>Normal</span>
+          </div>
+        </div>
+
+        {/* ACTIVITY FEED */}
+        <div style={{...s.card,padding:'22px',overflowY:'auto',maxHeight:220}}>
+          <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:14}}>
+            <h3 style={{fontFamily:'Syne,sans-serif',fontWeight:800,fontSize:16}}>Live Activity</h3>
+            <div style={{display:'flex',alignItems:'center',gap:5,fontSize:11,color:'#1fd97c',fontWeight:700}}>
+              <div style={{width:5,height:5,borderRadius:'50%',background:'#1fd97c',animation:'pulse 2s infinite'}}/>
+              LIVE
+            </div>
+          </div>
+          {activityFeed.map((a,i)=>(
+            <div key={a.id} style={{display:'flex',alignItems:'center',gap:9,padding:'7px 0',borderBottom:i<activityFeed.length-1?'1px solid var(--bdr)':'none',animation:i===0?'notifSlide .3s ease':'none'}}>
+              <div style={{width:28,height:28,borderRadius:8,background:`${a.color}18`,display:'flex',alignItems:'center',justifyContent:'center',fontFamily:'JetBrains Mono,monospace',fontWeight:800,fontSize:11,color:a.color,flexShrink:0}}>#{a.token}</div>
+              <div style={{flex:1}}>
+                <span style={{fontSize:12,color:a.action==='served'?'#1fd97c':a.action==='missed'?'#ff4d6d':'var(--t2)',fontWeight:600}}>{a.action}</span>
+                <span style={{fontSize:11,color:'var(--t4)'}}> · {a.outlet}</span>
+              </div>
+              <span style={{fontSize:10,color:'var(--t4)',flexShrink:0}}>{a.time}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* OUTLET STATUS + QUICK ACTIONS */}
+      <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:16}}>
+        <div style={{...s.card,padding:'22px'}}>
+          <div style={{display:'flex',justifyContent:'space-between',marginBottom:16}}>
+            <h3 style={{fontFamily:'Syne,sans-serif',fontWeight:800,fontSize:15}}>Outlet Status</h3>
+            <button style={{...s.btnGhost,padding:'5px 11px',fontSize:11}} onClick={()=>setPage('outlets')}>Manage</button>
+          </div>
+          {OUTLETS.map(o=>(
+            <div key={o.id} style={{display:'flex',alignItems:'center',gap:12,padding:'11px 0',borderBottom:'1px solid var(--bdr)'}}>
+              <div style={{width:8,height:8,borderRadius:'50%',background:o.open?'#1fd97c':'#374151',flexShrink:0,boxShadow:o.open?'0 0 8px #1fd97c':'none',animation:o.open?'pulse 2s infinite':'none'}}/>
+              <div style={{flex:1}}>
+                <div style={{fontWeight:700,fontSize:13,marginBottom:1}}>{o.name}</div>
+                <div style={{fontSize:11,color:'var(--t4)'}}>{o.hours}</div>
+              </div>
+              <div style={{textAlign:'right'}}>
+                <div style={{fontFamily:'JetBrains Mono,monospace',fontWeight:800,fontSize:20,color:o.open?'#f5c418':'var(--t4)'}}>{o.queue}</div>
+                <div style={{fontSize:10,color:'var(--t4)'}}>waiting</div>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        <div style={{...s.card,padding:'22px'}}>
+          <h3 style={{fontFamily:'Syne,sans-serif',fontWeight:800,fontSize:15,marginBottom:16}}>Quick Actions</h3>
+          <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10}}>
+            {[
+              {l:'Call Next',ic:<Ic.Bell/>,c:'#1fd97c',a:()=>setPage('queue')},
+              {l:'Add Outlet',ic:<Ic.Plus/>,c:'#a78bfa',a:()=>setPage('outlets')},
+              {l:'Analytics',ic:<Ic.Bar/>,c:'#f5c418',a:()=>setPage('analytics')},
+              {l:'Business',ic:<Ic.Building/>,c:'#fb923c',a:()=>setPage('business')},
+            ].map(a=>(
+              <button key={a.l} onClick={a.a} style={{display:'flex',alignItems:'center',gap:7,padding:'10px 14px',borderRadius:11,background:`${a.c}10`,border:`1px solid ${a.c}25`,color:a.c,fontWeight:700,fontSize:12,cursor:'pointer',fontFamily:'Inter,sans-serif',transition:'all .2s'}} onMouseEnter={e=>{e.currentTarget.style.background=`${a.c}1e`;e.currentTarget.style.transform='translateY(-2px)'}} onMouseLeave={e=>{e.currentTarget.style.background=`${a.c}10`;e.currentTarget.style.transform=''}}>
+                {a.ic}{a.l}
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ============================================================
+// MERCHANT QUEUE OPERATOR
+// ============================================================
+function MerchantQueue({addToast}){
+  const [entries,setEntries]=useState(QUEUE_ENTRIES);
+  const [called,setCalled]=useState(null);
+  const [selectedOutlet,setSelectedOutlet]=useState('o1');
+  const [calling,setCalling]=useState(false);
+  const waiting=entries.filter(e=>e.status==='WAITING');
+
+  const callNext=()=>{
+    if(!waiting.length) return;
+    setCalling(true);
+    setTimeout(()=>{
+      const next=waiting[0];
+      setEntries(p=>p.map(e=>e.id===next.id?{...e,status:'CALLED'}:e));
+      setCalled(next);
+      setCalling(false);
+      addToast(`Called token #${next.token}`,'success');
+    },1100);
+  };
+
+  const markServed=()=>{
+    if(!called) return;
+    setEntries(p=>p.filter(e=>e.id!==called.id));
+    addToast(`Token #${called.token} served ✓`,'success');
+    setCalled(null);
+  };
+
+  const missToken=(e)=>{
+    setEntries(p=>p.filter(en=>en.id!==e.id));
+    if(called?.id===e.id) setCalled(null);
+    addToast(`Token #${e.token} marked missed`,'error');
+  };
+
+  return(
+    <div style={{padding:'36px 36px 40px'}}>
+      <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:26}}>
+        <div>
+          <h1 style={{fontFamily:'Syne,sans-serif',fontSize:28,fontWeight:900,marginBottom:4,display:'flex',alignItems:'center',gap:8}}>Queue Operator <Ic.Shield/></h1>
+          <p style={{color:'var(--t3)',fontSize:14}}>Real-time queue control</p>
+        </div>
+        <select style={{...s.input,width:'auto',padding:'10px 14px',fontSize:13}} value={selectedOutlet} onChange={e=>setSelectedOutlet(e.target.value)}>
+          {OUTLETS.map(o=><option key={o.id} value={o.id}>{o.name}</option>)}
+        </select>
+      </div>
+
+      <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:16,marginBottom:20}}>
+        {/* CURRENTLY SERVING */}
+        <div style={{...s.card,padding:'32px',textAlign:'center',background:'rgba(31,217,124,.06)',borderColor:'rgba(31,217,124,.2)',position:'relative',overflow:'hidden'}}>
+          <div style={{position:'absolute',top:-30,right:-30,width:110,height:110,borderRadius:'50%',background:'rgba(31,217,124,.08)',filter:'blur(28px)'}}/>
+          <div style={{fontSize:11,fontWeight:700,color:'#1fd97c',textTransform:'uppercase',letterSpacing:1.5,marginBottom:10,display:'flex',alignItems:'center',justifyContent:'center',gap:7}}><Ic.Sparkle/>Now Serving</div>
+          <div style={{fontFamily:'JetBrains Mono,monospace',fontSize:88,fontWeight:800,color:'#fff',lineHeight:1,marginBottom:16,animation:called?'countBounce .5s ease':''}}>{called?`#${called.token}`:'—'}</div>
+          {called?(
+            <div style={{display:'flex',gap:10,justifyContent:'center'}}>
+              <button style={{...s.btnM,gap:6}} onClick={markServed}><Ic.Check/>Served</button>
+              <button style={{...s.btnDanger,gap:6}} onClick={()=>missToken(called)}>Miss</button>
+            </div>
+          ):<p style={{color:'var(--t4)',fontSize:13}}>Call next person to serve</p>}
+        </div>
+
+        {/* CALL NEXT */}
+        <div style={{...s.card,padding:'32px',textAlign:'center'}}>
+          <div style={{fontFamily:'JetBrains Mono,monospace',fontSize:52,fontWeight:800,color:'#fff',marginBottom:4}}>{waiting.length}</div>
+          <div style={{fontSize:13,color:'var(--t3)',marginBottom:24}}>customers waiting</div>
+          <button style={{...s.btnM,justifyContent:'center',width:'100%',padding:'17px',fontSize:16,borderRadius:14,gap:10,opacity:waiting.length===0?.4:1,cursor:waiting.length===0?'not-allowed':'pointer'}}
+            onClick={callNext}
+            onMouseEnter={e=>{if(waiting.length>0){e.currentTarget.style.transform='translateY(-3px)';e.currentTarget.style.boxShadow='0 18px 45px rgba(31,217,124,.38)'}}}
+            onMouseLeave={e=>{e.currentTarget.style.transform='';e.currentTarget.style.boxShadow=''}}>
+            {calling?<div style={{width:20,height:20,border:'2px solid rgba(255,255,255,.3)',borderTop:'2px solid #fff',borderRadius:'50%',animation:'spin .7s linear infinite'}}/>:<><Ic.Bell/>{waiting.length>0?'Call Next Person':'Queue Empty'}</>}
+          </button>
+          {waiting.length>0&&<p style={{fontSize:11,color:'var(--t4)',marginTop:14}}>Next: Token #{waiting[0]?.token} · {waiting[0]?.initials}</p>}
+        </div>
+      </div>
+
+      {/* LIVE BOARD */}
+      <div style={{...s.card,padding:'22px'}}>
+        <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:18}}>
+          <h3 style={{fontFamily:'Syne,sans-serif',fontWeight:800,fontSize:16}}>Live Tracking Board</h3>
+          <span style={{...s.badge('gray')}}>{entries.length} Total</span>
+        </div>
+        {entries.length===0?(
+          <div style={{textAlign:'center',padding:'36px',color:'var(--t3)'}}>
+            <div style={{fontSize:36,marginBottom:10}}>✓</div>
+            <p style={{fontWeight:700}}>Queue is clear</p>
+          </div>
+        ):(
+          <div style={{display:'flex',flexDirection:'column',gap:8}}>
+            {entries.map(e=>(
+              <div key={e.id} style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'13px 16px',borderRadius:14,background:e.status==='CALLED'?'rgba(31,217,124,.07)':'rgba(255,255,255,.025)',border:e.status==='CALLED'?'1px solid rgba(31,217,124,.28)':'1px solid var(--bdr)',transition:'all .3s',animation:e.status==='CALLED'?'tokenG 2.5s infinite':''}}>
+                <div style={{display:'flex',alignItems:'center',gap:14}}>
+                  <div style={{width:42,height:42,borderRadius:11,background:'rgba(255,255,255,.06)',display:'flex',alignItems:'center',justifyContent:'center',fontFamily:'JetBrains Mono,monospace',fontWeight:900,fontSize:16}}>#{e.token}</div>
+                  <div style={{width:32,height:32,borderRadius:'50%',background:`hsl(${e.token*47%360},55%,55%)`,display:'flex',alignItems:'center',justifyContent:'center',fontSize:11,fontWeight:800,color:'#fff'}}>{e.initials}</div>
+                  <span style={s.badge(e.status==='CALLED'?'green':'yellow')}>{e.status}</span>
+                  <span style={{fontSize:12,color:'var(--t3)'}}>{e.wait}</span>
+                </div>
+                <div style={{display:'flex',gap:8}}>
+                  {e.status==='CALLED'&&<button style={{...s.btnGhost,padding:'6px 12px',fontSize:11,gap:5}} onClick={markServed}><Ic.Check/>Served</button>}
+                  {e.status==='WAITING'&&<button style={{...s.btnDanger,padding:'6px 12px',fontSize:11}} onClick={()=>missToken(e)}>Miss</button>}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ============================================================
+// MERCHANT OUTLETS
+// ============================================================
+function MerchantOutlets({onOutlet,addToast}){
+  const [outlets,setOutlets]=useState(OUTLETS);
+  const [showForm,setShowForm]=useState(false);
+  const [newName,setNewName]=useState('');
+  const [newAddr,setNewAddr]=useState('');
+
+  const create=()=>{
+    if(!newName) return;
+    setOutlets(p=>[...p,{id:`o${p.length+1}`,name:newName,addr:newAddr||'Bengaluru',open:true,queue:0,hours:'9:00 AM – 9:00 PM'}]);
+    setNewName('');setNewAddr('');setShowForm(false);
+    addToast(`${newName} outlet created!`,'success');
+  };
+
+  return(
+    <div style={{padding:'36px 36px 40px'}}>
+      <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:26}}>
+        <div>
+          <h1 style={{fontFamily:'Syne,sans-serif',fontSize:28,fontWeight:900,marginBottom:4}}>Outlets</h1>
+          <p style={{color:'var(--t3)',fontSize:14}}>{outlets.length} locations · Manage & monitor</p>
+        </div>
+        <button style={{...s.btnM,gap:6}} onClick={()=>setShowForm(!showForm)}><Ic.Plus/>New Outlet</button>
+      </div>
+
+      {showForm&&(
+        <div className="au" style={{...s.card,padding:'22px',marginBottom:20,background:'rgba(31,217,124,.04)',borderColor:'rgba(31,217,124,.2)'}}>
+          <h3 style={{fontFamily:'Syne,sans-serif',fontWeight:800,fontSize:16,marginBottom:16}}>Register New Outlet</h3>
+          <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:14,marginBottom:14}}>
+            <div>
+              <label style={{fontSize:11,fontWeight:700,color:'var(--t3)',textTransform:'uppercase',letterSpacing:.8,display:'block',marginBottom:8}}>Outlet Name</label>
+              <input style={s.input} placeholder="e.g. Downtown Branch" value={newName} onChange={e=>setNewName(e.target.value)} onFocus={e=>e.target.style.borderColor='rgba(31,217,124,.4)'} onBlur={e=>e.target.style.borderColor='var(--bdr2)'}/>
+            </div>
+            <div>
+              <label style={{fontSize:11,fontWeight:700,color:'var(--t3)',textTransform:'uppercase',letterSpacing:.8,display:'block',marginBottom:8}}>Address</label>
+              <input style={s.input} placeholder="123 Main St, Area, City" value={newAddr} onChange={e=>setNewAddr(e.target.value)} onFocus={e=>e.target.style.borderColor='rgba(31,217,124,.4)'} onBlur={e=>e.target.style.borderColor='var(--bdr2)'}/>
+            </div>
+          </div>
+          <div style={{display:'flex',gap:10}}>
+            <button style={{...s.btnM,gap:6}} onClick={create}><Ic.Check/>Create</button>
+            <button style={s.btnGhost} onClick={()=>setShowForm(false)}>Cancel</button>
+          </div>
+        </div>
+      )}
+
+      <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(320px,1fr))',gap:16}}>
+        {outlets.map(o=>(
+          <div key={o.id} style={{...s.card,padding:'22px',cursor:'pointer'}}
+            onClick={()=>onOutlet(o)}
+            onMouseEnter={e=>{e.currentTarget.style.borderColor='rgba(31,217,124,.28)';e.currentTarget.style.transform='translateY(-4px)'}}
+            onMouseLeave={e=>{e.currentTarget.style.borderColor='var(--bdr)';e.currentTarget.style.transform=''}}>
+            <div style={{display:'flex',justifyContent:'space-between',alignItems:'start',marginBottom:14}}>
+              <div style={{display:'flex',alignItems:'center',gap:11}}>
+                <div style={{width:42,height:42,borderRadius:12,background:'rgba(31,217,124,.1)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:20}}>🏪</div>
+                <div>
+                  <div style={{fontWeight:700,fontSize:15,marginBottom:2}}>{o.name}</div>
+                  <div style={{fontSize:11,color:'var(--t3)',display:'flex',alignItems:'center',gap:4}}><Ic.MapPin/>{o.addr}</div>
+                </div>
+              </div>
+              <span style={{...s.badge(o.open?'green':'red'),flexShrink:0}}>{o.open?'● Open':'Closed'}</span>
+            </div>
+            <div style={{display:'flex',gap:10,marginBottom:14}}>
+              <div style={{flex:1,background:'rgba(255,255,255,.04)',borderRadius:10,padding:'10px',textAlign:'center'}}>
+                <div style={{fontFamily:'JetBrains Mono,monospace',fontWeight:800,fontSize:22,color:'#f5c418',marginBottom:2}}>{o.queue}</div>
+                <div style={{fontSize:10,color:'var(--t4)',fontWeight:700}}>WAITING</div>
+              </div>
+              <div style={{flex:1,background:'rgba(255,255,255,.04)',borderRadius:10,padding:'10px',textAlign:'center'}}>
+                <div style={{fontWeight:700,fontSize:13,color:'var(--t2)',marginBottom:2}}>{o.hours}</div>
+                <div style={{fontSize:10,color:'var(--t4)',fontWeight:700}}>HOURS</div>
+              </div>
+            </div>
+            <button style={{...s.btnM,width:'100%',justifyContent:'center',padding:'10px',fontSize:13,gap:6}} onClick={e=>{e.stopPropagation();onOutlet(o)}}><Ic.Settings/>Manage Outlet</button>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ============================================================
+// MERCHANT OUTLET DETAIL
+// ============================================================
+function MerchantOutletDetail({outlet,onBack,addToast}){
+  const [isOpen,setIsOpen]=useState(outlet.open);
+  const [activeTab,setActiveTab]=useState('info');
+  const [inventory,setInventory]=useState([
+    {id:1,name:'Espresso',cat:'Coffee',stock:true,price:'₹80'},
+    {id:2,name:'Cappuccino',cat:'Coffee',stock:true,price:'₹120'},
+    {id:3,name:'Croissant',cat:'Pastries',stock:true,price:'₹90'},
+    {id:4,name:'Club Sandwich',cat:'Food',stock:false,price:'₹180'},
+    {id:5,name:'Cold Brew',cat:'Coffee',stock:true,price:'₹150'},
+  ]);
+  const [newItem,setNewItem]=useState('');
+  const tabs=['info','inventory','hours','settings'];
+
+  return(
+    <div style={{padding:'36px 36px 40px'}}>
+      <div style={{display:'flex',alignItems:'center',gap:14,marginBottom:24}}>
+        <button style={{...s.btnGhost,padding:'8px 14px',fontSize:12,gap:5}} onClick={onBack}><Ic.ChevL/>Back</button>
+        <div style={{flex:1}}>
+          <h1 style={{fontFamily:'Syne,sans-serif',fontSize:22,fontWeight:900,marginBottom:2}}>{outlet.name}</h1>
+          <p style={{color:'var(--t3)',fontSize:13,display:'flex',alignItems:'center',gap:5}}><Ic.MapPin/>{outlet.addr}</p>
+        </div>
+        <div style={{display:'flex',alignItems:'center',gap:10}}>
+          <span style={{fontSize:13,fontWeight:600,color:isOpen?'#1fd97c':'var(--t3)'}}>{isOpen?'Open':'Closed'}</span>
+          <div style={{position:'relative',width:50,height:26,cursor:'pointer'}} onClick={()=>{setIsOpen(!isOpen);addToast(isOpen?'Outlet closed':'Outlet opened','info')}}>
+            <div style={{width:'100%',height:'100%',borderRadius:13,background:isOpen?'rgba(31,217,124,.35)':'rgba(255,255,255,.1)',border:isOpen?'1px solid rgba(31,217,124,.5)':'1px solid var(--bdr2)',transition:'all .3s'}}/>
+            <div style={{position:'absolute',top:3,left:isOpen?26:3,width:20,height:20,borderRadius:'50%',background:isOpen?'#1fd97c':'rgba(255,255,255,.45)',transition:'all .3s',boxShadow:'0 2px 6px rgba(0,0,0,.3)'}}/>
+          </div>
+        </div>
+      </div>
+
+      <div style={{display:'flex',gap:3,background:'rgba(255,255,255,.04)',padding:3,borderRadius:13,marginBottom:24,border:'1px solid var(--bdr)',width:'fit-content'}}>
+        {tabs.map(t=>(
+          <button key={t} onClick={()=>setActiveTab(t)} style={{padding:'8px 16px',borderRadius:10,border:'none',background:activeTab===t?'rgba(255,255,255,.1)':'transparent',color:activeTab===t?'#fff':'var(--t3)',fontWeight:600,fontSize:12,cursor:'pointer',fontFamily:'Inter,sans-serif',textTransform:'capitalize',transition:'all .2s'}}>
+            {t}
+          </button>
+        ))}
+      </div>
+
+      {activeTab==='info'&&(
+        <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:16}}>
+          <div style={{...s.card,padding:'22px'}}>
+            <h3 style={{fontFamily:'Syne,sans-serif',fontWeight:800,fontSize:15,marginBottom:16}}>Basic Information</h3>
+            {[{l:'Outlet Name',v:outlet.name},{l:'Address',v:outlet.addr},{l:'Phone',v:'+91 98765 43210'},{l:'Hours',v:outlet.hours}].map(f=>(
+              <div key={f.l} style={{marginBottom:14}}>
+                <label style={{fontSize:11,fontWeight:700,color:'var(--t3)',textTransform:'uppercase',letterSpacing:.8,display:'block',marginBottom:7}}>{f.l}</label>
+                <input style={s.input} defaultValue={f.v} onFocus={e=>e.target.style.borderColor='rgba(31,217,124,.4)'} onBlur={e=>e.target.style.borderColor='var(--bdr2)'}/>
+              </div>
+            ))}
+            <button style={{...s.btnM,width:'100%',justifyContent:'center',gap:6}} onClick={()=>addToast('Changes saved!','success')}><Ic.Check/>Save Changes</button>
+          </div>
+          <div style={{...s.card,padding:'22px'}}>
+            <h3 style={{fontFamily:'Syne,sans-serif',fontWeight:800,fontSize:15,marginBottom:16}}>Queue Settings</h3>
+            {[{l:'Max Queue Size',t:'number',v:'50'},{l:'Avg. Service Time (min)',t:'number',v:'5'},{l:'Queue Reset Time',t:'time',v:'23:00'}].map(f=>(
+              <div key={f.l} style={{marginBottom:14}}>
+                <label style={{fontSize:11,fontWeight:700,color:'var(--t3)',textTransform:'uppercase',letterSpacing:.8,display:'block',marginBottom:7}}>{f.l}</label>
+                <input type={f.t} style={s.input} defaultValue={f.v} onFocus={e=>e.target.style.borderColor='rgba(31,217,124,.4)'} onBlur={e=>e.target.style.borderColor='var(--bdr2)'}/>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {activeTab==='inventory'&&(
+        <div>
+          <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:18}}>
+            <h3 style={{fontFamily:'Syne,sans-serif',fontWeight:800,fontSize:16}}>{inventory.length} Items</h3>
+            <div style={{display:'flex',gap:8}}>
+              <input style={{...s.input,width:180}} placeholder="Add item..." value={newItem} onChange={e=>setNewItem(e.target.value)} onKeyDown={e=>{if(e.key==='Enter'&&newItem){setInventory(p=>[...p,{id:p.length+1,name:newItem,cat:'Other',stock:true,price:'₹0'}]);setNewItem('');addToast('Item added','success');}}} onFocus={e=>e.target.style.borderColor='rgba(31,217,124,.4)'} onBlur={e=>e.target.style.borderColor='var(--bdr2)'}/>
+              <button style={{...s.btnM,gap:5}} onClick={()=>{if(newItem){setInventory(p=>[...p,{id:p.length+1,name:newItem,cat:'Other',stock:true,price:'₹0'}]);setNewItem('');addToast('Item added','success');}}}><Ic.Plus/>Add</button>
+            </div>
+          </div>
+          <div style={{...s.card,padding:'8px'}}>
+            <div style={{display:'grid',gridTemplateColumns:'1fr 100px 80px 110px 70px',gap:12,padding:'9px 14px',fontSize:10,fontWeight:700,color:'var(--t4)',textTransform:'uppercase',letterSpacing:.8,borderBottom:'1px solid var(--bdr)'}}>
+              <span>Item</span><span>Category</span><span>Price</span><span>Stock</span><span>Del</span>
+            </div>
+            {inventory.map(item=>(
+              <div key={item.id} style={{display:'grid',gridTemplateColumns:'1fr 100px 80px 110px 70px',gap:12,padding:'12px 14px',borderBottom:'1px solid var(--bdr)',alignItems:'center'}}>
+                <span style={{fontWeight:600,fontSize:14}}>{item.name}</span>
+                <span style={{...s.badge('blue'),fontSize:10,width:'fit-content'}}>{item.cat}</span>
+                <span style={{fontFamily:'JetBrains Mono,monospace',fontWeight:700,fontSize:13,color:'#f5c418'}}>{item.price}</span>
+                <div style={{display:'flex',alignItems:'center',gap:7}}>
+                  <div style={{position:'relative',width:38,height:20,cursor:'pointer'}} onClick={()=>setInventory(p=>p.map(i=>i.id===item.id?{...i,stock:!i.stock}:i))}>
+                    <div style={{width:'100%',height:'100%',borderRadius:10,background:item.stock?'rgba(31,217,124,.3)':'rgba(255,255,255,.08)',transition:'all .3s'}}/>
+                    <div style={{position:'absolute',top:2,left:item.stock?19:2,width:16,height:16,borderRadius:'50%',background:item.stock?'#1fd97c':'rgba(255,255,255,.4)',transition:'all .3s'}}/>
+                  </div>
+                  <span style={{fontSize:11,color:item.stock?'#1fd97c':'var(--t4)'}}>{item.stock?'In':'Out'}</span>
+                </div>
+                <button style={{background:'rgba(255,77,109,.08)',border:'1px solid rgba(255,77,109,.15)',color:'#ff4d6d',padding:'5px 9px',borderRadius:7,cursor:'pointer',fontSize:11,fontFamily:'Inter,sans-serif'}} onClick={()=>{setInventory(p=>p.filter(i=>i.id!==item.id));addToast('Item removed','info')}}>Del</button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {activeTab==='hours'&&(
+        <div style={{maxWidth:540}}>
+          <div style={{...s.card,padding:'22px'}}>
+            <h3 style={{fontFamily:'Syne,sans-serif',fontWeight:800,fontSize:15,marginBottom:18}}>Operating Hours</h3>
+            {['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'].map((day,i)=>(
+              <div key={day} style={{display:'flex',alignItems:'center',gap:12,padding:'10px 0',borderBottom:'1px solid var(--bdr)'}}>
+                <div style={{width:90,fontSize:13,fontWeight:600,color:'var(--t2)'}}>{day}</div>
+                <input type="time" defaultValue={i<5?'07:00':'09:00'} style={{...s.input,width:104,padding:'8px 10px',fontSize:13}} onFocus={e=>e.target.style.borderColor='rgba(31,217,124,.4)'} onBlur={e=>e.target.style.borderColor='var(--bdr2)'}/>
+                <span style={{color:'var(--t4)',fontSize:12}}>to</span>
+                <input type="time" defaultValue={i<5?'22:00':'21:00'} style={{...s.input,width:104,padding:'8px 10px',fontSize:13}} onFocus={e=>e.target.style.borderColor='rgba(31,217,124,.4)'} onBlur={e=>e.target.style.borderColor='var(--bdr2)'}/>
+                <div style={{display:'flex',alignItems:'center',gap:4}}>
+                  <div style={{position:'relative',width:36,height:20,cursor:'pointer'}}>
+                    <div style={{width:'100%',height:'100%',borderRadius:10,background:'rgba(31,217,124,.28)',border:'1px solid rgba(31,217,124,.4)'}}/>
+                    <div style={{position:'absolute',top:2,left:18,width:16,height:16,borderRadius:'50%',background:'#1fd97c'}}/>
+                  </div>
+                </div>
+              </div>
+            ))}
+            <button style={{...s.btnM,width:'100%',justifyContent:'center',marginTop:18,gap:6}} onClick={()=>addToast('Hours saved!','success')}><Ic.Check/>Save Hours</button>
+          </div>
+        </div>
+      )}
+
+      {activeTab==='settings'&&(
+        <div style={{maxWidth:540}}>
+          {[{title:'Notifications',items:[{l:'SMS alerts',d:'Send SMS when token is called'},{l:'Email daily summary',d:'Queue summary every evening'},{l:'Push notifications',d:'Browser push for new joins'}]},{title:'Queue Behavior',items:[{l:'Allow advance booking',d:'Customers join before opening'},{l:'Auto-advance on timeout',d:'Move to next if no response in 5 min'},{l:'Show position live',d:'Customers see their queue position'}]}].map(section=>(
+            <div key={section.title} style={{...s.card,padding:'22px',marginBottom:14}}>
+              <h3 style={{fontFamily:'Syne,sans-serif',fontWeight:800,fontSize:15,marginBottom:16}}>{section.title}</h3>
+              {section.items.map((item,j)=>(
+                <div key={item.l} style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'11px 0',borderBottom:j<section.items.length-1?'1px solid var(--bdr)':'none'}}>
+                  <div>
+                    <div style={{fontWeight:600,fontSize:13,marginBottom:2}}>{item.l}</div>
+                    <div style={{fontSize:11,color:'var(--t4)'}}>{item.d}</div>
+                  </div>
+                  <div style={{position:'relative',width:42,height:22,cursor:'pointer',flexShrink:0}}>
+                    <div style={{width:'100%',height:'100%',borderRadius:11,background:'rgba(31,217,124,.28)',border:'1px solid rgba(31,217,124,.4)'}}/>
+                    <div style={{position:'absolute',top:2,left:22,width:18,height:18,borderRadius:'50%',background:'#1fd97c'}}/>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ============================================================
+// MERCHANT ANALYTICS
+// ============================================================
+function MerchantAnalytics(){
+  const maxW=Math.max(...ANALYTICS.weekly);
+  const maxH=Math.max(...ANALYTICS.daily.map(d=>d.v));
+
+  return(
+    <div style={{padding:'36px 36px 40px'}}>
+      <div style={{marginBottom:26}}>
+        <h1 style={{fontFamily:'Syne,sans-serif',fontSize:28,fontWeight:900,marginBottom:4}}>Analytics</h1>
+        <p style={{color:'var(--t3)',fontSize:14}}>Queue performance & customer insights</p>
+      </div>
+
+      <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:14,marginBottom:20}}>
+        {[{n:'1,247',l:'Served this week',c:'#1fd97c',t:'+18%'},{n:'4.2m',l:'Avg wait time',c:'#f5c418',t:'↓0.8m'},{n:'96.4%',l:'Token call rate',c:'#a78bfa',t:'+2.1%'},{n:'4.84',l:'Avg rating',c:'#fb923c',t:'+0.06'}].map(st=>(
+          <div key={st.l} style={{...s.card,padding:'18px'}}>
+            <div style={{fontFamily:'JetBrains Mono,monospace',fontSize:26,fontWeight:800,color:st.c,marginBottom:4}}>{st.n}</div>
+            <div style={{fontSize:12,color:'var(--t3)',marginBottom:7}}>{st.l}</div>
+            <span style={{...s.badge(st.c==='#1fd97c'?'green':st.c==='#f5c418'?'yellow':'blue'),fontSize:10,padding:'2px 7px'}}>{st.t}</span>
+          </div>
+        ))}
+      </div>
+
+      <div style={{display:'grid',gridTemplateColumns:'3fr 2fr',gap:16,marginBottom:16}}>
+        {/* HOURLY */}
+        <div style={{...s.card,padding:'22px'}}>
+          <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:18}}>
+            <h3 style={{fontFamily:'Syne,sans-serif',fontWeight:800,fontSize:16}}>Peak Hours Today</h3>
+            <span style={{...s.badge('gray'),fontSize:11}}>14 hour window</span>
+          </div>
+          <div style={{display:'flex',alignItems:'flex-end',gap:5,height:120,marginBottom:10}}>
+            {ANALYTICS.daily.map((d,i)=>{
+              const pct=(d.v/maxH)*100;
+              const isHigh=pct>70;
+              return(
+                <div key={i} style={{flex:1,height:'100%',display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'flex-end',gap:4}} title={`${d.time}: ${d.v} tokens`}>
+                  <div style={{width:'100%',borderRadius:'3px 3px 0 0',background:isHigh?'linear-gradient(180deg,#f5c418,#ff6316)':'linear-gradient(180deg,#1fd97c66,#1fd97c33)',height:`${pct}%`,minHeight:3,transition:'height 1.2s cubic-bezier(.34,1.56,.64,1)',cursor:'pointer',opacity:.85}}
+                    onMouseEnter={e=>{e.currentTarget.style.opacity='1';e.currentTarget.style.filter='brightness(1.3)'}}
+                    onMouseLeave={e=>{e.currentTarget.style.opacity='.85';e.currentTarget.style.filter=''}}/>
+                </div>
+              );
+            })}
+          </div>
+          <div style={{display:'flex',justifyContent:'space-between',fontSize:9,color:'var(--t4)'}}>
+            {ANALYTICS.daily.filter((_,i)=>i%2===0).map(d=><span key={d.time}>{d.time}</span>)}
+          </div>
+        </div>
+
+        {/* WEEKLY */}
+        <div style={{...s.card,padding:'22px'}}>
+          <h3 style={{fontFamily:'Syne,sans-serif',fontWeight:800,fontSize:16,marginBottom:18}}>Weekly Volume</h3>
+          <div style={{display:'flex',alignItems:'flex-end',gap:8,height:100,marginBottom:10}}>
+            {ANALYTICS.weekly.map((v,i)=>(
+              <div key={i} style={{flex:1,display:'flex',flexDirection:'column',alignItems:'center',gap:4}}>
+                <span style={{fontSize:9,color:'var(--t4)',fontWeight:700}}>{v}</span>
+                <div style={{width:'100%',borderRadius:'4px 4px 0 0',background:'linear-gradient(180deg,#1fd97c,#0ea860)',height:`${(v/maxW)*100}%`,transition:'height 1.2s .1s cubic-bezier(.34,1.56,.64,1)'}}/>
+              </div>
+            ))}
+          </div>
+          <div style={{display:'flex',justifyContent:'space-between',fontSize:10,color:'var(--t4)'}}>
+            {ANALYTICS.wLabels.map(l=><span key={l}>{l}</span>)}
+          </div>
+          <div style={{marginTop:14,borderTop:'1px solid var(--bdr)',paddingTop:12,display:'flex',justifyContent:'space-between'}}>
+            <span style={{fontSize:12,color:'var(--t3)'}}>Best day</span>
+            <span style={{fontWeight:700,color:'#1fd97c',fontSize:13}}>Saturday (230)</span>
+          </div>
+        </div>
+      </div>
+
+      {/* INSIGHTS */}
+      <div style={{...s.card,padding:'22px'}}>
+        <h3 style={{fontFamily:'Syne,sans-serif',fontWeight:800,fontSize:16,marginBottom:18}}>Customer Insights</h3>
+        <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:20}}>
+          {[{l:'Repeat Customers',pct:68,c:'#a78bfa'},{l:'Token Call Rate',pct:94,c:'#1fd97c'},{l:'Satisfaction Score',pct:97,c:'#f5c418'}].map(ins=>(
+            <div key={ins.l}>
+              <div style={{display:'flex',justifyContent:'space-between',marginBottom:8}}>
+                <span style={{fontSize:13,color:'var(--t2)'}}>{ins.l}</span>
+                <span style={{fontFamily:'JetBrains Mono,monospace',fontWeight:800,fontSize:16,color:ins.c}}>{ins.pct}%</span>
+              </div>
+              <div style={{height:6,background:'rgba(255,255,255,.06)',borderRadius:3,overflow:'hidden'}}>
+                <div style={{height:'100%',width:`${ins.pct}%`,background:ins.c,borderRadius:3,transition:'width 1.5s cubic-bezier(.34,1.56,.64,1)'}}/>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ============================================================
+// MERCHANT BUSINESS
+// ============================================================
+function MerchantBusiness({addToast}){
+  return(
+    <div style={{padding:'36px 36px 40px',maxWidth:820}}>
+      <div style={{display:'flex',justifyContent:'space-between',alignItems:'start',marginBottom:26}}>
+        <div>
+          <h1 style={{fontFamily:'Syne,sans-serif',fontSize:28,fontWeight:900,marginBottom:4}}>Business Profile</h1>
+          <p style={{color:'var(--t3)',fontSize:14}}>Official identity on Spotly</p>
+        </div>
+        <div style={{display:'inline-flex',alignItems:'center',gap:6,padding:'6px 12px',borderRadius:999,background:'rgba(31,217,124,.1)',border:'1px solid rgba(31,217,124,.25)',color:'#1fd97c',fontSize:12,fontWeight:700}}>
+          <Ic.Shield/> Verified Merchant
+        </div>
+      </div>
+
+      <div style={{...s.card,padding:'28px',marginBottom:16,display:'flex',gap:22,alignItems:'center'}}>
+        <div style={{width:76,height:76,borderRadius:18,...s.gradM,display:'flex',alignItems:'center',justifyContent:'center',fontSize:34,flexShrink:0}}>☕</div>
+        <div style={{flex:1}}>
+          <div style={{display:'flex',alignItems:'center',gap:10,marginBottom:4}}>
+            <h2 style={{fontFamily:'Syne,sans-serif',fontSize:22,fontWeight:900}}>The Coffee Lab</h2>
+            <span style={{...s.badge('green'),fontSize:10}}>✓ Active</span>
+          </div>
+          <p style={{color:'var(--t3)',fontSize:13,marginBottom:10}}>Premium specialty coffee · Est. 2019</p>
+          <div style={{display:'flex',gap:16,fontSize:12,color:'var(--t3)'}}>
+            <span style={{display:'flex',alignItems:'center',gap:5}}><Ic.Store/>3 Outlets</span>
+            <span style={{display:'flex',alignItems:'center',gap:5}}><Ic.Star/>4.8 Rating</span>
+            <span style={{display:'flex',alignItems:'center',gap:5}}><Ic.Users/>148 today</span>
+          </div>
+        </div>
+        <button style={{...s.btnGhost,gap:6,fontSize:12}}><Ic.Upload/>Update Logo</button>
+      </div>
+
+      <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:16,marginBottom:16}}>
+        <div style={{...s.card,padding:'22px'}}>
+          <h3 style={{fontFamily:'Syne,sans-serif',fontWeight:800,fontSize:14,marginBottom:16}}>Business Details</h3>
+          {[{l:'Legal Name',v:'The Coffee Lab Pvt. Ltd.'},{l:'GST Number',v:'29AABCT1234A1Z5'},{l:'Category',v:'Food & Beverage'},{l:'Founded',v:'2019'}].map(f=>(
+            <div key={f.l} style={{marginBottom:14}}>
+              <label style={{fontSize:10,fontWeight:700,color:'var(--t4)',textTransform:'uppercase',letterSpacing:.8,display:'block',marginBottom:7}}>{f.l}</label>
+              <input style={s.input} defaultValue={f.v} onFocus={e=>e.target.style.borderColor='rgba(31,217,124,.4)'} onBlur={e=>e.target.style.borderColor='var(--bdr2)'}/>
+            </div>
+          ))}
+        </div>
+        <div style={{...s.card,padding:'22px'}}>
+          <h3 style={{fontFamily:'Syne,sans-serif',fontWeight:800,fontSize:14,marginBottom:16}}>Contact Information</h3>
+          {[{l:'Business Email',v:'hello@thecoffeelab.in'},{l:'Phone',v:'+91 80 4567 8900'},{l:'Website',v:'www.thecoffeelab.in'},{l:'HQ Location',v:'Indiranagar, Bengaluru'}].map(f=>(
+            <div key={f.l} style={{marginBottom:14}}>
+              <label style={{fontSize:10,fontWeight:700,color:'var(--t4)',textTransform:'uppercase',letterSpacing:.8,display:'block',marginBottom:7}}>{f.l}</label>
+              <input style={s.input} defaultValue={f.v} onFocus={e=>e.target.style.borderColor='rgba(31,217,124,.4)'} onBlur={e=>e.target.style.borderColor='var(--bdr2)'}/>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div style={{...s.card,padding:'22px'}}>
+        <h3 style={{fontFamily:'Syne,sans-serif',fontWeight:800,fontSize:14,marginBottom:16,display:'flex',alignItems:'center',gap:8}}><Ic.Shield/>Verification Documents</h3>
+        <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(160px,1fr))',gap:12}}>
+          {[{l:'Aadhaar Card',s:'verified',d:'Mar 2025'},{l:'PAN Card',s:'verified',d:'Mar 2025'},{l:'GST Certificate',s:'verified',d:'Feb 2025'},{l:'Shop License',s:'pending',d:'Under review'},{l:'FSSAI License',s:'unverified',d:'Not uploaded'}].map(doc=>(
+            <div key={doc.l} style={{background:'rgba(255,255,255,.03)',border:`1px solid ${doc.s==='verified'?'rgba(31,217,124,.18)':doc.s==='pending'?'rgba(245,196,24,.18)':'var(--bdr)'}`,borderRadius:12,padding:'14px',cursor:'pointer',transition:'all .2s'}} onMouseEnter={e=>e.currentTarget.style.transform='translateY(-2px)'} onMouseLeave={e=>e.currentTarget.style.transform=''}>
+              <div style={{fontSize:22,marginBottom:8}}>{doc.s==='verified'?'✅':doc.s==='pending'?'⏳':'📄'}</div>
+              <div style={{fontWeight:700,fontSize:12,marginBottom:3}}>{doc.l}</div>
+              <div style={{fontSize:10,color:doc.s==='verified'?'#1fd97c':doc.s==='pending'?'#f5c418':'var(--t4)'}}>{doc.d}</div>
+              {doc.s==='unverified'&&<div style={{marginTop:7,fontSize:10,fontWeight:700,color:'#a78bfa',cursor:'pointer'}} onClick={()=>addToast('Upload feature coming soon','info')}>+ Upload</div>}
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <button style={{...s.btnM,marginTop:16,gap:6}} onClick={()=>addToast('Profile saved!','success')}><Ic.Check/>Save All Changes</button>
+    </div>
+  );
+}
+
+// ============================================================
+// MERCHANT SETTINGS
+// ============================================================
+function MerchantSettings({addToast}){
+  return(
+    <div style={{padding:'36px 36px 40px',maxWidth:680}}>
+      <div style={{marginBottom:26}}>
+        <h1 style={{fontFamily:'Syne,sans-serif',fontSize:28,fontWeight:900,marginBottom:4}}>Settings</h1>
+        <p style={{color:'var(--t3)',fontSize:14}}>Account & preferences</p>
+      </div>
+      {[
+        {title:'Account',items:[{l:'Change Password',ic:'🔐',d:'Update login credentials'},{l:'Two-Factor Authentication',ic:'🛡️',d:'Extra security layer'},{l:'Connected Devices',ic:'📱',d:'Manage active sessions'}]},
+        {title:'Notifications',items:[{l:'Queue Alerts',ic:'🔔',d:'When queue changes'},{l:'Daily Reports',ic:'📊',d:'End-of-day summaries'},{l:'Customer Reviews',ic:'⭐',d:'New rating alerts'}]},
+        {title:'Billing',items:[{l:'Subscription Plan',ic:'💳',d:'Growth Plan · ₹4,999/mo'},{l:'Payment Methods',ic:'🏦',d:'Cards and UPI'},{l:'Billing History',ic:'📄',d:'Invoices & receipts'}]},
+        {title:'Danger Zone',items:[{l:'Export All Data',ic:'⬇️',d:'Download business data',danger:false},{l:'Delete Account',ic:'🗑️',d:'Permanently remove account',danger:true}]},
+      ].map(section=>(
+        <div key={section.title} style={{...s.card,padding:'6px',marginBottom:14}}>
+          <div style={{padding:'11px 14px 7px',fontSize:10,fontWeight:700,color:'var(--t4)',textTransform:'uppercase',letterSpacing:1.2}}>{section.title}</div>
+          {section.items.map(item=>(
+            <div key={item.l} style={{display:'flex',alignItems:'center',gap:12,padding:'12px 14px',borderRadius:10,cursor:'pointer',transition:'all .18s',color:item.danger?'#ff4d6d':'var(--t2)'}} onMouseEnter={e=>e.currentTarget.style.background='rgba(255,255,255,.04)'} onMouseLeave={e=>e.currentTarget.style.background='transparent'} onClick={()=>addToast(`${item.l} clicked`,'info')}>
+              <span style={{fontSize:18}}>{item.ic}</span>
+              <div style={{flex:1}}>
+                <div style={{fontWeight:600,fontSize:13,marginBottom:1}}>{item.l}</div>
+                <div style={{fontSize:11,color:'var(--t4)'}}>{item.d}</div>
+              </div>
+              <Ic.ChevR/>
+            </div>
+          ))}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// ============================================================
+// MAIN APP
+// ============================================================
+export default function App(){
+  const [view,setView]=useState('landing');
+  const {toasts,add}=useToasts();
+
+  return(
+    <div style={{fontFamily:'Inter,system-ui,sans-serif',background:'var(--bg)',minHeight:'100vh',color:'#fff'}}>
+      <style>{CSS}</style>
+      <ToastContainer toasts={toasts}/>
+      {view==='landing'&&<Landing onConsumer={()=>setView('consumer')} onMerchant={()=>setView('merchant')}/>}
+      {view==='consumer'&&<ConsumerApp onBack={()=>setView('landing')} addToast={add}/>}
+      {view==='merchant'&&<MerchantApp onBack={()=>setView('landing')} addToast={add}/>}
+    </div>
+  );
+}

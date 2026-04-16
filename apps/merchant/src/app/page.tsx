@@ -1,123 +1,213 @@
-'use client';
+"use client"
 
-import { useAuthStore } from '@/store/auth.store';
-import { useRouter } from 'next/navigation';
-import { motion } from 'framer-motion';
-import { Store, Zap, Smartphone, ArrowRight } from 'lucide-react';
-import { useEffect } from 'react';
-import { getFirebaseToken } from '@/lib/firebase';
+import React, { useState, useEffect } from "react"
+import { motion, AnimatePresence } from "framer-motion"
+import { Ic, AuthModal, THEME, Orb } from "@spotly/ui"
+import { useAuthStore } from "@/store/auth.store"
+import { useRouter } from "next/navigation"
 
-export default function LandingPage() {
-  const { user, signInWithGoogle, loading } = useAuthStore();
-  const router = useRouter();
-
-  const routeAfterAuth = async () => {
-    try {
-      const token = await getFirebaseToken();
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001/api'}/merchant/me/profile`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
-      // If profile is not available, send merchant to setup details page.
-      if (!res.ok) {
-        router.push('/onboarding');
-        return;
-      }
-      const payload = await res.json();
-      if (!payload?.data) {
-        router.push('/onboarding');
-        return;
-      }
-      router.push('/dashboard');
-    } catch {
-      router.push('/onboarding');
-    }
-  };
+export default function MerchantLandingPage() {
+  const { user, signInWithGoogle, loading: authLoading } = useAuthStore()
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false)
+  const [mounted, setMounted] = useState(false)
+  const router = useRouter()
 
   useEffect(() => {
-    if (user && !loading) {
-      routeAfterAuth();
-    }
-  }, [user, loading, router]);
+    setMounted(true)
+    if (!authLoading && user) router.push('/dashboard')
+  }, [user, authLoading, router])
 
-  if (loading) return null; // Let the auth provider naturally load smoothly
+  if (!mounted) return (
+    <div style={{ height: '100vh', background: '#050509', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <motion.div 
+        animate={{ rotate: 360 }}
+        transition={{ duration: 1.2, repeat: Infinity, ease: 'linear' }}
+        style={{ width: 44, height: 44, border: '3px solid rgba(255,255,255,.05)', borderTopColor: '#1fd97c', borderRadius: '50%' }} 
+      />
+    </div>
+  )
+
+  const containerVars = {
+    hidden: { opacity: 0 },
+    visible: { 
+      opacity: 1,
+      transition: { staggerChildren: 0.1, delayChildren: 0.2 }
+    }
+  }
+
+  const itemVars = {
+    hidden: { opacity: 0, y: 15 },
+    visible: { opacity: 1, y: 0, transition: { duration: 0.7, ease: [0.16, 1, 0.3, 1] as any } }
+  }
 
   return (
-    <div className="min-h-screen bg-background relative overflow-hidden flex flex-col items-center justify-center pt-20">
-      {/* Background glowing orbs */}
-      <div className="absolute top-1/4 -left-1/4 w-[800px] h-[800px] bg-brand-600/20 rounded-full blur-[150px] opacity-70 pointer-events-none" />
-      <div className="absolute -bottom-1/4 -right-1/4 w-[800px] h-[800px] bg-blue-600/10 rounded-full blur-[150px] opacity-70 pointer-events-none" />
+    <div style={{ 
+      minHeight: '100vh', 
+      background: '#040407', 
+      color: '#fff', 
+      position: 'relative', 
+      overflow: 'hidden',
+      display: 'flex',
+      flexDirection: 'column'
+    }}>
+      {/* AMBIENCE */}
+      <div style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, overflow: 'hidden', pointerEvents: 'none' }}>
+        <Orb x="-15%" y="-15%" size="85%" color="rgba(31,217,124,.07)" anim="orb1 22s infinite" />
+        <Orb x="75%" y="25%" size="65%" color="rgba(0,207,255,.05)" anim="orb2 28s infinite" />
+        <div style={{ position: 'absolute', inset: 0, background: 'radial-gradient(circle at 50% 50%, transparent, #040407 98%)' }} />
+      </div>
 
-      {/* Hero section */}
-      <main className="relative z-10 w-full max-w-5xl mx-auto px-6 text-center">
-        <motion.div
-          initial={{ opacity: 0, y: 30 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.8, ease: 'easeOut' }}
-          className="flex flex-col items-center"
-        >
-          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full border border-brand-500/30 bg-brand-500/10 text-brand-400 font-semibold text-sm mb-8 backdrop-blur-md">
-            <Store className="w-4 h-4" />
-            Merchant Portal 1.0
+      {/* NAV */}
+      <nav style={{ 
+        padding: '24px clamp(24px, 5vw, 64px)', 
+        display: 'flex', 
+        justifyContent: 'space-between', 
+        alignItems: 'center',
+        position: 'relative',
+        zIndex: 10
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <div style={{ width: 36, height: 36, borderRadius: 10, background: THEME.gradients.merchant, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <Ic.Zap />
           </div>
-          
-          <h1 className="text-5xl md:text-7xl font-bold tracking-tight text-white mb-6 leading-tight">
-            Manage your queues <br />
-            <span className="text-gradient">with absolute clarity.</span>
-          </h1>
-          
-          <p className="text-lg md:text-xl text-gray-400 max-w-2xl mx-auto mb-12">
-            Turn chaotic waiting areas into streamlined digital queues. Let your customers join from their phones while you oversee the floor in real-time.
-          </p>
+          <div>
+            <div style={{ fontWeight: 900, fontSize: 18, letterSpacing: -1 }}>spotly.</div>
+            <div style={{ fontSize: 9, color: '#1fd97c', fontWeight: 800, textTransform: 'uppercase', letterSpacing: 1.5 }}>Business</div>
+          </div>
+        </div>
+        <button 
+          onClick={() => window.open('http://localhost:3000', '_blank')}
+          style={{ 
+            background: 'rgba(255,255,255,.03)', 
+            border: '1px solid rgba(255,255,255,.08)', 
+            padding: '10px 22px', 
+            borderRadius: 12, 
+            color: 'rgba(255,255,255,.5)', 
+            fontSize: 14, 
+            fontWeight: 700,
+            cursor: 'pointer'
+          }}
+        >
+          Consumer View
+        </button>
+      </nav>
 
-          <button
-            onClick={async () => {
-              await signInWithGoogle();
-              await routeAfterAuth();
+      {/* HERO */}
+      <motion.main 
+        variants={containerVars}
+        initial="hidden"
+        animate="visible"
+        style={{ 
+          flex: 1, 
+          display: 'flex', 
+          flexDirection: 'column', 
+          alignItems: 'center', 
+          justifyContent: 'center',
+          padding: '0 24px',
+          textAlign: 'center',
+          position: 'relative',
+          zIndex: 1
+        }}
+      >
+        <motion.div variants={itemVars} style={{ marginBottom: 28 }}>
+          <div style={{ 
+            display: 'inline-flex', 
+            alignItems: 'center', 
+            gap: 10, 
+            padding: '8px 20px', 
+            borderRadius: 99, 
+            background: 'rgba(31,217,124,.06)', 
+            border: '1px solid rgba(31,217,124,.15)',
+            color: '#1fd97c',
+            fontSize: 11,
+            fontWeight: 800,
+            textTransform: 'uppercase',
+            letterSpacing: 2
+          }}>
+            <Ic.Activity /> Professional Queue Intelligence
+          </div>
+        </motion.div>
+
+        <motion.h2 variants={itemVars} style={{ 
+          fontSize: 'clamp(44px, 8vw, 84px)', 
+          fontWeight: 900, 
+          lineHeight: 1.05, 
+          letterSpacing: -3,
+          marginBottom: 32,
+          maxWidth: 960
+        }}>
+          Manage your queue.<br/>
+          <span style={{ background: THEME.gradients.merchant, WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>Master your efficiency.</span>
+        </motion.h2>
+
+        <motion.p variants={itemVars} style={{ 
+          fontSize: 'clamp(18px, 1.8vw, 22px)', 
+          color: 'rgba(255,255,255,0.4)', 
+          maxWidth: 680, 
+          lineHeight: 1.6,
+          marginBottom: 56,
+          fontWeight: 500
+        }}>
+          The industry leading platform for walk-in management. Eliminate overhead, 
+          reduce physical crowds, and delight your customers with precision timing.
+        </motion.p>
+
+        <motion.div variants={itemVars}>
+          <motion.button 
+            whileHover={{ scale: 1.05, y: -4, boxShadow: '0 25px 50px rgba(31,217,124,.25)' }}
+            whileTap={{ scale: 0.95 }}
+            onClick={() => setIsAuthModalOpen(true)}
+            style={{ 
+              background: THEME.gradients.merchant, 
+              color: '#fff', 
+              padding: '20px 64px', 
+              borderRadius: 20, 
+              fontSize: 18, 
+              fontWeight: 900, 
+              border: 'none', 
+              cursor: 'pointer',
+              boxShadow: '0 15px 35px rgba(31,217,124,.2)',
             }}
-            className="group relative inline-flex items-center justify-center px-8 py-4 text-base font-bold text-white transition-all duration-200 bg-brand-600 font-pj rounded-2xl hover:bg-brand-500 focus:outline-none shadow-[0_0_40px_rgba(34,197,94,0.3)] hover:shadow-[0_0_60px_rgba(34,197,94,0.5)] active:scale-95"
           >
-            <span>Get Started with Google</span>
-            <ArrowRight className="ml-2 w-5 h-5 group-hover:translate-x-1 transition-transform" />
-          </button>
+            Launch Dashboard
+          </motion.button>
         </motion.div>
+      </motion.main>
 
-        {/* Feature Highlights */}
-        <motion.div
-          initial={{ opacity: 0, y: 40 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.8, delay: 0.2, ease: 'easeOut' }}
-          className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-24 mb-16 text-left"
-        >
-          <div className="glass-panel p-6 rounded-3xl relative overflow-hidden group">
-            <div className="absolute top-0 right-0 w-32 h-32 bg-brand-500/10 rounded-full blur-3xl -mr-16 -mt-16 transition-all group-hover:bg-brand-500/20" />
-            <div className="w-12 h-12 bg-white/5 rounded-2xl border border-white/10 flex items-center justify-center mb-6">
-              <Zap className="w-6 h-6 text-brand-400" />
-            </div>
-            <h3 className="text-xl font-bold text-white mb-3">Real-time Syncing</h3>
-            <p className="text-sm text-gray-400">Tokens are instantly synced across all devices using WebSockets. When you call someone, their phone alerts them immediately.</p>
+      {/* TRUST SECTION */}
+      <motion.div 
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ delay: 1.2, duration: 1 }}
+        style={{ 
+          padding: '48px', 
+          borderTop: '1px solid rgba(255,255,255,.04)',
+          display: 'flex',
+          justifyContent: 'center',
+          gap: 'clamp(32px, 8vw, 120px)',
+          background: 'rgba(255,255,255,0.01)'
+        }}
+      >
+        {[
+          { label: 'Throughput Boost', val: '+34%' },
+          { label: 'Wait Accuracy', val: '99.2%' },
+          { label: 'Active Outlets', val: '2.5k+' }
+        ].map((s, i) => (
+          <div key={i} style={{ textAlign: 'center' }}>
+            <div style={{ fontSize: 26, fontWeight: 900, color: '#fff', marginBottom: 2 }}>{s.val}</div>
+            <div style={{ fontSize: 10, fontWeight: 800, color: 'rgba(255,255,255,.2)', textTransform: 'uppercase', letterSpacing: 2 }}>{s.label}</div>
           </div>
+        ))}
+      </motion.div>
 
-          <div className="glass-panel p-6 rounded-3xl relative overflow-hidden group">
-            <div className="absolute top-0 right-0 w-32 h-32 bg-blue-500/10 rounded-full blur-3xl -mr-16 -mt-16 transition-all group-hover:bg-blue-500/20" />
-            <div className="w-12 h-12 bg-white/5 rounded-2xl border border-white/10 flex items-center justify-center mb-6">
-              <Smartphone className="w-6 h-6 text-blue-400" />
-            </div>
-            <h3 className="text-xl font-bold text-white mb-3">Cloud Dashboard</h3>
-            <p className="text-sm text-gray-400">Manage multiple outlets from a single unified panel. Switch between zones effortlessly and track queue loads live.</p>
-          </div>
-
-          <div className="glass-panel p-6 rounded-3xl relative overflow-hidden group">
-            <div className="absolute top-0 right-0 w-32 h-32 bg-purple-500/10 rounded-full blur-3xl -mr-16 -mt-16 transition-all group-hover:bg-purple-500/20" />
-            <div className="w-12 h-12 bg-white/5 rounded-2xl border border-white/10 flex items-center justify-center mb-6">
-              <Store className="w-6 h-6 text-purple-400" />
-            </div>
-            <h3 className="text-xl font-bold text-white mb-3">Brand Customization</h3>
-            <p className="text-sm text-gray-400">Tailor your workspace to fit your brand identity. Set up your categories and business details so customers see exactly who's serving them.</p>
-          </div>
-        </motion.div>
-      </main>
+      <AuthModal 
+        isOpen={isAuthModalOpen} 
+        onClose={() => setIsAuthModalOpen(false)} 
+        onGoogleAuth={signInWithGoogle}
+        isLoading={authLoading}
+        title="Welcome, Partner"
+        variant="merchant"
+      />
     </div>
-  );
+  )
 }
