@@ -34,7 +34,7 @@ services:
         value: https://spotly-api.onrender.com
       # We provide the Firebase Client UI directly here since they are public keys
       - key: NEXT_PUBLIC_FIREBASE_API_KEY
-        value: AIzaSyCH4cSFnP6vwboNVGwIkAA9jegVGScP6Mg
+        value: placeholder_key_see_render_dashboard
       - key: NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN
         value: spotly-d321e.firebaseapp.com
       - key: NEXT_PUBLIC_FIREBASE_PROJECT_ID
@@ -60,7 +60,7 @@ services:
       - key: NEXT_PUBLIC_WS_URL
         value: https://spotly-api.onrender.com
       - key: NEXT_PUBLIC_FIREBASE_API_KEY
-        value: AIzaSyCH4cSFnP6vwboNVGwIkAA9jegVGScP6Mg
+        value: placeholder_key_see_render_dashboard
       - key: NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN
         value: spotly-d321e.firebaseapp.com
       - key: NEXT_PUBLIC_FIREBASE_PROJECT_ID

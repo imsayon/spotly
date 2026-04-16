@@ -13,7 +13,7 @@ importers:
         version: 2.103.2
     devDependencies:
       turbo:
-        specifier: ^2.9.6
+        specifier: ^2.1.0
         version: 2.9.6
 
   apps/api:
@@ -2286,15 +2286,18 @@ packages:
       negotiator: 0.6.3
     dev: false
 
-  /acorn-walk@8.3.5:
-    resolution: {integrity: sha512-HEHNfbars9v4pgpW6SO1KSPkfoS0xVOM/9UzkJltjlsHZmJasxg8aXkuZa7SMf8vKGIBhpUsPluQSqhJFCqebw==}
-    engines: {node: '>=0.4.0'}
-
   /acorn-import-phases@1.0.4(acorn@8.16.0):
     resolution: {integrity: sha512-wKmbr/DDiIXzEOiWrTTUcDm24kQ2vGfZQvM2fwg2vXqR5uW6aapr7ObPtj1th32b9u90/Pf4AItvdTh42fBmVQ==}
     engines: {node: '>=10.13.0'}
     peerDependencies:
       acorn: ^8.14.0
+    dependencies:
+      acorn: 8.16.0
+    dev: true
+
+  /acorn-walk@8.3.5:
+    resolution: {integrity: sha512-HEHNfbars9v4pgpW6SO1KSPkfoS0xVOM/9UzkJltjlsHZmJasxg8aXkuZa7SMf8vKGIBhpUsPluQSqhJFCqebw==}
+    engines: {node: '>=0.4.0'}
     dependencies:
       acorn: 8.16.0
     dev: true
