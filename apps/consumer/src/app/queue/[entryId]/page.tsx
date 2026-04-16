@@ -1,373 +1,253 @@
-'use client';
+"use client"
 
-import { useEffect, useState } from 'react';
-import { useParams, useRouter } from 'next/navigation';
-import { useQueueStore } from '@/store/queue.store';
-import { joinOutletRoom, leaveOutletRoom, getSocket } from '@/lib/socket';
-import { QueueUpdatePayload, TokenCalledPayload } from '@spotly/types';
-import { motion } from 'framer-motion';
-import { ArrowLeft, LogOut, Bell, Users, AlertCircle } from 'lucide-react';
-import Link from 'next/link';
+import React, { useEffect, useState } from "react"
+import { useParams, useRouter } from "next/navigation"
+import { motion, AnimatePresence } from "framer-motion"
+import { Ic, useToasts, THEME, Orb } from "@spotly/ui"
+import { useAuthStore } from "@/store/auth.store"
+import api from "@/lib/api"
+import { QueueEntry } from "@spotly/types"
+import { useQueueStore } from "@/store/queue.store"
+import { io, Socket } from "socket.io-client"
 
-export default function QueueTrackerPage() {
-  const { entryId } = useParams<{ entryId: string }>();
-  const router = useRouter();
-  const { myEntry, entries, currentToken, leaveQueue, handleQueueUpdate, handleTokenCalled } =
-    useQueueStore();
-  const [error, setError] = useState<string | null>(null);
-  const [isCalling, setIsCalling] = useState(false);
+const s = {
+  ...THEME.styles,
+  tokenCircle: {
+    width: 240,
+    height: 240,
+    borderRadius: '50%',
+    background: 'rgba(255,255,255,.01)',
+    border: '1px solid rgba(255,255,255,.08)',
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    justifyContent: 'center',
+    margin: '0 auto 40px',
+    position: 'relative',
+  } as React.CSSProperties,
+  statusBadge: {
+    padding: '8px 20px',
+    borderRadius: 99,
+    fontSize: 12,
+    fontWeight: 900,
+    textTransform: 'uppercase',
+    letterSpacing: 1.5,
+    marginBottom: 32,
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: 8,
+    border: '1px solid currentColor',
+    background: 'rgba(255,255,255,.05)'
+  } as React.CSSProperties,
+};
 
-  // Fetch latest entry state on mount
+export default function ConsumerQueuePage() {
+  const { entryId } = useParams()
+  const router = useRouter()
+  const { user } = useAuthStore()
+  const { add: addToast } = useToasts()
+  const { entries, handleQueueUpdate, handleTokenCalled } = useQueueStore()
+
+  const [entry, setEntry] = useState<QueueEntry | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [ahead, setAhead] = useState(0)
+
+  // 1. Initial Data Fetch
   useEffect(() => {
-    if (!entryId) return;
-
-    if (entryId.startsWith('mock-') && myEntry?.id === entryId) {
-      setError(null);
-      return;
-    }
-
-    (async () => {
+    const fetchData = async () => {
       try {
-        setError(null);
-        const res = await import('@/lib/api').then((m) =>
-          m.default.get(`/queue/entry/${entryId}`),
-        );
-        useQueueStore.setState({ myEntry: res.data.data });
+        const res = await api.get(`/queue/entry/${entryId}`);
+        const currentEntry: QueueEntry = res.data.data;
+        setEntry(currentEntry);
       } catch (err) {
-        if (entryId.startsWith('mock-') && myEntry?.id === entryId) {
-          setError(null);
-          return;
-        }
-        const message = err instanceof Error ? err.message : 'Queue entry not found';
-        setError(message);
-        setTimeout(() => router.push('/'), 2000);
+        addToast('Failed to load reservation', 'error');
+      } finally {
+        setLoading(false);
       }
-    })();
-  }, [entryId, myEntry, router]);
+    };
+    if (entryId) fetchData();
+  }, [entryId, addToast]);
 
-  // Subscribe to the outlet's WebSocket room
+  // 2. WebSocket Sync
   useEffect(() => {
-    if (!myEntry) return;
-    const { outletId } = myEntry;
-    joinOutletRoom(outletId);
+    if (!entry?.outletId) return;
 
-    const socket = getSocket();
+    const socket: Socket = io(
+      process.env.NEXT_PUBLIC_WS_URL ?? 'http://localhost:3001',
+      { transports: ['websocket'] }
+    );
 
-    const onQueueUpdate = (payload: QueueUpdatePayload) => {
+    socket.on('connect', () => {
+      socket.emit('join_outlet', { outletId: entry.outletId });
+    });
+
+    socket.on('queue_update', (payload: any) => {
       handleQueueUpdate(payload);
-    };
+      // Update local state if this entry is in the update
+      const updated = payload.entries.find((e: any) => e.id === entryId);
+      if (updated) setEntry(updated);
+      
+      // Calculate ahead
+      const waitingAhead = payload.entries.filter((e: any) => 
+        e.status === 'WAITING' && e.tokenNumber < (updated?.tokenNumber ?? entry.tokenNumber)
+      ).length;
+      setAhead(waitingAhead);
+    });
 
-    const onTokenCalled = (payload: TokenCalledPayload) => {
-      setIsCalling(true);
-      handleTokenCalled(payload.tokenNumber);
-      // Keep calling animation for a few seconds
-      setTimeout(() => setIsCalling(false), 3000);
-    };
-
-    socket.on('queue_update', onQueueUpdate);
-    socket.on('token_called', onTokenCalled);
+    socket.on('token_called', (payload: any) => {
+      if (payload.tokenNumber === entry.tokenNumber) {
+        handleTokenCalled(payload.tokenNumber);
+        setEntry(prev => prev ? { ...prev, status: 'CALLED' } : null);
+      }
+    });
 
     return () => {
-      leaveOutletRoom(outletId);
-      socket.off('queue_update', onQueueUpdate);
-      socket.off('token_called', onTokenCalled);
+      socket.emit('leave_outlet', { outletId: entry.outletId });
+      socket.disconnect();
     };
-  }, [myEntry, handleQueueUpdate, handleTokenCalled]);
+  }, [entry?.outletId, entryId, handleQueueUpdate, handleTokenCalled]);
 
   const handleLeave = async () => {
-    if (!myEntry) return;
-    if (!confirm('Are you sure you want to leave the queue?')) return;
-    
+    if (!confirm('Abandon your spot in the queue? This cannot be undone.')) return;
     try {
-      await leaveQueue(myEntry.id);
-      router.push('/');
-    } catch {
-      // For mock entries, just navigate back anyway
-      if (isMockEntry) {
-        router.push('/');
-      } else {
-        alert('Failed to leave queue. Please try again.');
-      }
+      await api.delete(`/queue/leave/${entryId}`);
+      addToast('Reservation cancelled', 'info');
+      router.push('/home');
+    } catch (err) {
+      addToast('Failed to cancel reservation', 'error');
     }
   };
 
-  // Request notification permission on mount
-  useEffect(() => {
-    if ('Notification' in window && Notification.permission === 'default') {
-      Notification.requestPermission();
-    }
-  }, []);
-
-  if (error) {
+  if (loading) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="card p-8 max-w-md text-center">
-          <AlertCircle className="w-12 h-12 text-red-400 mx-auto mb-4" />
-          <h2 className="text-xl font-bold text-white mb-2">Queue Not Found</h2>
-          <p className="text-gray-400 mb-6">{error}</p>
-          <p className="text-sm text-gray-500 mb-6">Redirecting to home...</p>
-          <Link href="/" className="btn-primary inline-block">
-            Back to Home
-          </Link>
-        </div>
-      </div>
-    );
-  }
-
-  if (!myEntry) {
-    return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <motion.div
+      <div style={{ minHeight: '90vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <motion.div 
           animate={{ rotate: 360 }}
-          transition={{ duration: 2, repeat: Infinity, ease: 'linear' }}
-          className="w-12 h-12 rounded-full border-2 border-brand-500 border-t-transparent"
+          transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
+          style={{ width: 48, height: 48, border: '3px solid rgba(255,255,255,.03)', borderTopColor: '#f5c418', borderRadius: '50%' }} 
         />
       </div>
     );
   }
 
-  // Determine if this is a mock entry
-  const isMockEntry = myEntry.id.startsWith('mock-');
+  if (!entry) return null;
 
-  const waitingAhead = entries.filter(
-    (e) => e.status === 'WAITING' && e.tokenNumber < myEntry.tokenNumber,
-  ).length;
+  const isCalled = entry.status === 'CALLED';
+  const isServed = entry.status === 'SERVED';
+  const isMissed = entry.status === 'MISSED';
+  const isWaiting = entry.status === 'WAITING';
 
-  const statusConfig = {
-    WAITING: { label: 'In Queue', color: 'text-yellow-400', bg: 'from-yellow-900/30 to-orange-900/20', icon: '⏳', glow: 'shadow-[0_0_60px_rgba(250,204,21,0.3)]' },
-    CALLED: { label: 'Your Turn! 🎉', color: 'text-green-400', bg: 'from-green-900/40 to-emerald-900/30', icon: '🔔', glow: 'shadow-[0_0_80px_rgba(34,197,94,0.4)] animate-pulse' },
-    SERVED: { label: 'Served ✓', color: 'text-blue-400', bg: 'from-blue-900/30 to-cyan-900/20', icon: '✓', glow: 'shadow-[0_0_40px_rgba(59,130,246,0.3)]' },
-    MISSED: { label: 'Missed', color: 'text-red-400', bg: 'from-red-900/30 to-orange-900/20', icon: '✕', glow: 'shadow-[0_0_40px_rgba(239,68,68,0.3)]' },
-  };
-
-  const status = statusConfig[myEntry.status];
+  const statusColor = isCalled ? '#1fd97c' : isMissed ? '#ff4d6d' : isServed ? '#00cfff' : '#f5c418';
 
   return (
-    <div className="min-h-screen bg-background flex flex-col">
-      {/* Header */}
-      <nav className="sticky top-0 z-40 border-b border-border bg-background/80 backdrop-blur-md">
-        <div className="max-w-2xl mx-auto px-6 h-16 flex items-center justify-between">
-          <Link href="/" className="flex items-center gap-2 text-gray-400 hover:text-brand-400 transition-colors">
-            <ArrowLeft className="w-5 h-5" />
-            <span className="text-sm font-medium">Back Home</span>
-          </Link>
-          <h1 className="text-lg font-bold text-gradient">Your Queue</h1>
-          <div className="w-24" /> {/* Spacer */}
-        </div>
-      </nav>
-
-      {/* Main Content */}
-      <div className="flex-1 flex flex-col items-center justify-center px-4 py-12">
-        <div className="w-full max-w-2xl">
-          {/* Mock Entry Banner */}
-          {isMockEntry && (
-            <motion.div
-              initial={{ opacity: 0, y: -20 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="mb-6 p-4 bg-blue-900/30 border border-blue-500/50 rounded-xl text-blue-300 text-sm flex items-center gap-3"
-            >
-              <div className="w-2 h-2 rounded-full bg-blue-400 animate-pulse" />
-              <span>This is a nearby place. Updates may not reflect in real-time.</span>
-            </motion.div>
-          )}
-          {/* Token Card */}
-          <motion.div
-            initial={{ scale: 0.9, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            transition={{ duration: 0.6, ease: 'easeOut' }}
-            className={`card-glass bg-gradient-to-b ${status.bg} ${status.glow} text-center mb-8 p-12 rounded-3xl relative overflow-hidden`}
-          >
-            {/* Animated background elements */}
-            <div className="absolute top-0 right-0 w-64 h-64 bg-gradient-brand opacity-5 rounded-full blur-[100px] -mr-32 -mt-32 pointer-events-none" />
-            
-            {/* Pulsing background for CALLED status */}
-            {myEntry.status === 'CALLED' && isCalling && (
-              <motion.div
-                animate={{ scale: [1, 1.2, 1], opacity: [0.3, 0.1, 0.3] }}
-                transition={{ duration: 0.8, repeat: Infinity }}
-                className="absolute inset-0 bg-gradient-to-r from-green-500 to-emerald-500 blur-lg opacity-30 rounded-3xl"
-              />
-            )}
-
-            <motion.div
-              animate={myEntry.status === 'CALLED' ? { y: [0, -15, 0] } : { y: [0, -10, 0] }}
-              transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }}
-              className="relative z-10"
-            >
-              <p className="text-xs text-gray-400 uppercase tracking-widest mb-4 font-semibold">Your Token Number</p>
-              <motion.div
-                initial={{ scale: 0 }}
-                animate={{ scale: 1 }}
-                transition={{ delay: 0.3, type: 'spring', stiffness: 100 }}
-                className={`text-9xl font-black text-white mb-6 font-mono`}
-              >
-                {myEntry.tokenNumber}
-              </motion.div>
-              <motion.p
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ delay: 0.5 }}
-                className={`text-2xl font-bold ${status.color} mb-2`}
-              >
-                {status.label}
-              </motion.p>
-              {myEntry.status === 'CALLED' && (
-                <motion.div
-                  animate={{ scale: [1, 1.05, 1] }}
-                  transition={{ duration: 0.6, repeat: Infinity }}
-                  className="space-y-2"
-                >
-                  <p className="text-green-400 text-lg font-semibold">
-                    🎉 Please proceed to the counter now!
-                  </p>
-                  <p className="text-xs text-green-300">Do not miss your turn</p>
-                </motion.div>
-              )}
-            </motion.div>
-          </motion.div>
-
-          {/* Stats Grid */}
-          {myEntry.status === 'WAITING' && (
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.2 }}
-              className="grid grid-cols-2 gap-4 mb-8"
-            >
-              <div className="card p-6 text-center">
-                <p className="text-sm text-gray-400 mb-2 flex items-center justify-center gap-2">
-                  <Users className="w-4 h-4" />
-                  People Ahead
-                </p>
-                <p className="text-4xl font-bold text-brand-400">{waitingAhead}</p>
-                {waitingAhead === 0 && <p className="text-xs text-green-400 mt-2 font-semibold">You're next! 🎉</p>}
-              </div>
-              <div className="card p-6 text-center">
-                <p className="text-sm text-gray-400 mb-2 flex items-center justify-center gap-2">
-                  <Bell className="w-4 h-4" />
-                  Current Token
-                </p>
-                <p className="text-4xl font-bold text-orange-400">{currentToken || '—'}</p>
-                <p className="text-xs text-gray-500 mt-2 font-semibold">Calling now...</p>
-              </div>
-            </motion.div>
-          )}
-
-          {/* Called Notification */}
-          {myEntry.status === 'CALLED' && (
-            <motion.div
-              initial={{ opacity: 0, scale: 0.9 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ delay: 0.2 }}
-              className="card border-2 border-green-500 bg-green-900/20 text-center mb-8 p-8 rounded-2xl"
-            >
-              <motion.div
-                animate={{ scale: [1, 1.1, 1] }}
-                transition={{ duration: 0.8, repeat: Infinity }}
-                className="text-6xl mb-4"
-              >
-                🎉
-              </motion.div>
-              <h3 className="text-2xl font-bold text-green-300 mb-2">It's Your Turn!</h3>
-              <p className="text-gray-300">Head to the counter immediately</p>
-            </motion.div>
-          )}
-
-          {/* Live Queue List */}
-          {entries.length > 0 && (
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.3 }}
-              className="card p-6 mb-8"
-            >
-              <h3 className="text-sm font-semibold text-gray-400 mb-4 flex items-center gap-2">
-                <Users className="w-4 h-4" />
-                Live Queue Status
-              </h3>
-              <div className="space-y-2 max-h-64 overflow-y-auto">
-                {entries.slice(0, 10).map((e, index) => (
-                  <motion.div
-                    key={e.id}
-                    initial={{ opacity: 0, x: -20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: index * 0.02 }}
-                    className={`flex items-center justify-between text-sm rounded-xl px-4 py-3 transition-all ${
-                      e.id === myEntry.id
-                        ? 'bg-gradient-brand text-black font-bold border-2 border-brand-500/50'
-                        : e.status === 'CALLED'
-                        ? 'bg-green-900/20 border border-green-500/50'
-                        : e.status === 'SERVED'
-                        ? 'bg-blue-900/20 border border-blue-500/30 opacity-75'
-                        : 'bg-surface border border-border'
-                    }`}
-                  >
-                    <span className="font-mono font-bold text-lg">#{e.tokenNumber.toString().padStart(3, '0')}</span>
-                    <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
-                      e.status === 'WAITING' ? 'bg-yellow-500/20 text-yellow-400' :
-                      e.status === 'CALLED' ? 'bg-green-500/20 text-green-400' :
-                      e.status === 'SERVED' ? 'bg-blue-500/20 text-blue-400' :
-                      'bg-red-500/20 text-red-400'
-                    }`}>
-                      {e.status}
-                    </span>
-                    {e.id === myEntry.id && <span className="text-xs font-bold">← You</span>}
-                  </motion.div>
-                ))}
-                {entries.length > 10 && (
-                  <p className="text-center text-xs text-gray-500 py-2">+{entries.length - 10} more in queue</p>
-                )}
-              </div>
-            </motion.div>
-          )}
-
-          {/* Leave Queue Button — only show for WAITING and CALLED */}
-          {(myEntry.status === 'WAITING' || myEntry.status === 'CALLED') && (
-            <motion.button
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.4 }}
-              id="leave-queue-btn"
-              onClick={handleLeave}
-              className="w-full flex items-center justify-center gap-2 py-3 px-6 rounded-2xl bg-red-900/20 border border-red-500/50 text-red-400 font-semibold hover:bg-red-900/40 hover:border-red-500/70 transition-all duration-300 active:scale-95"
-            >
-              <LogOut className="w-5 h-5" />
-              Leave Queue
-            </motion.button>
-          )}
-
-          {/* Served State — show FYI message */}
-          {myEntry.status === 'SERVED' && (
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.3 }}
-              className="text-center mb-8"
-            >
-              <p className="text-lg text-green-400 font-semibold mb-4">✓ You have been served!</p>
-              <Link href="/" className="btn-primary inline-block">
-                Find Another Queue
-              </Link>
-            </motion.div>
-          )}
-
-          {/* Missed State — show FYI message */}
-          {myEntry.status === 'MISSED' && (
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.3 }}
-              className="text-center mb-8"
-            >
-              <p className="text-lg text-red-400 font-semibold mb-2">✕ You missed your turn</p>
-              <p className="text-sm text-gray-400 mb-4">Please join again if you'd like to continue waiting</p>
-              <Link href="/" className="btn-primary inline-block">
-                Back to Outlets
-              </Link>
-            </motion.div>
-          )}
+    <motion.div 
+      initial={{ opacity: 0, scale: 0.98 }}
+      animate={{ opacity: 1, scale: 1 }}
+      style={{ padding: '24px 20px 100px', maxWidth: 480, margin: '0 auto', textAlign: 'center' }}
+    >
+      
+      {/* HEADER */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 48, textAlign: 'left' }}>
+        <motion.button 
+          whileHover={{ scale: 1.05, background: 'rgba(255,255,255,.08)' }}
+          whileTap={{ scale: 0.95 }}
+          onClick={() => router.push('/home')} 
+          style={{ width: 44, height: 44, borderRadius: 14, background: 'rgba(255,255,255,.04)', border: '1px solid rgba(255,255,255,.1)', color: 'rgba(255,255,255,.6)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+        >
+          <Ic.ChevronLeft />
+        </motion.button>
+        <div>
+          <h1 style={{ fontFamily: 'var(--font-sans)', fontSize: 18, fontWeight: 900, letterSpacing: -0.5 }}>Live Status</h1>
+          <p style={{ color: 'rgba(255,255,255,.3)', fontSize: 13, fontWeight: 600 }}>Spotly Token Reservation</p>
         </div>
       </div>
-    </div>
-  );
+
+      {/* TOKEN CIRCLE */}
+      <div style={{ ...s.tokenCircle }}>
+        <Orb x="-10%" y="-10%" size="120%" color={`${statusColor}08`} anim="orb1 10s infinite" />
+        <motion.div 
+          animate={{ scale: isCalled ? [1, 1.05, 1] : 1 }}
+          transition={{ duration: 2, repeat: Infinity }}
+          style={{ 
+            width: 200, height: 200, borderRadius: '50%',
+            background: 'rgba(255,255,255,.01)',
+            border: `2px solid ${statusColor}40`,
+            display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+            boxShadow: `0 0 60px ${statusColor}10`
+          }}
+        >
+          <div style={{ fontSize: 11, fontWeight: 800, color: 'rgba(255,255,255,.3)', textTransform: 'uppercase', letterSpacing: 3, marginBottom: 8 }}>TOKEN</div>
+          <div style={{ fontSize: 84, fontWeight: 900, color: '#fff', fontFamily: 'var(--font-sans)', lineHeight: 1, letterSpacing: -2 }}>{entry.tokenNumber}</div>
+        </motion.div>
+      </div>
+
+      {/* STATUS BADGE */}
+      <div style={{ ...s.statusBadge, color: statusColor, borderColor: `${statusColor}30` }}>
+        <div style={{ width: 8, height: 8, borderRadius: '50%', background: statusColor, boxShadow: `0 0 10px ${statusColor}` }} />
+        {entry.status}
+      </div>
+
+      {/* MESSAGE */}
+      <div style={{ marginBottom: 56 }}>
+        <AnimatePresence mode="wait">
+          {isCalled ? (
+            <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} key="called">
+              <h2 style={{ fontSize: 32, fontWeight: 900, marginBottom: 12, color: '#fff', letterSpacing: -1 }}>It's your turn!</h2>
+              <p style={{ color: 'rgba(255,255,255,0.4)', fontSize: 16, lineHeight: 1.6 }}>Your spot is ready. Please present this token at the counter immediately.</p>
+            </motion.div>
+          ) : isWaiting ? (
+            <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} key="waiting">
+              <h2 style={{ fontSize: 28, fontWeight: 900, marginBottom: 12, letterSpacing: -1 }}>Almost there!</h2>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginTop: 32 }}>
+                <div style={{ ...s.card, padding: '24px 16px', borderRadius: 24, textAlign: 'center' }}>
+                  <div style={{ fontSize: 32, fontWeight: 900, color: '#f5c418', marginBottom: 4 }}>{ahead}</div>
+                  <div style={{ fontSize: 11, color: 'rgba(255,255,255,.2)', fontWeight: 800, textTransform: 'uppercase', letterSpacing: 1 }}>Ahead Of You</div>
+                </div>
+                <div style={{ ...s.card, padding: '24px 16px', borderRadius: 24, textAlign: 'center' }}>
+                  <div style={{ fontSize: 32, fontWeight: 900, color: '#00cfff', marginBottom: 4 }}>~{ahead * 5}m</div>
+                  <div style={{ fontSize: 11, color: 'rgba(255,255,255,.2)', fontWeight: 800, textTransform: 'uppercase', letterSpacing: 1 }}>Est. Wait</div>
+                </div>
+              </div>
+            </motion.div>
+          ) : isServed ? (
+            <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} key="served">
+              <h2 style={{ fontSize: 28, fontWeight: 900, marginBottom: 8, letterSpacing: -1 }}>Served!</h2>
+              <p style={{ color: 'rgba(255,255,255,0.4)', fontSize: 16 }}>Your request was processed successfully. Thank you for choosing us!</p>
+            </motion.div>
+          ) : (
+            <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} key="missed">
+              <h2 style={{ fontSize: 28, fontWeight: 900, marginBottom: 8, color: '#ff4d6d', letterSpacing: -1 }}>Turn Missed</h2>
+              <p style={{ color: 'rgba(255,255,255,0.4)', fontSize: 16 }}>You weren't available when called. Please rejoin the queue if needed.</p>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
+
+      {/* ACTIONS */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+        {isWaiting && (
+          <motion.button 
+            whileHover={{ y: -2, background: 'rgba(255,77,109,.15)' }}
+            whileTap={{ scale: 0.98 }}
+            onClick={handleLeave}
+            style={{ width: '100%', padding: '18px', borderRadius: 20, background: 'rgba(255,77,109,.08)', border: '1px solid rgba(255,77,109,.2)', color: '#ff4d6d', fontWeight: 800, fontSize: 15, cursor: 'pointer', transition: 'all .25s' }}
+          >
+            Cancel Token
+          </motion.button>
+        )}
+
+        {(isServed || isMissed || isCalled) && (
+          <motion.button 
+            whileHover={{ y: -2, boxShadow: '0 12px 30px rgba(245,196,24,.3)' }}
+            whileTap={{ scale: 0.98 }}
+            onClick={() => router.push('/home')}
+            style={{ width: '100%', padding: '18px', borderRadius: 20, background: THEME.gradients.consumer, color: '#000', fontWeight: 900, fontSize: 15, cursor: 'pointer', border: 'none', boxShadow: '0 8px 24px rgba(245,196,24,.2)' }}
+          >
+            Return Home
+          </motion.button>
+        )}
+      </div>
+
+    </motion.div>
+  )
 }

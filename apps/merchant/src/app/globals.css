@@ -2,6 +2,8 @@
 @tailwind components;
 @tailwind utilities;
 
+@import "@spotly/ui/src/styles.css";
+
 @layer base {
   body {
     @apply bg-background text-gray-100 antialiased font-sans flex flex-col min-h-screen selection:bg-brand-500/30;

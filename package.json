@@ -11,6 +11,11 @@
     "clean": "turbo run clean && rm -rf node_modules"
   },
   "devDependencies": {
+    "turbo": "^2.1.0"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.103.2"
+=======
     "turbo": "^2.9.6"
   }
 }

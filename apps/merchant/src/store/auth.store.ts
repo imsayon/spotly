@@ -1,11 +1,6 @@
 import { create } from 'zustand';
 import { getFirebaseAuth } from '@/lib/firebase';
-import {
-  GoogleAuthProvider,
-  signInWithPopup,
-  signOut as firebaseSignOut,
-  User,
-} from 'firebase/auth';
+import { GoogleAuthProvider, signInWithPopup, signOut as firebaseSignOut, type User as FirebaseUser } from 'firebase/auth';
 import api from '@/lib/api';
 
 export interface MerchantProfile {
@@ -18,10 +13,10 @@ export interface MerchantProfile {
 }
 
 interface AuthState {
-  user: User | null;
+  user: FirebaseUser | null;
   merchantProfile: MerchantProfile | null;
   loading: boolean;
-  setUser: (user: User | null) => Promise<void>;
+  setUser: (user: FirebaseUser | null) => Promise<void>;
   signInWithGoogle: () => Promise<void>;
   signOut: () => Promise<void>;
   fetchMerchantProfile: () => Promise<MerchantProfile | null>;
@@ -46,12 +41,13 @@ export const useAuthStore = create<AuthState>()((set, get) => ({
   fetchMerchantProfile: async () => {
     try {
       const response = await api.get('/merchant/me/profile');
-      set({ merchantProfile: response.data });
-      return response.data;
+      const profile = response.data.data;
+      set({ merchantProfile: profile });
+      return profile;
     } catch (err: any) {
       if (err?.response?.status === 404 || err.message === 'Not Found') {
         set({ merchantProfile: null });
-        return null; // Doesn't exist yet
+        return null;
       }
       return null;
     }
@@ -61,20 +57,23 @@ export const useAuthStore = create<AuthState>()((set, get) => ({
 
   signInWithGoogle: async () => {
     const provider = new GoogleAuthProvider();
-    const result = await signInWithPopup(getFirebaseAuth(), provider);
-    set({ user: result.user, loading: true });
-    // Register as MERCHANT on backend
     try {
-      await api.post('/user/register', { role: 'MERCHANT' });
-    } catch (err: any) {
-      // already exists or other error
+      await signInWithPopup(getFirebaseAuth(), provider);
+    } catch (error) {
+      console.error('Merchant Google Sign-In Error:', error);
+      throw error;
     }
-    await get().fetchMerchantProfile();
-    set({ loading: false });
   },
 
   signOut: async () => {
-    await firebaseSignOut(getFirebaseAuth());
-    set({ user: null, merchantProfile: null, loading: false });
+    try {
+      await firebaseSignOut(getFirebaseAuth());
+      set({ user: null, merchantProfile: null, loading: false });
+      if (typeof window !== 'undefined') {
+        window.location.href = '/';
+      }
+    } catch (error) {
+      console.error('Merchant Sign-Out Error:', error);
+    }
   },
 }));

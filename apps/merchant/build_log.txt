@@ -1,0 +1,6 @@
+
+> @spotly/merchant@0.1.0 build /home/iamsayon/Desktop/Projects/spotly/apps/merchant
+> next build "--filter" "@spotly/merchant"
+
+error: unknown option '--filter'
+ ELIFECYCLE  Command failed with exit code 1.

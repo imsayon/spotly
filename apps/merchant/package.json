@@ -10,6 +10,8 @@
     "type-check": "tsc --noEmit"
   },
   "dependencies": {
+    "@spotly/database": "workspace:*",
+    "@spotly/ui": "workspace:*",
     "@spotly/types": "workspace:*",
     "axios": "^1.7.0",
     "clsx": "^2.1.1",

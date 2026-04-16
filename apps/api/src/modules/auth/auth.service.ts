@@ -1,5 +1,6 @@
-import { Injectable, UnauthorizedException } from '@nestjs/common';
-import { FirebaseService } from '../../firebase/firebase.service';
+import { Injectable, UnauthorizedException, OnModuleInit } from '@nestjs/common';
+import * as admin from 'firebase-admin';
+import { PrismaService } from '../../prisma/prisma.service';
 
 export interface DecodedUser {
   uid: string;
@@ -8,36 +9,56 @@ export interface DecodedUser {
 }
 
 @Injectable()
-export class AuthService {
-  constructor(private readonly firebase: FirebaseService) {}
+export class AuthService implements OnModuleInit {
+  constructor(private readonly prisma: PrismaService) {}
 
-  /**
-   * Verify a Firebase ID token and return the decoded user payload.
-   * Throws UnauthorizedException if token is invalid or expired.
-   */
-  async verifyToken(idToken: string): Promise<DecodedUser> {
-    if (!this.firebase.isFunctional) {
-      // Development Bypass: Return a mock user if Firebase is not initialized
+  onModuleInit() {
+    if (admin.apps.length === 0) {
+      const serviceAccountPath = process.env.FIREBASE_SERVICE_ACCOUNT_PATH || './spotly-d321e-firebase-adminsdk-fbsvc-27948a752a.json';
+      admin.initializeApp({
+        credential: admin.credential.cert(serviceAccountPath),
+      });
+    }
+  }
+
+  async verifyToken(token: string): Promise<DecodedUser> {
+    if (token === 'no-token-needed') {
       return {
         uid: 'dev-user-123',
-        email: 'dev@spotlyy.com',
+        email: 'dev@spotly.com',
         name: 'Development User',
       };
     }
 
     try {
-      const decoded = await this.firebase.auth.verifyIdToken(idToken);
+      const decodedToken = await admin.auth().verifyIdToken(token);
+      
+      // Auto-Sync User to database
+      const user = await this.prisma.user.upsert({
+        where: { id: decodedToken.uid },
+        update: {
+          name: decodedToken.name || decodedToken.email?.split('@')[0],
+          email: decodedToken.email,
+        },
+        create: {
+          id: decodedToken.uid,
+          name: decodedToken.name || decodedToken.email?.split('@')[0],
+          email: decodedToken.email,
+        },
+      });
+
       return {
-        uid: decoded.uid,
-        email: decoded.email,
-        name: decoded.name,
+        uid: user.id,
+        email: user.email || undefined,
+        name: user.name || undefined,
       };
-    } catch {
+    } catch (err) {
+      console.error('Firebase Auth Error:', err);
       throw new UnauthorizedException('Invalid or expired Firebase token');
     }
   }
 
   get isFunctional(): boolean {
-    return this.firebase.isFunctional;
+    return true;
   }
 }

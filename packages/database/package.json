@@ -1,0 +1,22 @@
+{
+  "name": "@spotly/database",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "dependencies": {
+    "@prisma/client": "^6.2.1"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.0",
+    "dotenv": "^16.4.5",
+    "prisma": "^6.2.1",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.9.3"
+  },
+  "scripts": {
+    "build": "prisma generate && tsc",
+    "db:push": "prisma db push"
+  },
+  "prisma": {
+    "seed": "ts-node prisma/seed.ts"
+  }
+}

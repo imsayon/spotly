@@ -1,0 +1,153 @@
+'use client';
+
+import { useAuthStore } from '@/store/auth.store';
+import { useRouter } from 'next/navigation';
+import { useEffect, useState } from 'react';
+import { supabase } from '@/lib/supabase';
+import { AuthModal, Ic, Orb } from '@spotly/ui';
+
+const s = {
+  glass: { background: 'rgba(255,255,255,.035)', backdropFilter: 'blur(24px)', WebkitBackdropFilter: 'blur(24px)', border: '1px solid var(--bdr)' },
+  glassStrong: { background: 'rgba(255,255,255,.07)', backdropFilter: 'blur(32px)', WebkitBackdropFilter: 'blur(32px)', border: '1px solid var(--bdr2)' },
+  card: { background: 'var(--s1)', border: '1px solid var(--bdr)', borderRadius: 18, padding: 22, transition: 'all .3s cubic-bezier(.25,.46,.45,.94)' },
+  gradM: { background: 'linear-gradient(135deg,#1fd97c,#0ea860)' },
+  gradMText: { background: 'linear-gradient(135deg,#1fd97c,#0ea860)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text' },
+  btnM: { display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 8, padding: '13px 26px', borderRadius: 12, background: 'linear-gradient(135deg,#1fd97c,#0ea860)', color: '#fff', fontWeight: 700, fontSize: 14, border: 'none', cursor: 'pointer', transition: 'all .22s' },
+  btnGhost: { display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 8, padding: '11px 18px', borderRadius: 11, background: 'rgba(255,255,255,.05)', color: 'rgba(255,255,255,.7)', fontWeight: 600, fontSize: 14, border: '1px solid var(--bdr2)', cursor: 'pointer', transition: 'all .2s' },
+  badge: (c: string) => ({
+    display: 'inline-flex', alignItems: 'center', gap: 4, padding: '3px 9px', borderRadius: 999, fontSize: 11, fontWeight: 700, letterSpacing: .3,
+    ...(c === 'yellow' && { background: 'rgba(245,196,24,.12)', color: '#f5c418', border: '1px solid rgba(245,196,24,.22)' }),
+    ...(c === 'green' && { background: 'rgba(31,217,124,.12)', color: '#1fd97c', border: '1px solid rgba(31,217,124,.22)' }),
+  })
+}
+
+export default function LandingPage() {
+  const { user, loading, signInWithEmail, signUpWithEmail } = useAuthStore();
+  const router = useRouter();
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+
+  const routeAfterAuth = async () => {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        router.push('/onboarding');
+        return;
+      }
+      
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001/api'}/merchant/me/profile`, {
+        headers: {
+          Authorization: `Bearer ${session.access_token}`,
+        },
+      });
+
+      if (!res.ok) {
+        router.push('/onboarding');
+        return;
+      }
+      const payload = await res.json();
+      if (!payload?.data) {
+        router.push('/onboarding');
+        return;
+      }
+      router.push('/dashboard');
+    } catch {
+      router.push('/onboarding');
+    }
+  };
+
+  useEffect(() => {
+    if (user && !loading) {
+      routeAfterAuth();
+    }
+  }, [user, loading, router]);
+
+  if (loading) return null;
+
+  return (
+    <div style={{ minHeight: '100vh', background: 'var(--bg)', overflow: 'hidden auto', color: 'white' }}>
+      
+      {/* NAV */}
+      <nav style={{ ...s.glass, padding: '0 44px', height: 70, display: 'flex', alignItems: 'center', justifyContent: 'space-between', position: 'sticky', top: 0, zIndex: 100 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <div style={{ width: 34, height: 34, borderRadius: 10, ...s.gradM, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16 }}>⏱</div>
+          <span style={{ fontSize: 22, fontWeight: 900, letterSpacing: -1, fontFamily: 'var(--font-sans)' }}>spotly <span className="text-[#1fd97c] ml-1">merchant</span></span>
+        </div>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <button style={{ ...s.btnGhost, padding: '9px 20px', fontSize: 13 }} onClick={() => router.push('http://localhost:3000')}>Consumer App</button>
+        </div>
+      </nav>
+
+      {/* HERO */}
+      <section style={{ minHeight: '92vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', position: 'relative', padding: '80px 24px 60px', textAlign: 'center', overflow: 'hidden' }}>
+        <Orb x="-18%" y="-14%" size="62%" color="rgba(31,217,124,.15)" anim="orb1 13s ease-in-out infinite" />
+        <Orb x="58%" y="15%" size="56%" color="rgba(14,168,96,.1)" anim="orb2 17s ease-in-out infinite" />
+        <Orb x="18%" y="62%" size="42%" color="rgba(31,217,124,.1)" anim="orb1 10s ease-in-out infinite 3s" />
+
+        <div style={{ position: 'absolute', inset: 0, backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.035'/%3E%3C/svg%3E")`, pointerEvents: 'none', opacity: 0.6 }} />
+
+        <div className="au" style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '6px 16px', borderRadius: 999, ...s.glass, marginBottom: 28, fontSize: 11, fontWeight: 700, color: '#1fd97c', textTransform: 'uppercase', letterSpacing: 1.5 }}>
+          <div style={{ width: 6, height: 6, borderRadius: '50%', background: '#1fd97c', animation: 'pulse 2s infinite' }} />
+          Merchant Portal 2.0
+        </div>
+
+        <h1 className="au" style={{ fontSize: 'clamp(52px,7.5vw,104px)', fontWeight: 900, letterSpacing: '-4px', lineHeight: 0.88, fontFamily: 'var(--font-sans)', marginBottom: 28, maxWidth: 980 }}>
+          Manage queues <br /><span style={s.gradMText as React.CSSProperties}>with absolute clarity.</span>
+        </h1>
+        <p className="au" style={{ fontSize: 'clamp(16px,2vw,20px)', color: 'var(--t2)', maxWidth: 620, lineHeight: 1.7, marginBottom: 52 }}>
+          Turn chaotic waiting areas into streamlined digital queues. Let your customers join from their phones while you oversee the floor in real-time.
+        </p>
+
+        <div className="au" style={{ display: 'flex', gap: 12, flexWrap: 'wrap', justifyContent: 'center', marginBottom: 72 }}>
+          <button style={{ ...s.btnM, padding: '16px 40px', fontSize: 16, borderRadius: 14, gap: 10 }} onClick={() => setIsAuthModalOpen(true)}
+            onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-3px)'; e.currentTarget.style.boxShadow = '0 28px 60px rgba(31,217,124,.25)' }}
+            onMouseLeave={e => { e.currentTarget.style.transform = ''; e.currentTarget.style.boxShadow = '' }}>
+            Get Started <Ic.Arrow />
+          </button>
+        </div>
+
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(290px,1fr))', gap: 20, maxWidth: 1100, zIndex: 1, position: 'relative', width: '100%', padding: '0 44px' }}>
+          {[
+            { icon: <Ic.Zap />, color: '#1fd97c', title: 'Real-time Syncing', desc: 'Tokens are instantly synced across all devices using WebSockets. When you call someone, their phone alerts them immediately.' },
+            { icon: <Ic.Store />, color: '#3b82f6', title: 'Cloud Dashboard', desc: 'Manage multiple outlets from a single unified panel. Switch between zones effortlessly and track queue loads live.' },
+            { icon: <Ic.Building />, color: '#a855f7', title: 'Brand Customization', desc: 'Tailor your workspace to fit your brand identity. Set up your categories and business details so customers see exactly who's serving them.' },
+          ].map((f, i) => (
+            <div key={i} style={{ ...s.card, padding: 34, cursor: 'default', textAlign: 'left' }}
+              onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-8px)'; e.currentTarget.style.borderColor = f.color + '44'; e.currentTarget.style.boxShadow = `0 32px 80px rgba(0,0,0,.5),0 0 40px ${f.color}18` }}
+              onMouseLeave={e => { e.currentTarget.style.transform = ''; e.currentTarget.style.borderColor = 'var(--bdr)'; e.currentTarget.style.boxShadow = '' }}>
+              <div style={{ width: 52, height: 52, borderRadius: 14, background: `${f.color}18`, border: `1px solid ${f.color}30`, display: 'flex', alignItems: 'center', justifyContent: 'center', color: f.color, marginBottom: 22 }}>
+                {f.icon}
+              </div>
+              <h3 style={{ fontFamily: 'var(--font-sans)', fontSize: 21, fontWeight: 800, marginBottom: 10 }}>{f.title}</h3>
+              <p style={{ color: 'var(--t2)', lineHeight: 1.7, fontSize: 15 }}>{f.desc}</p>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* FOOTER */}
+      <footer style={{ padding: '36px 44px', borderTop: '1px solid var(--bdr)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', color: 'var(--t3)', fontSize: 13, flexWrap: 'wrap', gap: 12 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <div style={{ width: 26, height: 26, borderRadius: 8, ...s.gradM, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13 }}>⏱</div>
+          <span style={{ fontFamily: 'var(--font-sans)', fontWeight: 800, color: 'var(--t2)' }}>spotly</span>
+        </div>
+        <p>© {new Date().getFullYear()} Spotly Technologies · Bengaluru, India</p>
+      </footer>
+
+      {/* Authentication Modal */}
+      <AuthModal 
+        isOpen={isAuthModalOpen} 
+        onClose={() => setIsAuthModalOpen(false)} 
+        onAuth={async (email, password, isSignUp) => {
+          if (isSignUp) {
+            await signUpWithEmail(email, password);
+          } else {
+            await signInWithEmail(email, password);
+          }
+          await routeAfterAuth();
+        }}
+        title="Spotly Merchant Portal"
+        variant="merchant"
+      />
+    </div>
+  );
+}
