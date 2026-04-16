@@ -1,8 +1,10 @@
 "use client"
 
-import React, { useState } from "react"
-import { Ic, useToasts, THEME } from "@spotly/ui"
+import React, { useState, useEffect } from "react"
+import { Ic, useToasts, THEME, SkeletonCard } from "@spotly/ui"
 import { useRouter } from "next/navigation"
+import { useAuthStore } from "@/store/auth.store"
+import api from "@/lib/api"
 
 // Extended styles for this page
 const s = {
@@ -53,36 +55,58 @@ const s = {
   badge: THEME.badge,
 };
 
-// Mock Data
-const MOCK_OUTLETS = [
-  { id: 'o1', name: 'Main Branch - Indiranagar', addr: '12th Main Road, HAL 2nd Stage', open: true, queue: 14, hours: '9:00 AM – 9:00 PM' },
-  { id: 'o2', name: 'Airport Terminal 2', addr: 'KIAL, Devanahalli', open: true, queue: 8, hours: '24 Hours' },
-  { id: 'o3', name: 'HSR Layout', addr: '27th Main Rd, Sector 2', open: false, queue: 0, hours: '10:00 AM – 10:00 PM' },
-];
-
 export default function MerchantOutlets() {
   const router = useRouter()
   const { add: addToast } = useToasts()
+  const { merchantProfile } = useAuthStore()
   
-  const [outlets, setOutlets] = useState<any[]>(MOCK_OUTLETS)
+  const [outlets, setOutlets] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
   const [showForm, setShowForm] = useState(false)
   const [newName, setNewName] = useState('')
   const [newAddr, setNewAddr] = useState('')
 
-  const create = () => {
+  useEffect(() => {
+    if (merchantProfile) {
+      fetchOutlets();
+    }
+  }, [merchantProfile])
+
+  const fetchOutlets = async () => {
+    if (!merchantProfile) return;
+    try {
+      const res = await api.get(`/outlet/merchant/${merchantProfile.id}`);
+      setOutlets(res.data.data);
+    } catch (err) {
+      console.error('Fetch outlets failed:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const create = async () => {
     if (!newName) return
-    const id = `o${outlets.length + 1}`
-    setOutlets(p => [...p, { id, name: newName, addr: newAddr || 'Bengaluru', open: true, queue: 0, hours: '9:00 AM – 9:00 PM' }])
-    setNewName('')
-    setNewAddr('')
-    setShowForm(false)
-    addToast(`${newName} outlet created!`, 'success')
+    try {
+      const res = await api.post('/outlet', { name: newName, address: newAddr });
+      setOutlets(p => [...p, res.data.data]);
+      setNewName('')
+      setNewAddr('')
+      setShowForm(false)
+      addToast(`${newName} outlet created!`, 'success')
+    } catch (err) {
+      addToast('Failed to create outlet', 'error');
+    }
   }
 
-  const toggleOpen = (id: string, e: React.MouseEvent) => {
+  const toggleOpen = async (id: string, currentStatus: boolean, e: React.MouseEvent) => {
     e.stopPropagation()
-    setOutlets(p => p.map(o => o.id === id ? { ...o, open: !o.open } : o))
-    addToast('Status updated', 'info')
+    try {
+      await api.patch(`/outlet/${id}`, { isActive: !currentStatus });
+      setOutlets(p => p.map(o => o.id === id ? { ...o, isActive: !currentStatus } : o));
+      addToast('Status updated', 'info')
+    } catch (err) {
+      addToast('Failed to update status', 'error');
+    }
   }
 
   return (
@@ -127,47 +151,54 @@ export default function MerchantOutlets() {
         </div>
       )}
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(340px,1fr))', gap: 16 }}>
-        {outlets.map((o: any) => (
-          <div key={o.id} style={{ ...s.card, padding: '24px', cursor: 'pointer', position: 'relative' }}
-            onClick={() => router.push(`/dashboard/outlets/${o.id}`)}
-            onMouseEnter={e => { e.currentTarget.style.borderColor = 'rgba(31,217,124,.28)'; e.currentTarget.style.transform = 'translateY(-4px)' }}
-            onMouseLeave={e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,.06)'; e.currentTarget.style.transform = '' }}>
-            
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', marginBottom: 14 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                <div style={{ width: 44, height: 44, borderRadius: 12, background: 'rgba(31,217,124,.12)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20 }}>🏪</div>
-                <div>
-                  <div style={{ fontWeight: 700, fontSize: 16, marginBottom: 2 }}>{o.name}</div>
-                  <div style={{ fontSize: 12, color: 'rgba(255,255,255,.35)', display: 'flex', alignItems: 'center', gap: 4 }}><Ic.MapPin />{o.addr}</div>
+      {loading ? (
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(340px,1fr))', gap: 16 }}>
+          <SkeletonCard height={180} />
+          <SkeletonCard height={180} />
+        </div>
+      ) : (
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(340px,1fr))', gap: 16 }}>
+          {outlets.map((o: any) => (
+            <div key={o.id} style={{ ...s.card, padding: '24px', cursor: 'pointer', position: 'relative' }}
+              onClick={() => router.push(`/dashboard/outlets/${o.id}`)}
+              onMouseEnter={e => { e.currentTarget.style.borderColor = 'rgba(31,217,124,.28)'; e.currentTarget.style.transform = 'translateY(-4px)' }}
+              onMouseLeave={e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,.06)'; e.currentTarget.style.transform = '' }}>
+              
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', marginBottom: 14 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                  <div style={{ width: 44, height: 44, borderRadius: 12, background: 'rgba(31,217,124,.12)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20 }}>🏪</div>
+                  <div>
+                    <div style={{ fontWeight: 700, fontSize: 16, marginBottom: 2 }}>{o.name}</div>
+                    <div style={{ fontSize: 12, color: 'rgba(255,255,255,.35)', display: 'flex', alignItems: 'center', gap: 4 }}><Ic.MapPin />{o.address || 'Bengaluru'}</div>
+                  </div>
+                </div>
+                <button 
+                  onClick={(e) => toggleOpen(o.id, !!o.isActive, e)}
+                  style={{ ...s.badge(o.isActive ? 'merchant' : 'consumer') as React.CSSProperties, background: o.isActive ? 'rgba(31,217,124,.15)' : 'rgba(255,77,109,.15)', color: o.isActive ? '#1fd97c' : '#ff4d6d', border: 'none', cursor: 'pointer' }}
+                >
+                  {o.isActive ? '● Open' : '● Closed'}
+                </button>
+              </div>
+
+              <div style={{ display: 'flex', gap: 10, marginBottom: 18 }}>
+                <div style={{ flex: 1, background: 'rgba(255,255,255,.03)', borderRadius: 12, padding: '12px', border: '1px solid rgba(255,255,255,.06)' }}>
+                  <div style={{ fontFamily: 'var(--font-mono)', fontWeight: 800, fontSize: 24, color: '#f5c418', marginBottom: 2 }}>{o.queueCount || 0}</div>
+                  <div style={{ fontSize: 10, color: 'rgba(255,255,255,.25)', fontWeight: 700, letterSpacing: .5 }}>WAITING</div>
+                </div>
+                <div style={{ flex: 1, background: 'rgba(255,255,255,.03)', borderRadius: 12, padding: '12px', border: '1px solid rgba(255,255,255,.06)' }}>
+                  <div style={{ fontWeight: 700, fontSize: 14, color: 'rgba(255,255,255,.6)', marginBottom: 2, paddingTop: 4 }}>9:00 AM – 9:00 PM</div>
+                  <div style={{ fontSize: 10, color: 'rgba(255,255,255,.25)', fontWeight: 700, letterSpacing: .5 }}>HOURS</div>
                 </div>
               </div>
-              <button 
-                onClick={(e) => toggleOpen(o.id, e)}
-                style={{ ...s.badge(o.open ? 'merchant' : 'consumer') as React.CSSProperties, background: o.open ? 'rgba(31,217,124,.15)' : 'rgba(255,77,109,.15)', color: o.open ? '#1fd97c' : '#ff4d6d', border: 'none', cursor: 'pointer' }}
-              >
-                {o.open ? '● Open' : '● Closed'}
+
+              <button style={{ ...s.btnM, width: '100%', padding: '11px', fontSize: 13, gap: 7, background: 'rgba(255,255,255,.05)', border: '1px solid rgba(255,255,255,.1)', color: 'rgba(255,255,255,.7)' }} 
+                onClick={e => { e.stopPropagation(); router.push(`/dashboard/outlets/${o.id}`) }}>
+                <Ic.Settings />Configure Settings
               </button>
             </div>
-
-            <div style={{ display: 'flex', gap: 10, marginBottom: 18 }}>
-              <div style={{ flex: 1, background: 'rgba(255,255,255,.03)', borderRadius: 12, padding: '12px', border: '1px solid rgba(255,255,255,.06)' }}>
-                <div style={{ fontFamily: 'var(--font-mono)', fontWeight: 800, fontSize: 24, color: '#f5c418', marginBottom: 2 }}>{o.queue}</div>
-                <div style={{ fontSize: 10, color: 'rgba(255,255,255,.25)', fontWeight: 700, letterSpacing: .5 }}>WAITING</div>
-              </div>
-              <div style={{ flex: 1, background: 'rgba(255,255,255,.03)', borderRadius: 12, padding: '12px', border: '1px solid rgba(255,255,255,.06)' }}>
-                <div style={{ fontWeight: 700, fontSize: 14, color: 'rgba(255,255,255,.6)', marginBottom: 2, paddingTop: 4 }}>{o.hours}</div>
-                <div style={{ fontSize: 10, color: 'rgba(255,255,255,.25)', fontWeight: 700, letterSpacing: .5 }}>HOURS</div>
-              </div>
-            </div>
-
-            <button style={{ ...s.btnM, width: '100%', padding: '11px', fontSize: 13, gap: 7, background: 'rgba(255,255,255,.05)', border: '1px solid rgba(255,255,255,.1)', color: 'rgba(255,255,255,.7)' }} 
-              onClick={e => { e.stopPropagation(); router.push(`/dashboard/outlets/${o.id}`) }}>
-              <Ic.Settings />Configure Settings
-            </button>
-          </div>
-        ))}
-      </div>
+          ))}
+        </div>
+      )}
     </div>
   )
 }

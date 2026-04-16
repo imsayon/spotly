@@ -7,6 +7,7 @@ import { MerchantModule } from './modules/merchant/merchant.module';
 import { OutletModule } from './modules/outlet/outlet.module';
 import { QueueModule } from './modules/queue/queue.module';
 import { MenuModule } from './modules/menu/menu.module';
+import { AnalyticsModule } from './modules/analytics/analytics.module';
 import { WebsocketModule } from './modules/websocket/websocket.module';
 import { IntegrationModule } from './modules/integration/integration.module';
 import { PrismaModule } from './prisma/prisma.module';
@@ -21,6 +22,7 @@ import { PrismaModule } from './prisma/prisma.module';
     OutletModule,
     QueueModule,
     MenuModule,
+    AnalyticsModule,
     WebsocketModule,
     IntegrationModule,
   ],

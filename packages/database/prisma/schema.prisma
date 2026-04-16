@@ -20,6 +20,7 @@ model User {
 
   queues    QueueEntry[]
   reviews   Review[]
+  favorites FavoriteOutlet[]
 }
 
 model Merchant {
@@ -28,8 +29,12 @@ model Merchant {
   name        String
   category    String
   description String?
+  phone       String?
+  contactEmail String?
+  logoUrl     String?
   verified    Boolean  @default(false)
   outlets     Outlet[]
+  favorites   FavoriteOutlet[]
 }
 
 model Outlet {
@@ -44,6 +49,7 @@ model Outlet {
   
   queues      QueueEntry[]
   menuCategories MenuCategory[]
+  reviews     Review[]
 }
 
 model MenuCategory {
@@ -87,9 +93,21 @@ model Review {
   userId      String
   user        User     @relation(fields: [userId], references: [id])
   outletId    String
+  outlet      Outlet   @relation(fields: [outletId], references: [id])
   rating      Int
   comment     String?
   createdAt   DateTime @default(now())
+}
+
+model FavoriteOutlet {
+  id         String   @id @default(uuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id])
+  merchantId String
+  merchant   Merchant @relation(fields: [merchantId], references: [id])
+  createdAt  DateTime @default(now())
+
+  @@unique([userId, merchantId])
 }
 
 enum Role {

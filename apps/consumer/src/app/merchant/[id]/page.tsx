@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from "react"
 import { useParams, useRouter } from "next/navigation"
 import { motion, AnimatePresence } from "framer-motion"
-import { Ic, useToasts, THEME, Orb } from "@spotly/ui"
+import { Ic, useToasts, THEME, Orb, SkeletonCard } from "@spotly/ui"
 import { useAuthStore } from "@/store/auth.store"
 import { useQueueStore } from "@/store/queue.store"
 import api from "@/lib/api"
@@ -55,11 +55,6 @@ const s = {
   badge: THEME.badge,
 };
 
-interface OutletWithQueue extends Outlet {
-  queueLength: number;
-  estimatedWait: string;
-}
-
 export default function ConsumerMerchantPage() {
   const { id } = useParams()
   const router = useRouter()
@@ -68,7 +63,7 @@ export default function ConsumerMerchantPage() {
   const { add: addToast } = useToasts()
 
   const [merchant, setMerchant] = useState<Merchant | null>(null)
-  const [outlets, setOutlets] = useState<OutletWithQueue[]>([])
+  const [outlets, setOutlets] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [joiningId, setJoiningId] = useState<string | null>(null)
 
@@ -80,23 +75,7 @@ export default function ConsumerMerchantPage() {
           api.get(`/outlet/merchant/${id}`)
         ]);
         setMerchant(mRes.data.data);
-        
-        const outletList: Outlet[] = oRes.data.data || [];
-        const enriched = await Promise.all(outletList.map(async (o) => {
-          try {
-            const qRes = await api.get(`/queue/${o.id}`);
-            const entries: QueueEntry[] = qRes.data.data || [];
-            const waittime = entries.length * 5; // Simple heuristic
-            return { 
-              ...o, 
-              queueLength: entries.length, 
-              estimatedWait: waittime > 0 ? `${waittime}m` : 'No wait' 
-            };
-          } catch {
-            return { ...o, queueLength: 0, estimatedWait: '??' };
-          }
-        }));
-        setOutlets(enriched);
+        setOutlets(oRes.data.data || []);
       } catch (err) {
         addToast('Failed to load merchant details', 'error');
       } finally {
@@ -135,8 +114,10 @@ export default function ConsumerMerchantPage() {
 
   if (loading) {
     return (
-      <div style={{ minHeight: '80vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        <div style={{ width: 44, height: 44, border: '3px solid rgba(255,255,255,.03)', borderTopColor: '#f5c418', borderRadius: '50%', animation: 'spin 1s linear infinite' }} />
+      <div style={{ padding: '24px 20px 100px', maxWidth: 640, margin: '0 auto' }}>
+        <SkeletonCard height={240} style={{ marginBottom: 32 }} />
+        <SkeletonCard height={100} style={{ marginBottom: 14 }} />
+        <SkeletonCard height={100} style={{ marginBottom: 14 }} />
       </div>
     );
   }
@@ -206,10 +187,10 @@ export default function ConsumerMerchantPage() {
                 <div style={{ display: 'flex', gap: 16, marginTop: 18 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, fontWeight: 700, color: 'rgba(255,255,255,.5)' }}>
                     <div style={{ width: 6, height: 6, borderRadius: '50%', background: '#1fd97c' }} />
-                    {o.queueLength} People
+                    {o.queueCount || 0} People
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, fontWeight: 800, color: '#f5c418' }}>
-                    <Ic.Clock /> {o.estimatedWait} wait
+                    <Ic.Clock /> {((o.queueCount || 0) * 5) || 5}m wait
                   </div>
                 </div>
               </div>

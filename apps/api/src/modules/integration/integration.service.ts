@@ -93,7 +93,7 @@ export class IntegrationService {
           
           return {
             id: `osm-${el.id}`,
-            userId: 'system',
+            ownerId: 'system',
             name: tags.name,
             category: this.formatCategory(category),
             location: tags['addr:city'] || tags['addr:suburb'] || tags['addr:neighbourhood'] || 'Nearby',
@@ -205,7 +205,7 @@ export class IntegrationService {
 
         places.push({
           id: `demo-${areaSeed}-${idx}-${i}`,
-          userId: 'system',
+          ownerId: 'system',
           name: placeName,
           category: group.key === 'coffee shop' ? 'Coffee Shop' : group.key.charAt(0).toUpperCase() + group.key.slice(1),
           location: 'Nearby',

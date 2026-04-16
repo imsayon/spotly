@@ -97,4 +97,22 @@ export class PrismaQueueRepository implements QueueRepository {
       where: { outletId, status: 'WAITING' },
     });
   }
+
+  async getHistory(userId: string): Promise<any[]> {
+    return this.prisma.queueEntry.findMany({
+      where: {
+        userId,
+        status: { in: ['SERVED', 'CANCELLED'] },
+      },
+      include: {
+        outlet: {
+          include: {
+            merchant: true,
+          },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 20,
+    });
+  }
 }

@@ -1,5 +1,5 @@
 import {
-  Body, Controller, Get, Param, Post, Delete, UseGuards, HttpCode, HttpStatus,
+  Body, Controller, Get, Param, Post, Delete, UseGuards, HttpCode, HttpStatus, ForbiddenException,
 } from '@nestjs/common';
 import { QueueService } from './queue.service';
 import { FirebaseAuthGuard } from '../auth/guards/firebase-auth.guard';
@@ -95,5 +95,17 @@ export class QueueController {
   ) {
     await this.queueService.leaveQueue(entryId, user.uid);
     return { success: true };
+  }
+
+  /** GET /api/queue/history/:userId — consumer gets their queue history */
+  @Get('history/:userId')
+  @UseGuards(FirebaseAuthGuard)
+  async getHistory(
+    @Param('userId') userId: string,
+    @CurrentUser() user: DecodedUser,
+  ) {
+    if (userId !== user.uid) throw new ForbiddenException('Forbidden access to history');
+    const data = await this.queueService.getHistory(userId);
+    return { success: true, data };
   }
 }
