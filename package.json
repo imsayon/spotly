@@ -15,5 +15,7 @@
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.103.2"
+=======
+    "turbo": "^2.9.6"
   }
 }
