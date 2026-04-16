@@ -31,3 +31,17 @@ export const Card = React.forwardRef<HTMLDivElement, CardProps>(
   }
 );
 Card.displayName = 'Card';
+
+export interface SkeletonCardProps {
+  height?: number | string;
+  className?: string;
+}
+
+export function SkeletonCard({ height = 110, className }: SkeletonCardProps) {
+  return (
+    <div 
+      style={{ height }} 
+      className={cn("animate-pulse rounded-2xl bg-white/2", className)}
+    />
+  );
+}

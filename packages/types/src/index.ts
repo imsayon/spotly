@@ -1,15 +1,15 @@
-// ─── Queue Status ────────────────────────────────────────────────────────────
+// Queue Status
 
 export type QueueStatus = 'WAITING' | 'CALLED' | 'SERVED' | 'MISSED';
 
-// ─── User Role ────────────────────────────────────────────────────────────────
+// User Role
 
 export type UserRole = 'CONSUMER' | 'MERCHANT';
 
-// ─── Domain Interfaces ────────────────────────────────────────────────────────
+// Domain Interfaces
 
 export interface User {
-  id: string;       // Firebase UID
+  id: string;              //firebase uid
   name: string;
   email: string;
   role: UserRole;
@@ -20,7 +20,7 @@ export interface User {
 
 export interface Merchant {
   id: string;
-  userId: string;   // owner Firebase UID
+  ownerId: string;        //owner firebase uid
   name: string;
   category: string;
   description?: string;
@@ -49,18 +49,18 @@ export interface QueueEntry {
   outletId: string;
   tokenNumber: number;
   status: QueueStatus;
-  joinedAt: string;  // ISO string
+  joinedAt: string;
   calledAt?: string;
   servedAt?: string;
 }
 
 export interface QueueState {
   outletId: string;
-  currentToken: number;   // currently being served
+  currentToken: number;
   totalWaiting: number;
 }
 
-// ─── API Response Wrappers ────────────────────────────────────────────────────
+// API Response Wrappers
 
 export interface ApiResponse<T> {
   success: boolean;
@@ -74,7 +74,7 @@ export interface ApiError {
   statusCode: number;
 }
 
-// ─── WebSocket Events ─────────────────────────────────────────────────────────
+// Websocket Events
 
 export interface QueueUpdatePayload {
   outletId: string;

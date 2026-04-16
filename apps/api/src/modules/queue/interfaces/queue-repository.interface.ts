@@ -31,6 +31,9 @@ export interface QueueRepository {
 
   /** Count WAITING entries for an outlet */
   countWaiting(outletId: string): Promise<number>;
+
+  /** Get queue history for a user */
+  getHistory(userId: string): Promise<QueueEntry[]>;
 }
 
 export const QUEUE_REPOSITORY = 'QUEUE_REPOSITORY';

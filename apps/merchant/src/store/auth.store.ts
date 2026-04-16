@@ -5,22 +5,21 @@ import api from '@/lib/api';
 
 export interface MerchantProfile {
   id: string;
-  userId: string;
+  ownerId: string;
   name: string;
   category: string;
+  description?: string;
   phone?: string;
-  address?: string;
+  contactEmail?: string;
 }
-
 interface AuthState {
   user: FirebaseUser | null;
   merchantProfile: MerchantProfile | null;
   loading: boolean;
-  setUser: (user: FirebaseUser | null) => Promise<void>;
+  setUser: (user: FirebaseUser | null) => void;
+  fetchMerchantProfile: () => Promise<MerchantProfile | null>;
   signInWithGoogle: () => Promise<void>;
   signOut: () => Promise<void>;
-  fetchMerchantProfile: () => Promise<MerchantProfile | null>;
-  setMerchantProfile: (profile: MerchantProfile) => void;
 }
 
 export const useAuthStore = create<AuthState>()((set, get) => ({
@@ -28,32 +27,24 @@ export const useAuthStore = create<AuthState>()((set, get) => ({
   merchantProfile: null,
   loading: true,
 
-  setUser: async (user) => {
-    if (!user) {
-      set({ user: null, merchantProfile: null, loading: false });
-      return;
-    }
-    set({ user, loading: true });
-    await get().fetchMerchantProfile();
-    set({ loading: false });
+  setUser: (user) => {
+    set({ user, loading: !user ? false : get().loading });
   },
 
   fetchMerchantProfile: async () => {
+    set({ loading: true });
     try {
       const response = await api.get('/merchant/me/profile');
       const profile = response.data.data;
-      set({ merchantProfile: profile });
+      set({ merchantProfile: profile, loading: false });
       return profile;
     } catch (err: any) {
-      if (err?.response?.status === 404 || err.message === 'Not Found') {
-        set({ merchantProfile: null });
-        return null;
-      }
+      set({ merchantProfile: null, loading: false });
       return null;
     }
   },
 
-  setMerchantProfile: (profile) => set({ merchantProfile: profile }),
+  setMerchantProfile: (profile: any) => set({ merchantProfile: profile }),
 
   signInWithGoogle: async () => {
     const provider = new GoogleAuthProvider();

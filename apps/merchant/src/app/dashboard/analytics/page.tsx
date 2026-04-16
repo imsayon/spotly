@@ -1,7 +1,8 @@
 "use client"
 
-import React from "react"
-import { Ic, THEME } from "@spotly/ui"
+import React, { useEffect, useState } from "react"
+import { Ic, THEME, SkeletonCard, useToasts } from "@spotly/ui"
+import api from "@/lib/api"
 
 // Extended styles for this page
 const s = {
@@ -21,24 +22,43 @@ const s = {
   } as React.CSSProperties,
 };
 
-// Mock Data
-const ANALYTICS_DATA = {
-  daily: [
-    { time: '9am', v: 12 }, { time: '10am', v: 28 }, { time: '11am', v: 45 },
-    { time: '12pm', v: 82 }, { time: '1pm', v: 70 }, { time: '2pm', v: 64 },
-    { time: '3pm', v: 38 }, { time: '4pm', v: 52 }, { time: '5pm', v: 92 },
-    { time: '6pm', v: 104 }, { time: '7pm', v: 88 }, { time: '8pm', v: 42 },
-  ],
-  metrics: [
-    { l: 'Total Tokens', v: '18,492', sub: '+12% vs last month', c: '#1fd97c' },
-    { l: 'Avg Wait Time', v: '4.8m', sub: '-0.3m efficiency ↑', c: '#f5c418' },
-    { l: 'Peak Hour', v: '6:00 PM', sub: 'Highest throughput', c: '#a78bfa' },
-    { l: 'Retention', v: '84%', sub: 'Returning customers', c: '#00cfff' },
-  ]
-};
-
 export default function MerchantAnalytics() {
-  const maxH = Math.max(...ANALYTICS_DATA.daily.map(d => d.v));
+  const [data, setData] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const { add: addToast } = useToasts();
+
+  useEffect(() => {
+    const fetchStats = async () => {
+      try {
+        const res = await api.get('/analytics/merchant');
+        setData(res.data.data);
+      } catch (err) {
+        addToast('Failed to load analytics data', 'error');
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchStats();
+  }, [addToast]);
+
+  if (loading) {
+    return (
+      <div style={{ padding: '36px' }}>
+        <SkeletonCard height={60} style={{ marginBottom: 32 }} />
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 14, marginBottom: 24 }}>
+          <SkeletonCard height={120} />
+          <SkeletonCard height={120} />
+          <SkeletonCard height={120} />
+          <SkeletonCard height={120} />
+        </div>
+        <SkeletonCard height={300} />
+      </div>
+    );
+  }
+
+  if (!data) return null;
+
+  const maxH = Math.max(...(data.dailyDistribution?.map((d: any) => d.v) || [1]));
 
   return (
     <div className="animate-in fade-in slide-in-from-bottom-4 duration-500" style={{ padding: '36px 36px 40px' }}>
@@ -50,7 +70,7 @@ export default function MerchantAnalytics() {
 
       {/* METRIC GRID */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 14, marginBottom: 24 }}>
-        {ANALYTICS_DATA.metrics.map((m, i) => (
+        {data.metrics.map((m: any, i: number) => (
           <div key={i} style={{ ...s.card, padding: '24px', background: 'rgba(255,255,255,.02)' }}>
             <div style={{ fontSize: 11, fontWeight: 700, color: 'rgba(255,255,255,.25)', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 10 }}>{m.l}</div>
             <div style={{ fontFamily: 'var(--font-mono)', fontSize: 32, fontWeight: 800, color: m.c, marginBottom: 4, letterSpacing: -1 }}>{m.v}</div>
@@ -67,16 +87,12 @@ export default function MerchantAnalytics() {
               <h3 style={{ fontFamily: 'var(--font-sans)', fontWeight: 800, fontSize: 18 }}>Traffic Distribution</h3>
               <p style={{ fontSize: 13, color: 'rgba(255,255,255,.3)' }}>Hourly token issuance for today</p>
             </div>
-            <div style={{ display: 'flex', gap: 10 }}>
-              <button style={{ ...s.badge('merchant') as React.CSSProperties, background: 'rgba(255,255,255,.05)', border: '1px solid rgba(255,255,255,.1)', color: 'rgba(255,255,255,.6)', padding: '6px 14px' }}>Last 24 Hours</button>
-              <button style={{ ...s.badge('merchant') as React.CSSProperties, background: 'rgba(255,255,255,.05)', border: '1px solid rgba(255,255,255,.1)', color: 'rgba(255,255,255,.3)', padding: '6px 14px' }}>7 Days</button>
-            </div>
           </div>
 
           <div style={{ display: 'flex', alignItems: 'flex-end', gap: 8, height: 260, marginBottom: 16, padding: '0 10px' }}>
-            {ANALYTICS_DATA.daily.map((d: any, i: number) => {
+            {data.dailyDistribution.map((d: any, i: number) => {
               const pct = (d.v / maxH) * 100
-              const isPeak = pct > 80
+              const isPeak = pct > 0 && pct > 80
               return (
                 <div key={i} style={{ flex: 1, height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'flex-end', gap: 8, textAlign: 'center' }}>
                   <div style={{ fontSize: 10, color: isPeak ? '#f5c418' : 'rgba(255,255,255,.2)', fontWeight: 700 }}>{d.v}</div>
@@ -85,7 +101,7 @@ export default function MerchantAnalytics() {
                       width: '100%', 
                       borderRadius: '6px 6px 2px 2px', 
                       background: isPeak ? 'linear-gradient(180deg,#f5c418,#ff6316)' : THEME.gradients.merchant, 
-                      height: `${pct}%`, 
+                      height: `${pct || 2}%`, 
                       minHeight: 4, 
                       transition: 'height 1.2s cubic-bezier(.34,1.56,.64,1)', 
                       opacity: .85,
@@ -105,11 +121,7 @@ export default function MerchantAnalytics() {
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 16 }}>
         <div style={{ ...s.card, padding: '24px' }}>
           <h3 style={{ fontFamily: 'var(--font-sans)', fontWeight: 800, fontSize: 16, marginBottom: 20 }}>Top Outlets</h3>
-          {[
-            { n: 'Main Branch', v: '8,421 tokens', p: '45%' },
-            { n: 'Airport T2', v: '6,102 tokens', p: '33%' },
-            { n: 'HSR Layout', v: '3,969 tokens', p: '22%' },
-          ].map((o, i) => (
+          {data.topOutlets.map((o: any, i: number) => (
             <div key={i} style={{ marginBottom: 18 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, marginBottom: 8 }}>
                 <span style={{ fontWeight: 600, color: 'rgba(255,255,255,.8)' }}>{o.n}</span>

@@ -102,6 +102,13 @@ export class QueueService {
     await this.emitQueueUpdate(outletId);
   }
 
+  /**
+   * Get queue history for a user (SERVED or CANCELLED status).
+   */
+  async getHistory(userId: string) {
+    return this.repo.getHistory(userId);
+  }
+
   // ─── Private ───────────────────────────────────────────────────────────────
 
   private async emitQueueUpdate(outletId: string): Promise<void> {

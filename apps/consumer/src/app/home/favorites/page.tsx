@@ -1,8 +1,9 @@
 "use client"
 
-import React, { useState } from "react"
-import { Ic, useToasts } from "@spotly/ui"
-import { MERCHANTS } from "@spotly/ui/src/data/mock"
+import React, { useState, useEffect } from "react"
+import { Ic, useToasts, SkeletonCard } from "@spotly/ui"
+import api from '@/lib/api'
+import { Merchant } from "@spotly/types"
 
 const s = {
   card: { background: 'var(--s1)', border: '1px solid var(--bdr)', borderRadius: 18, padding: 22, transition: 'all .3s cubic-bezier(.25,.46,.45,.94)' },
@@ -15,19 +16,48 @@ const s = {
 
 export default function ConsumerFavorites() {
   const { add: addToast } = useToasts()
-  const [favorites, setFavorites] = useState<Set<string>>(new Set(['1', '3']))
+  const [loading, setLoading] = useState(true)
+  const [favMerchants, setFavMerchants] = useState<Merchant[]>([])
 
-  const toggleFav = (id: string, e?: React.MouseEvent) => {
+  useEffect(() => {
+    fetchFavorites();
+  }, [])
+
+  const fetchFavorites = async () => {
+    try {
+      const res = await api.get('/user/favorites');
+      setFavMerchants(res.data.data);
+    } catch (err) {
+      console.error('Fetch favorites failed:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const toggleFav = async (merchantId: string, e?: React.MouseEvent) => {
     if(e) e.stopPropagation();
-    setFavorites(prev => {
-      const n = new Set(prev)
-      if (n.has(id)) { n.delete(id); addToast('Removed from favorites', 'info') }
-      else { n.add(id); addToast('Added to favorites ❤️', 'success') }
-      return n
-    })
+    
+    // Optimistic update
+    setFavMerchants(prev => prev.filter(m => m.id !== merchantId));
+    addToast('Removed from favorites', 'info');
+
+    try {
+      await api.delete(`/user/favorites/${merchantId}`);
+    } catch (err) {
+      addToast('Failed to remove favorite', 'error');
+      fetchFavorites(); // Rollback
+    }
   }
 
-  const favMerchants = MERCHANTS.filter(m => favorites.has(m.id))
+  if (loading) {
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+        <SkeletonCard height={80} />
+        <SkeletonCard height={80} />
+        <SkeletonCard height={80} />
+      </div>
+    );
+  }
 
   return (
     <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
@@ -45,17 +75,19 @@ export default function ConsumerFavorites() {
           {favMerchants.map(m => (
             <div key={m.id} style={{ ...s.card, padding: '16px', display: 'flex', alignItems: 'center', gap: 14, cursor: 'pointer' }}
               className="hover:border-[#ff4d6d40] active:scale-[0.98]">
-              <div style={{ width: 52, height: 52, borderRadius: 14, background: `${m.color}18`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 28, flexShrink: 0 }}>{m.emoji}</div>
+              <div style={{ width: 52, height: 52, borderRadius: 14, background: 'rgba(255,255,255,0.05)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 24, flexShrink: 0 }}>
+                {m.logoUrl ? <img src={m.logoUrl} style={{ width: '100%', height: '100%', borderRadius: 14, objectFit: 'cover' }} alt="" /> : <Ic.Shop />}
+              </div>
               <div style={{ flex: 1 }}>
                 <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 2 }}>{m.name}</div>
-                <div style={{ fontSize: 12, color: 'var(--t3)', marginBottom: 5 }}>{m.cat} · {m.area}</div>
+                <div style={{ fontSize: 12, color: 'var(--t3)', marginBottom: 5 }}>{m.category} · {m.location || 'Nearby'}</div>
                 <div style={{ display: 'flex', gap: 7 }}>
-                  <span style={{ ...s.badge('yellow') as React.CSSProperties, fontSize: 10 }}>⏱ {m.waitStr}</span>
-                  <span style={{ ...s.badge('gray') as React.CSSProperties, fontSize: 10 }}>{m.queue} in queue</span>
+                  <span style={{ ...s.badge('yellow') as React.CSSProperties, fontSize: 10 }}>⏱ {m.estimatedWaitTime || '5 MIN'}</span>
+                  <span style={{ ...s.badge('gray') as React.CSSProperties, fontSize: 10 }}>Open</span>
                 </div>
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 8, alignItems: 'center' }}>
-                <div onClick={(e) => toggleFav(m.id, e)} className="hover:scale-110 active:scale-95 transition-transform">
+                <div onClick={(e) => toggleFav(m.id, e)} className="text-[#ff4d6d] hover:scale-110 active:scale-95 transition-transform">
                   <Ic.Heart f={true} />
                 </div>
                 <Ic.ChevR />

@@ -1,5 +1,4 @@
 'use client';
-
 import { useEffect } from 'react';
 import { getFirebaseAuth } from '@/lib/firebase';
 import { onAuthStateChanged } from 'firebase/auth';
@@ -10,11 +9,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     const auth = getFirebaseAuth();
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
-      setUser(user);
+    return onAuthStateChanged(auth, (user) => {
+      setUser(user); 
+      if (user) {
+        useAuthStore.getState().fetchMerchantProfile();
+      }
     });
-
-    return () => unsubscribe();
   }, [setUser]);
 
   return <>{children}</>;
