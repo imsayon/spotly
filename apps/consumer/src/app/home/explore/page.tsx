@@ -521,7 +521,13 @@ export default function ConsumerExplore() {
 										onClick={(e) => toggleFav(m.id, e)}
 										className="hover:scale-110 active:scale-95 transition-transform"
 									>
-										<Ic.Heart f={favorites.has(m.id)} />
+										<Ic.Heart
+											fill={
+												favorites.has(m.id)
+													? "red"
+													: "none"
+											}
+										/>
 									</div>
 									<Ic.ChevR />
 								</div>
