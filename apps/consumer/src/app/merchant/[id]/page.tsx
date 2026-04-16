@@ -85,7 +85,7 @@ export default function ConsumerMerchantPage() {
 		if (id) loadData()
 	}, [id, addToast])
 
-	const handleJoin = async (outletId: string) => {
+	const handleJoin = async (outletId: string, outletName: string) => {
 		if (!user) {
 			addToast("Please sign in to join the queue", "info")
 			return
@@ -109,7 +109,7 @@ export default function ConsumerMerchantPage() {
 
 		setJoiningId(outletId)
 		try {
-			const entry = await joinQueue(outletId)
+			const entry = await joinQueue(outletId, outletName)
 			addToast("Joined queue successfully!", "success")
 			router.push(`/queue/${entry.id}`)
 		} catch (err: any) {
@@ -404,7 +404,7 @@ export default function ConsumerMerchantPage() {
 							<motion.button
 								whileHover={{ scale: 1.05 }}
 								whileTap={{ scale: 0.95 }}
-								onClick={() => handleJoin(o.id)}
+								onClick={() => handleJoin(o.id, o.name)}
 								disabled={joiningId === o.id}
 								style={{
 									...s.btnJoin,

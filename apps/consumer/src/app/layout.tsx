@@ -2,6 +2,7 @@ import { Outfit } from "next/font/google"
 import type { Metadata } from "next"
 import "./globals.css"
 import { AuthProvider } from "@/components/AuthProvider"
+import { ServiceWorkerRegistration } from "@/components/ServiceWorkerRegistration"
 
 const outfit = Outfit({ subsets: ["latin"], variable: "--font-sans" })
 
@@ -21,7 +22,10 @@ export default function RootLayout({
 			<body
 				className={`${outfit.variable} font-sans bg-background text-white min-h-screen`}
 			>
-				<AuthProvider>{children}</AuthProvider>
+				<AuthProvider>
+					<ServiceWorkerRegistration />
+					{children}
+				</AuthProvider>
 			</body>
 		</html>
 	)

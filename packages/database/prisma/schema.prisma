@@ -46,10 +46,12 @@ model Outlet {
   lat         Float?
   lng         Float?
   isActive    Boolean  @default(true)
-  
+  avgServeTimeSeconds Int @default(300) // default 5 minutes
+
   queues      QueueEntry[]
   menuCategories MenuCategory[]
   reviews     Review[]
+  serveEvents ServeEvent[]
 }
 
 model MenuCategory {
@@ -121,4 +123,16 @@ enum QueueStatus {
   CALLED
   SERVED
   CANCELLED
+}
+
+model ServeEvent {
+  id        String   @id @default(uuid())
+  entryId   String   @unique
+  outletId  String
+  calledAt  DateTime
+  servedAt  DateTime
+  duration  Int      // in seconds
+  outlet    Outlet   @relation(fields: [outletId], references: [id], onDelete: Cascade)
+
+  @@index([outletId, servedAt])
 }
