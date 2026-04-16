@@ -1,5 +1,5 @@
 services:
-  # ─── 1. BACKEND (NestJS API) ───
+  # APPLICATION BACKEND (NEST)
   - type: web
     name: spotly-api
     env: node
@@ -14,12 +14,12 @@ services:
         value: https://spotly-consumer.onrender.com
       - key: MERCHANT_URL
         value: https://spotly-merchant.onrender.com
-      # (IMPORTANT): In the Render Dashboard, you MUST manually add these 3 variables:
+
       # - FIREBASE_PROJECT_ID
       # - FIREBASE_CLIENT_EMAIL
       # - FIREBASE_PRIVATE_KEY
 
-  # ─── 2. CONSUMER FRONTEND (Next.js) ───
+  # CONSUMER FRONTEND (NEXT)
   - type: web
     name: spotly-consumer
     env: node
@@ -32,7 +32,7 @@ services:
         value: https://spotly-api.onrender.com/api
       - key: NEXT_PUBLIC_WS_URL
         value: https://spotly-api.onrender.com
-      # We provide the Firebase Client UI directly here since they are public keys
+      # Firebase Client Keys
       - key: NEXT_PUBLIC_FIREBASE_API_KEY
         value: placeholder_key_see_render_dashboard
       - key: NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN
@@ -46,7 +46,7 @@ services:
       - key: NEXT_PUBLIC_FIREBASE_APP_ID
         value: 1:787801999813:web:b158230a580e9a159563ac
 
-  # ─── 3. MERCHANT FRONTEND (Next.js) ───
+  # MERCHANT FRONTEND (NEXT)
   - type: web
     name: spotly-merchant
     env: node
