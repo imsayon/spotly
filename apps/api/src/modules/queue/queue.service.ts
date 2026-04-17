@@ -32,10 +32,7 @@ export class QueueService {
 	 */
 	async joinQueue(userId: string, outletId: string): Promise<QueueEntry> {
 		// Guard: prevent joining a queue you're already in
-		const existing = await this.repo.getQueue(outletId)
-		const alreadyIn = existing.find(
-			(e) => e.userId === userId && (e.status === "WAITING" || e.status === "CALLED"),
-		)
+		const alreadyIn = await this.repo.findActiveEntryByUserAndOutlet(userId, outletId)
 		if (alreadyIn) {
 			throw new ConflictException("You are already in this queue")
 		}
@@ -57,7 +54,7 @@ export class QueueService {
 	 */
 	async getQueue(
 		outletId: string,
-	): Promise<{ entries: QueueEntry[]; avgWaitPerPerson: number }> {
+	): Promise<{ entries: QueueEntry[]; avgWaitPerPerson: number; outletName?: string }> {
 		const [entries, outlet] = await Promise.all([
 			this.repo.getQueue(outletId),
 			this.repo.getOutlet(outletId),

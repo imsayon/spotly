@@ -249,7 +249,7 @@ export const useQueueStore = create<QueueState>()((set, get) => ({
 				Notification.permission === "granted"
 			) {
 				new Notification("🎉 Your Turn!", {
-					body: `Token ${tokenNumber} - Please proceed to the counter`,
+					body: `Token ${tokenNumber} - Please proceed to ${get().outletName || "the counter"}`,
 					icon: "/logo.png",
 					tag: "token_called",
 					requireInteraction: true,

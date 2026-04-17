@@ -110,18 +110,20 @@ export default function ConsumerQueuePage() {
 			return () => clearTimeout(timer)
 		}
 
-		if (entry?.status !== "CALLED" || !entry.calledAt) return
+		if (entry?.status !== "CALLED") return
 
+		const startTime = entry.calledAt ? new Date(entry.calledAt).getTime() : (calledAt?.getTime() ?? Date.now())
+		
 		const interval = setInterval(() => {
-			const calledTime = new Date(entry.calledAt!).getTime()
 			const now = Date.now()
-			const elapsed = Math.floor((now - calledTime) / 1000)
+			const elapsed = Math.floor((now - startTime) / 1000)
 			const remaining = Math.max(0, 300 - elapsed)
 			setCountdown(remaining)
+			if (remaining === 0) clearInterval(interval)
 		}, 1000)
 
 		return () => clearInterval(interval)
-	}, [entry?.status, entry?.calledAt])
+	}, [entry?.status, entry?.calledAt, calledAt, showReview])
 
 	// Initial token count-up animation
 	useEffect(() => {
@@ -150,22 +152,6 @@ export default function ConsumerQueuePage() {
 		return unsubscribeAhead
 	}, [springAhead])
 
-	// Countdown timer for CALLED state
-	useEffect(() => {
-		if (!calledAt) return
-
-		const interval = setInterval(() => {
-			const elapsed = Math.floor((Date.now() - calledAt.getTime()) / 1000)
-			const remaining = Math.max(0, 120 - elapsed)
-			setCountdown(remaining)
-
-			if (remaining === 0) {
-				clearInterval(interval)
-			}
-		}, 1000)
-
-		return () => clearInterval(interval)
-	}, [calledAt])
 
 	// Enhanced notification for CALLED state
 	const triggerCalledEffects = () => {
@@ -331,43 +317,115 @@ export default function ConsumerQueuePage() {
 						initial={{ opacity: 0 }}
 						animate={{ opacity: 1 }}
 						exit={{ opacity: 0 }}
-						className="fixed inset-0 z-[200] bg-[#1fd97c] text-black p-8 flex flex-col items-center justify-center text-center"
+						style={{
+							position: "fixed",
+							inset: 0,
+							zIndex: 9999,
+							background: "linear-gradient(135deg, #1fd97c 0%, #00d084 100%)",
+							display: "flex",
+							flexDirection: "column",
+							alignItems: "center",
+							justifyContent: "center",
+							padding: "24px",
+							textAlign: "center",
+							overflow: "hidden"
+						}}
 					>
+						{/* Animated Background Orbs */}
+						<motion.div
+							animate={{ 
+								scale: [1, 1.2, 1],
+								rotate: [0, 90, 0],
+								opacity: [0.3, 0.5, 0.3]
+							}}
+							transition={{ duration: 10, repeat: Infinity, ease: "linear" }}
+							style={{
+								position: "absolute",
+								width: "150%",
+								height: "150%",
+								background: "radial-gradient(circle, rgba(255,255,255,0.2) 0%, transparent 70%)",
+								pointerEvents: "none",
+								zIndex: 0
+							}}
+						/>
+
 						<motion.div
 							initial={{ scale: 0.8, opacity: 0 }}
 							animate={{ scale: 1, opacity: 1 }}
-							className="mb-12"
+							transition={{ type: "spring", damping: 15 }}
+							style={{ zIndex: 1, maxWidth: 400, width: "100%" }}
 						>
-							<div className="w-32 h-32 bg-black/10 rounded-full flex items-center justify-center mx-auto mb-8 animate-pulse">
-								<Ic.Bell className="w-16 h-16" />
+							<div style={{ 
+								width: 100, 
+								height: 100, 
+								borderRadius: "50%", 
+								background: "rgba(0,0,0,0.1)", 
+								display: "flex", 
+								alignItems: "center", 
+								justifyContent: "center", 
+								margin: "0 auto 32px",
+								boxShadow: "0 0 40px rgba(0,0,0,0.05)"
+							}}>
+								<Ic.Bell size={48} color="#000" />
 							</div>
-							<h1 className="text-5xl font-black tracking-tighter mb-4 leading-tight">
-								IT'S YOUR
-								<br />
-								TURN NOW!
+							
+							<h1 style={{ 
+								fontSize: 48, 
+								fontWeight: 900, 
+								color: "#000", 
+								letterSpacing: -2, 
+								marginBottom: 12,
+								lineHeight: 1
+							}}>
+								IT'S YOUR<br/>TURN NOW!
 							</h1>
-							<p className="text-xl font-bold opacity-70">
-								Token #{entry.tokenNumber} is ready at Head to
-								the counter now!
+							
+							<p style={{ 
+								fontSize: 18, 
+								fontWeight: 700, 
+								color: "rgba(0,0,0,0.6)", 
+								marginBottom: 40,
+								lineHeight: 1.4
+							}}>
+								Token #{entry.tokenNumber} is ready at <br/>
+								<span style={{ color: "#000" }}>{localOutletName || "the counter"}</span>
 							</p>
+
+							<div style={{ 
+								background: "rgba(0,0,0,0.05)", 
+								borderRadius: 32, 
+								padding: "32px", 
+								marginBottom: 40,
+								border: "1px solid rgba(0,0,0,0.05)"
+							}}>
+								<div style={{ fontSize: 12, fontWeight: 900, textTransform: "uppercase", letterSpacing: 2, opacity: 0.4, marginBottom: 8 }}>
+									Time to reach
+								</div>
+								<div style={{ fontSize: 64, fontWeight: 900, color: "#000", fontFamily: "var(--font-mono)" }}>
+									{formatTime(countdown)}
+								</div>
+							</div>
+
+							<motion.button
+								whileHover={{ scale: 1.02, y: -2 }}
+								whileTap={{ scale: 0.98 }}
+								onClick={() => router.push("/home")}
+								style={{
+									width: "100%",
+									padding: "20px",
+									borderRadius: 20,
+									background: "#000",
+									color: "#fff",
+									fontWeight: 900,
+									fontSize: 18,
+									border: "none",
+									cursor: "pointer",
+									boxShadow: "0 20px 40px rgba(0,0,0,0.2)"
+								}}
+							>
+								I'M HERE
+							</motion.button>
 						</motion.div>
-
-						<div className="bg-black/5 rounded-[40px] p-10 w-full mb-12">
-							<div className="text-sm font-black uppercase tracking-widest opacity-50 mb-2">
-								TIME TO REACH
-							</div>
-							<div className="text-7xl font-black font-mono">
-								{formatTime(countdown)}
-							</div>
-						</div>
-
-						<motion.button
-							whileTap={{ scale: 0.95 }}
-							onClick={() => router.push("/home")}
-							className="w-full py-6 rounded-3xl bg-black text-white font-black text-xl shadow-2xl"
-						>
-							ALMOST THERE
-						</motion.button>
 					</motion.div>
 				)}
 			</AnimatePresence>
@@ -812,196 +870,6 @@ export default function ConsumerQueuePage() {
 						</motion.button>
 					)}
 				</div>
-
-				{/* FULL-SCREEN CALLED TAKEOVER */}
-				<AnimatePresence>
-					{isCalled && (
-						<motion.div
-							layoutId="token-circle"
-							initial={{ borderRadius: "50%" }}
-							animate={{
-								position: "fixed",
-								top: 0,
-								left: 0,
-								right: 0,
-								bottom: 0,
-								borderRadius: 0,
-								background:
-									"linear-gradient(135deg, #1fd97c 0%, #00d084 100%)",
-								zIndex: 9999,
-							}}
-							exit={{
-								scale: 0.8,
-								opacity: 0,
-								transition: { duration: 0.3 },
-							}}
-							transition={{
-								type: "spring",
-								stiffness: 100,
-								damping: 20,
-								duration: 0.6,
-							}}
-							style={{
-								display: "flex",
-								flexDirection: "column",
-								alignItems: "center",
-								justifyContent: "center",
-								padding: "20px",
-							}}
-						>
-							{/* Animated background orbs */}
-							<div
-								style={{
-									position: "absolute",
-									width: "200%",
-									height: "200%",
-									top: "-50%",
-									left: "-50%",
-									background:
-										"radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 70%)",
-									animation: "pulse 2s infinite",
-								}}
-							/>
-
-							<motion.div
-								initial={{ opacity: 0, y: 20 }}
-								animate={{ opacity: 1, y: 0 }}
-								transition={{ delay: 0.3 }}
-								style={{
-									textAlign: "center",
-									color: "#fff",
-									zIndex: 1,
-								}}
-							>
-								<div
-									style={{
-										fontSize: 18,
-										fontWeight: 800,
-										textTransform: "uppercase",
-										letterSpacing: 3,
-										marginBottom: 16,
-										opacity: 0.9,
-									}}
-								>
-									Your Token
-								</div>
-
-								<div
-									style={{
-										fontSize: 120,
-										fontWeight: 900,
-										fontFamily: "var(--font-sans)",
-										lineHeight: 1,
-										letterSpacing: -4,
-										marginBottom: 24,
-										textShadow:
-											"0 4px 20px rgba(0,0,0,0.2)",
-									}}
-								>
-									{entry.tokenNumber}
-								</div>
-
-								<motion.div
-									initial={{ scale: 0.8 }}
-									animate={{ scale: 1 }}
-									transition={{
-										type: "spring",
-										stiffness: 200,
-										damping: 10,
-										repeat: Infinity,
-										repeatType: "reverse",
-									}}
-									style={{
-										fontSize: 32,
-										fontWeight: 900,
-										marginBottom: 16,
-										textShadow:
-											"0 2px 10px rgba(0,0,0,0.2)",
-									}}
-								>
-									🎉 IT'S YOUR TURN! 🎉
-								</motion.div>
-
-								<div
-									style={{
-										fontSize: 18,
-										opacity: 0.9,
-										marginBottom: 32,
-										lineHeight: 1.4,
-									}}
-								>
-									Please proceed to the counter immediately
-								</div>
-
-								{/* Countdown Timer */}
-								<motion.div
-									animate={{
-										scale:
-											countdown < 30 ? [1, 1.05, 1] : 1,
-									}}
-									transition={{
-										duration: 1,
-										repeat: countdown < 30 ? Infinity : 0,
-									}}
-									style={{
-										display: "inline-block",
-										padding: "16px 32px",
-										borderRadius: 16,
-										background: "rgba(255,255,255,0.2)",
-										backdropFilter: "blur(10px)",
-										border: "2px solid rgba(255,255,255,0.3)",
-									}}
-								>
-									<div
-										style={{
-											fontSize: 14,
-											fontWeight: 600,
-											opacity: 0.8,
-											marginBottom: 4,
-										}}
-									>
-										Time Remaining
-									</div>
-									<div
-										style={{
-											fontSize: 24,
-											fontWeight: 900,
-											fontFamily: "monospace",
-										}}
-									>
-										{Math.floor(countdown / 60)}:
-										{(countdown % 60)
-											.toString()
-											.padStart(2, "0")}
-									</div>
-								</motion.div>
-
-								<motion.button
-									initial={{ opacity: 0 }}
-									animate={{ opacity: 1 }}
-									transition={{ delay: 0.5 }}
-									whileHover={{ scale: 1.05 }}
-									whileTap={{ scale: 0.95 }}
-									onClick={() => router.push("/home")}
-									style={{
-										marginTop: 32,
-										padding: "16px 32px",
-										borderRadius: 12,
-										background: "rgba(255,255,255,0.9)",
-										color: "#1fd97c",
-										border: "none",
-										fontSize: 16,
-										fontWeight: 800,
-										cursor: "pointer",
-										boxShadow: "0 4px 20px rgba(0,0,0,0.2)",
-									}}
-								>
-									Done
-								</motion.button>
-							</motion.div>
-						</motion.div>
-					)}
-				</AnimatePresence>
 			</motion.div>
 			<ReviewDrawer
 				isOpen={showReview}

@@ -5,6 +5,8 @@ import { Ic, useToasts, THEME, SkeletonCard } from "@spotly/ui"
 import { useRouter } from "next/navigation"
 import { useAuthStore } from "@/store/auth.store"
 import api from "@/lib/api"
+import { io, Socket } from "socket.io-client"
+import { useRef } from "react"
 
 // Extended styles for this page
 const s = {
@@ -62,12 +64,46 @@ export default function MerchantDashboard() {
   const [loading, setLoading] = useState(true)
   const [stats, setStats] = useState<any[]>([])
   const [dailyDist, setDailyDist] = useState<any[]>([])
+  const [activityFeed, setActivityFeed] = useState<any[]>([])
+  const socketRef = useRef<Socket | null>(null)
 
   useEffect(() => {
     if (merchantProfile) {
       fetchData();
+      setupWebSocket();
     }
+    return () => {
+      if (socketRef.current) {
+        socketRef.current.disconnect();
+        socketRef.current = null;
+      }
+    };
   }, [merchantProfile])
+
+  const setupWebSocket = () => {
+    if (!merchantProfile) return;
+    
+    const socket = io(
+      process.env.NEXT_PUBLIC_WS_URL ?? 'http://localhost:3001',
+      { transports: ['websocket'] }
+    );
+    socketRef.current = socket;
+
+    socket.on('connect', () => {
+      // Connect to all merchant outlets for global activity feed
+      api.get(`/outlet/merchant/${merchantProfile.id}`).then(res => {
+        const outlets = res.data.data || [];
+        outlets.forEach((o: any) => {
+          socket.emit('join_outlet', { outletId: o.id });
+        });
+      });
+    });
+
+    socket.on('queue_update', () => {
+      // Refresh analytics data on any queue activity
+      fetchData();
+    });
+  }
   
   // Format ISO time to relative (e.g., "2m ago")
   const getRelativeTime = (iso: string) => {

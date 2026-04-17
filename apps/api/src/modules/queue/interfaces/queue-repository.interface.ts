@@ -45,6 +45,12 @@ export interface QueueRepository {
 	getOutlet(
 		outletId: string,
 	): Promise<{ id: string; name: string; avgServeTimeSeconds: number } | null>
+
+	/** Find an active (WAITING or CALLED) entry for a user at an outlet */
+	findActiveEntryByUserAndOutlet(
+		userId: string,
+		outletId: string,
+	): Promise<QueueEntry | null>
 }
 
 export const QUEUE_REPOSITORY = "QUEUE_REPOSITORY"

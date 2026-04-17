@@ -176,4 +176,18 @@ export class PrismaQueueRepository implements QueueRepository {
 		})
 		return outlet as any
 	}
+
+	async findActiveEntryByUserAndOutlet(
+		userId: string,
+		outletId: string,
+	): Promise<QueueEntry | null> {
+		const entry = await this.prisma.queueEntry.findFirst({
+			where: {
+				userId,
+				outletId,
+				status: { in: ["WAITING", "CALLED"] },
+			},
+		})
+		return entry ? this.mapToDomain(entry) : null
+	}
 }
