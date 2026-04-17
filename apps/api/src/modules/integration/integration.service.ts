@@ -101,6 +101,7 @@ export class IntegrationService {
             location: tags['addr:city'] || tags['addr:suburb'] || tags['addr:neighbourhood'] || 'Nearby',
             rating: parseFloat((4 + Math.random()).toFixed(1)), // Simulated rating
             estimatedWaitTime: `${Math.floor(Math.random() * 20) + 10} MIN`, // Simulated wait time
+            currentQueueDepth: 0,
             createdAt: new Date().toISOString(),
           } as Merchant;
         });

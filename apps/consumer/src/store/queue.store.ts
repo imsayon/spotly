@@ -129,10 +129,11 @@ export const useQueueStore = create<QueueState>()((set, get) => ({
 		set({ loading: true })
 		try {
 			const res = await api.get(`/queue/${outletId}`)
-			const { entries, avgWaitPerPerson } = res.data.data
+			const { entries, avgWaitPerPerson, outletName } = res.data.data
 			set({
 				entries,
 				avgWaitPerPerson: avgWaitPerPerson ?? 300,
+				outletName: outletName ?? null,
 				loading: false,
 			})
 		} catch {

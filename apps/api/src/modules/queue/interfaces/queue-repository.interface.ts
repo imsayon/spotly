@@ -44,7 +44,7 @@ export interface QueueRepository {
 	/** Get outlet with avgServeTimeSeconds */
 	getOutlet(
 		outletId: string,
-	): Promise<{ id: string; avgServeTimeSeconds: number } | null>
+	): Promise<{ id: string; name: string; avgServeTimeSeconds: number } | null>
 }
 
 export const QUEUE_REPOSITORY = "QUEUE_REPOSITORY"

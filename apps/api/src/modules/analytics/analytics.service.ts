@@ -88,12 +88,35 @@ export class AnalyticsService {
     const retentionRate = uniqueUsers.length > 0 
       ? Math.round((repeatUsers / uniqueUsers.length) * 100) 
       : 0;
+    
+    // 7. Recent Activity
+    const recentActivity = await this.prisma.queueEntry.findMany({
+      where: { outletId: { in: outletIds } },
+      orderBy: { createdAt: 'desc' },
+      take: 10,
+      include: {
+        outlet: { select: { name: true } }
+      }
+    });
+
+    const activityFeed = recentActivity.map(a => ({
+      id: a.id,
+      token: a.token,
+      action: a.status.toLowerCase(),
+      outlet: a.outlet.name,
+      time: a.createdAt.toISOString(),
+      // Define colors based on status
+      color: a.status === 'WAITING' ? '#f5c418' : 
+             a.status === 'CALLED' ? '#1fd97c' : 
+             a.status === 'SERVED' ? '#00cfff' : '#ff4d6d'
+    }));
 
     return {
       totalTokens,
       weeklyTokens,
       dailyDistribution,
       topOutlets,
+      activityFeed,
       metrics: [
         { 
           l: 'Total Tokens', 

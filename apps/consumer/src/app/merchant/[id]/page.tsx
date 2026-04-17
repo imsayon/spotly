@@ -397,7 +397,12 @@ export default function ConsumerMerchantPage() {
 										}}
 									>
 										<Ic.Clock />{" "}
-										{(o.queueCount || 0) * 5 || 5}m wait
+										{Math.ceil(
+											((o.queueCount || 0) *
+												(o.avgServeTimeSeconds || 300)) /
+												60,
+										) || 5}
+										m wait
 									</div>
 								</div>
 							</div>

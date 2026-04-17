@@ -60,24 +60,54 @@ export default function MerchantDashboard() {
   
   const [outlets, setOutlets] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
-  const [activityFeed, setActivityFeed] = useState<any[]>([])
+  const [stats, setStats] = useState<any[]>([])
+  const [dailyDist, setDailyDist] = useState<any[]>([])
 
   useEffect(() => {
     if (merchantProfile) {
       fetchData();
     }
   }, [merchantProfile])
+  
+  // Format ISO time to relative (e.g., "2m ago")
+  const getRelativeTime = (iso: string) => {
+    const diff = Math.floor((Date.now() - new Date(iso).getTime()) / 1000)
+    if (diff < 60) return `${diff}s ago`
+    if (diff < 3600) return `${Math.floor(diff / 60)}m ago`
+    if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`
+    return `${Math.floor(diff / 86400)}d ago`
+  }
 
   const fetchData = async () => {
     if (!merchantProfile) return;
     try {
-      const res = await api.get(`/outlet/merchant/${merchantProfile.id}`);
-      setOutlets(res.data.data);
-      // Mocking activities for now since there's no merchant history endpoint yet
-      setActivityFeed([
-        { id: 1, token: 45, action: 'joined', outlet: 'Main Branch', time: '2m ago', color: '#1fd97c' },
-        { id: 2, token: 44, action: 'served', outlet: 'Main Branch', time: '5m ago', color: '#00cfff' },
+      const [oRes, aRes] = await Promise.all([
+        api.get(`/outlet/merchant/${merchantProfile.id}`),
+        api.get("/analytics/merchant")
       ]);
+      
+      setOutlets(oRes.data.data);
+      
+      const { metrics, activityFeed, dailyDistribution } = aRes.data.data;
+      
+      // Map metrics from API to local stats format
+      const icons = ['⏳', '✓', '⏱', '★'];
+      const mappedStats = metrics.map((m: any, i: number) => ({
+        n: m.v.replace(/[^\d.]/g, ''),
+        s: m.v.replace(/[\d.]/g, ''),
+        l: m.l,
+        c: m.c,
+        ic: icons[i % icons.length],
+        sub: m.sub,
+        trend: true
+      }));
+      
+      setStats(mappedStats);
+      setDailyDist(dailyDistribution);
+      setActivityFeed(activityFeed.map((a: any) => ({
+        ...a,
+        time: getRelativeTime(a.time)
+      })));
     } catch (err) {
       console.error('Dashboard fetch failed:', err);
     } finally {
@@ -85,16 +115,7 @@ export default function MerchantDashboard() {
     }
   }
 
-  const waitingTotal = outlets.reduce((acc, o) => acc + (o.queueCount || 0), 0);
-
-  const stats = [
-    { n: waitingTotal, s: '', l: 'Waiting now', c: '#f5c418', ic: '⏳', sub: 'Live across outlets', trend: true },
-    { n: 148, s: '', l: 'Served today', c: '#1fd97c', ic: '✓', sub: '+12% vs yesterday', trend: true },
-    { n: '4.2', s: 'm', l: 'Avg wait', c: '#a78bfa', ic: '⏱', sub: '↓ 0.8 min', trend: false },
-    { n: '4.8', s: '★', l: 'Rating', c: '#fb923c', ic: '★', sub: '98 reviews', trend: true },
-  ];
-
-  const maxH = Math.max(...ANALYTICS.daily.map(d => d.v));
+  const maxH = Math.max(...dailyDist.map(d => d.v), 1);
 
   return (
     <div className="animate-in fade-in slide-in-from-bottom-4 duration-500" style={{ padding: '36px 36px 40px' }}>
@@ -148,7 +169,7 @@ export default function MerchantDashboard() {
                 <span style={{ ...s.badge('merchant'), fontSize: 10, background: 'rgba(255,255,255,.05)', border: '1px solid rgba(255,255,255,.1)' } as React.CSSProperties}>Live · Updates every 15m</span>
               </div>
               <div style={{ display: 'flex', alignItems: 'flex-end', gap: 5, height: 120, marginBottom: 12 }}>
-                {ANALYTICS.daily.map((d: any, i: number) => {
+                {dailyDist.map((d: any, i: number) => {
                   const pct = (d.v / maxH) * 100
                   const isHigh = pct > 75
                   return (
@@ -159,7 +180,7 @@ export default function MerchantDashboard() {
                 })}
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 9, color: 'rgba(255,255,255,.25)', fontWeight: 600 }}>
-                {ANALYTICS.daily.filter((_: any, i: number) => i % 3 === 0).map((d: any) => <span key={d.time}>{d.time}</span>)}
+                {dailyDist.filter((_: any, i: number) => i % 3 === 0).map((d: any) => <span key={d.time}>{d.time}</span>)}
               </div>
             </div>
 

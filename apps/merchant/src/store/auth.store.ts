@@ -34,7 +34,7 @@ export const useAuthStore = create<AuthState>()((set, get) => ({
 	loading: true,
 
 	setUser: (user) => {
-		set({ user, loading: !user ? false : get().loading })
+		set({ user, loading: false })
 	},
 
 	fetchMerchantProfile: async () => {

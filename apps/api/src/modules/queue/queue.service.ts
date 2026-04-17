@@ -65,17 +65,28 @@ export class QueueService {
 
 		const avgWaitPerPerson = outlet?.avgServeTimeSeconds ?? 300 // default 5 minutes
 
-		return { entries, avgWaitPerPerson }
+		return { 
+			entries, 
+			avgWaitPerPerson, 
+			outletName: outlet?.name 
+		}
 	}
 
 	/**
 	 * Get a single queue entry by ID.
 	 */
-	async getEntry(entryId: string): Promise<QueueEntry> {
+	async getEntry(entryId: string): Promise<any> {
 		const entry = await this.repo.getEntry(entryId)
 		if (!entry)
 			throw new NotFoundException(`Queue entry ${entryId} not found`)
-		return entry
+
+		const outlet = await this.repo.getOutlet(entry.outletId)
+
+		return {
+			...entry,
+			outletName: outlet?.name,
+			avgWaitPerPerson: outlet?.avgServeTimeSeconds ?? 300,
+		}
 	}
 
 	/**

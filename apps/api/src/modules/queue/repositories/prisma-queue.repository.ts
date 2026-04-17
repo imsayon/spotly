@@ -169,11 +169,11 @@ export class PrismaQueueRepository implements QueueRepository {
 
 	async getOutlet(
 		outletId: string,
-	): Promise<{ id: string; avgServeTimeSeconds: number } | null> {
+	): Promise<{ id: string; name: string; avgServeTimeSeconds: number } | null> {
 		const outlet = await this.prisma.outlet.findUnique({
 			where: { id: outletId },
-			select: { id: true, avgServeTimeSeconds: true },
+			select: { id: true, name: true, avgServeTimeSeconds: true },
 		})
-		return outlet
+		return outlet as any
 	}
 }

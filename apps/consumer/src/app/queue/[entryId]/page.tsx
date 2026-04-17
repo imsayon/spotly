@@ -13,8 +13,9 @@ import { Ic, useToasts, THEME, Orb } from "@spotly/ui"
 import { useAuthStore } from "@/store/auth.store"
 import { useQueueStore } from "@/store/queue.store"
 import { io, Socket } from "socket.io-client"
+import api from "@/lib/api"
+import { QueueEntry } from "@spotly/types"
 import { ReviewDrawer } from "@/components/ReviewDrawer"
-import { formatDistanceToNow } from "date-fns"
 
 const s = {
 	...THEME.styles,
@@ -59,9 +60,10 @@ export default function ConsumerQueuePage() {
 	const [loading, setLoading] = useState(true)
 	const [ahead, setAhead] = useState(0)
 	const [totalWaiting, setTotalWaiting] = useState(0)
-	const [outletName, setOutletName] = useState("the counter")
-	const [isReviewOpen, setIsReviewOpen] = useState(false)
-	const [timeLimit, setTimeLimit] = useState(300) // 5 minutes in seconds
+	const [calledAt, setCalledAt] = useState<Date | null>(null)
+	const [countdown, setCountdown] = useState(120) // 2 minutes in seconds
+	const [showReview, setShowReview] = useState(false)
+	const [localOutletName, setLocalOutletName] = useState("")
 
 	// Animated spring value for smooth ahead count transitions
 	const [animatedAheadValue, setAnimatedAheadValue] = useState(ahead)
@@ -77,19 +79,21 @@ export default function ConsumerQueuePage() {
 		const fetchData = async () => {
 			try {
 				const res = await api.get(`/queue/entry/${entryId}`)
-				const currentEntry: QueueEntry = res.data.data
-				setEntry(currentEntry)
-
-				// Fetch outlet details for name
-				if (currentEntry.outletId) {
-					const outletRes = await api.get(`/outlet/${currentEntry.outletId}`)
-					setOutletName(outletRes.data.data.name)
-				}
+				const data = res.data.data
+				setEntry(data)
+				if (data.outletName) setLocalOutletName(data.outletName)
 				
-				// If already served, maybe show review drawer
-				if (currentEntry.status === 'SERVED') {
-					setIsReviewOpen(true)
-				}
+				// Get current queue state for this outlet to compute ahead/total
+				const qRes = await api.get(`/queue/${data.outletId}`)
+				const { entries: qEntries } = qRes.data.data
+				
+				const waitingAhead = qEntries.filter(
+					(e: any) => e.status === "WAITING" && e.tokenNumber < data.tokenNumber
+				).length
+				const waitingTotal = qEntries.filter((e: any) => e.status === "WAITING").length
+				
+				setAhead(waitingAhead)
+				setTotalWaiting(waitingTotal)
 			} catch (err) {
 				addToast("Failed to load reservation", "error")
 			} finally {
@@ -101,14 +105,19 @@ export default function ConsumerQueuePage() {
 
 	// Countdown timer logic when CALLED
 	useEffect(() => {
-		if (entry?.status !== 'CALLED' || !entry.calledAt) return
-		
+		if (entry?.status === "SERVED" && !showReview) {
+			const timer = setTimeout(() => setShowReview(true), 1000)
+			return () => clearTimeout(timer)
+		}
+
+		if (entry?.status !== "CALLED" || !entry.calledAt) return
+
 		const interval = setInterval(() => {
 			const calledTime = new Date(entry.calledAt!).getTime()
 			const now = Date.now()
 			const elapsed = Math.floor((now - calledTime) / 1000)
 			const remaining = Math.max(0, 300 - elapsed)
-			setTimeLimit(remaining)
+			setCountdown(remaining)
 		}, 1000)
 
 		return () => clearInterval(interval)
@@ -140,6 +149,68 @@ export default function ConsumerQueuePage() {
 		)
 		return unsubscribeAhead
 	}, [springAhead])
+
+	// Countdown timer for CALLED state
+	useEffect(() => {
+		if (!calledAt) return
+
+		const interval = setInterval(() => {
+			const elapsed = Math.floor((Date.now() - calledAt.getTime()) / 1000)
+			const remaining = Math.max(0, 120 - elapsed)
+			setCountdown(remaining)
+
+			if (remaining === 0) {
+				clearInterval(interval)
+			}
+		}, 1000)
+
+		return () => clearInterval(interval)
+	}, [calledAt])
+
+	// Enhanced notification for CALLED state
+	const triggerCalledEffects = () => {
+		// Vibration pattern
+		if ("vibrate" in navigator) {
+			navigator.vibrate([200, 100, 200, 100, 200])
+		}
+
+		// Play enhanced notification sound
+		try {
+			const audioContext = new (
+				window.AudioContext || (window as any).webkitAudioContext
+			)()
+			const oscillator = audioContext.createOscillator()
+			const gainNode = audioContext.createGain()
+
+			oscillator.connect(gainNode)
+			gainNode.connect(audioContext.destination)
+
+			// Triumphant three-tone chime
+			oscillator.frequency.setValueAtTime(
+				523.25,
+				audioContext.currentTime,
+			) // C5
+			oscillator.frequency.setValueAtTime(
+				659.25,
+				audioContext.currentTime + 0.1,
+			) // E5
+			oscillator.frequency.setValueAtTime(
+				783.99,
+				audioContext.currentTime + 0.2,
+			) // G5
+
+			gainNode.gain.setValueAtTime(0.3, audioContext.currentTime)
+			gainNode.gain.exponentialRampToValueAtTime(
+				0.01,
+				audioContext.currentTime + 0.5,
+			)
+
+			oscillator.start(audioContext.currentTime)
+			oscillator.stop(audioContext.currentTime + 0.5)
+		} catch {
+			// Silently fail if Web Audio API not available
+		}
+	}
 
 	// 2. WebSocket Sync
 	useEffect(() => {
@@ -176,9 +247,11 @@ export default function ConsumerQueuePage() {
 		socket.on("token_called", (payload: any) => {
 			if (payload.tokenNumber === entry.tokenNumber) {
 				handleTokenCalled(payload.tokenNumber)
-				setEntry((prev) =>
+				setEntry((prev: QueueEntry | null) =>
 					prev ? { ...prev, status: "CALLED" } : null,
 				)
+				setCalledAt(new Date())
+				triggerCalledEffects()
 			}
 		})
 
@@ -247,493 +320,699 @@ export default function ConsumerQueuePage() {
 	const formatTime = (seconds: number) => {
 		const mins = Math.floor(seconds / 60)
 		const secs = seconds % 60
-		return `${mins}:${secs.toString().padStart(2, '0')}`
+		return `${mins}:${secs.toString().padStart(2, "0")}`
 	}
 
 	return (
 		<>
-		<ReviewDrawer 
-			isOpen={isReviewOpen}
-			onClose={() => setIsReviewOpen(false)}
-			outletId={entry.outletId}
-			outletName={outletName}
-			onSubmitSuccess={() => router.push('/home')}
-		/>
-
-		<AnimatePresence>
-			{isCalled && (
-				<motion.div
-					initial={{ opacity: 0 }}
-					animate={{ opacity: 1 }}
-					exit={{ opacity: 0 }}
-					className="fixed inset-0 z-[200] bg-[#1fd97c] text-black p-8 flex flex-col items-center justify-center text-center"
-				>
+			<AnimatePresence>
+				{isCalled && (
 					<motion.div
-						initial={{ scale: 0.8, opacity: 0 }}
-						animate={{ scale: 1, opacity: 1 }}
-						className="mb-12"
+						initial={{ opacity: 0 }}
+						animate={{ opacity: 1 }}
+						exit={{ opacity: 0 }}
+						className="fixed inset-0 z-[200] bg-[#1fd97c] text-black p-8 flex flex-col items-center justify-center text-center"
 					>
-						<div className="w-32 h-32 bg-black/10 rounded-full flex items-center justify-center mx-auto mb-8 animate-pulse">
-							<Ic.Bell className="w-16 h-16" />
+						<motion.div
+							initial={{ scale: 0.8, opacity: 0 }}
+							animate={{ scale: 1, opacity: 1 }}
+							className="mb-12"
+						>
+							<div className="w-32 h-32 bg-black/10 rounded-full flex items-center justify-center mx-auto mb-8 animate-pulse">
+								<Ic.Bell className="w-16 h-16" />
+							</div>
+							<h1 className="text-5xl font-black tracking-tighter mb-4 leading-tight">
+								IT'S YOUR
+								<br />
+								TURN NOW!
+							</h1>
+							<p className="text-xl font-bold opacity-70">
+								Token #{entry.tokenNumber} is ready at Head to
+								the counter now!
+							</p>
+						</motion.div>
+
+						<div className="bg-black/5 rounded-[40px] p-10 w-full mb-12">
+							<div className="text-sm font-black uppercase tracking-widest opacity-50 mb-2">
+								TIME TO REACH
+							</div>
+							<div className="text-7xl font-black font-mono">
+								{formatTime(countdown)}
+							</div>
 						</div>
-						<h1 className="text-5xl font-black tracking-tighter mb-4 leading-tight">
-							IT'S YOUR<br />TURN NOW!
-						</h1>
-						<p className="text-xl font-bold opacity-70">
-							Token #{entry.tokenNumber} is ready at {outletName}
-						</p>
+
+						<motion.button
+							whileTap={{ scale: 0.95 }}
+							onClick={() => router.push("/home")}
+							className="w-full py-6 rounded-3xl bg-black text-white font-black text-xl shadow-2xl"
+						>
+							ALMOST THERE
+						</motion.button>
 					</motion.div>
+				)}
+			</AnimatePresence>
 
-					<div className="bg-black/5 rounded-[40px] p-10 w-full mb-12">
-						<div className="text-sm font-black uppercase tracking-widest opacity-50 mb-2">TIME TO REACH</div>
-						<div className="text-7xl font-black font-mono">
-							{formatTime(timeLimit)}
-						</div>
-					</div>
-
-					<motion.button
-						whileTap={{ scale: 0.95 }}
-						onClick={() => router.push('/home')}
-						className="w-full py-6 rounded-3xl bg-black text-white font-black text-xl shadow-2xl"
-					>
-						ALMOST THERE
-					</motion.button>
-				</motion.div>
-			)}
-		</AnimatePresence>
-
-		<motion.div
-			initial={{ opacity: 0, scale: 0.98 }}
-			animate={{ opacity: 1, scale: 1 }}
-			style={{
-				padding: "24px 20px 100px",
-				maxWidth: 480,
-				margin: "0 auto",
-				textAlign: "center",
-			}}
-		>
-			{/* HEADER */}
-			<div
+			<motion.div
+				initial={{ opacity: 0, scale: 0.98 }}
+				animate={{ opacity: 1, scale: 1 }}
 				style={{
-					display: "flex",
-					alignItems: "center",
-					gap: 16,
-					marginBottom: 48,
-					textAlign: "left",
+					padding: "24px 20px 100px",
+					maxWidth: 480,
+					margin: "0 auto",
+					textAlign: "center",
 				}}
 			>
-				<motion.button
-					whileHover={{
-						scale: 1.05,
-						background: "rgba(255,255,255,.08)",
-					}}
-					whileTap={{ scale: 0.95 }}
-					onClick={() => router.push("/home")}
-					style={{
-						width: 44,
-						height: 44,
-						borderRadius: 14,
-						background: "rgba(255,255,255,.04)",
-						border: "1px solid rgba(255,255,255,.1)",
-						color: "rgba(255,255,255,.6)",
-						cursor: "pointer",
-						display: "flex",
-						alignItems: "center",
-						justifyContent: "center",
-					}}
-				>
-					<Ic.ChevronLeft />
-				</motion.button>
-				<div>
-					<h1
-						style={{
-							fontFamily: "var(--font-sans)",
-							fontSize: 18,
-							fontWeight: 900,
-							letterSpacing: -0.5,
-						}}
-					>
-						Live Status
-					</h1>
-					<p
-						style={{
-							color: "rgba(255,255,255,.3)",
-							fontSize: 13,
-							fontWeight: 600,
-						}}
-					>
-						Spotly Token Reservation
-					</p>
-				</div>
-			</div>
-
-			{/* TOKEN CIRCLE */}
-			<div style={{ ...s.tokenCircle }}>
-				<Orb
-					x="-10%"
-					y="-10%"
-					size="120%"
-					color={`${statusColor}08`}
-					anim="orb1 10s infinite"
-				/>
-				<motion.div
-					animate={{ scale: isCalled ? [1, 1.05, 1] : 1 }}
-					transition={{ duration: 2, repeat: Infinity }}
-					style={{
-						width: 200,
-						height: 200,
-						borderRadius: "50%",
-						background: "rgba(255,255,255,.01)",
-						border: `2px solid ${statusColor}40`,
-						display: "flex",
-						flexDirection: "column",
-						alignItems: "center",
-						justifyContent: "center",
-						boxShadow: `0 0 60px ${statusColor}10`,
-					}}
-				>
-					<div
-						style={{
-							fontSize: 11,
-							fontWeight: 800,
-							color: "rgba(255,255,255,.3)",
-							textTransform: "uppercase",
-							letterSpacing: 3,
-							marginBottom: 8,
-						}}
-					>
-						TOKEN
-					</div>
-					<div
-						style={{
-							fontSize: 84,
-							fontWeight: 900,
-							color: "#fff",
-							fontFamily: "var(--font-sans)",
-							lineHeight: 1,
-							letterSpacing: -2,
-						}}
-					>
-						{displayToken || entry.tokenNumber}
-					</div>
-				</motion.div>
-			</div>
-
-			{/* STATUS BADGE */}
-			<div
-				style={{
-					...s.statusBadge,
-					color: statusColor,
-					borderColor: `${statusColor}30`,
-				}}
-			>
+				{/* HEADER */}
 				<div
 					style={{
-						width: 8,
-						height: 8,
-						borderRadius: "50%",
-						background: statusColor,
-						boxShadow: `0 0 10px ${statusColor}`,
+						display: "flex",
+						alignItems: "center",
+						gap: 16,
+						marginBottom: 48,
+						textAlign: "left",
 					}}
-				/>
-				{entry.status}
-			</div>
+				>
+					<motion.button
+						whileHover={{
+							scale: 1.05,
+							background: "rgba(255,255,255,.08)",
+						}}
+						whileTap={{ scale: 0.95 }}
+						onClick={() => router.push("/home")}
+						style={{
+							width: 44,
+							height: 44,
+							borderRadius: 14,
+							background: "rgba(255,255,255,.04)",
+							border: "1px solid rgba(255,255,255,.1)",
+							color: "rgba(255,255,255,.6)",
+							cursor: "pointer",
+							display: "flex",
+							alignItems: "center",
+							justifyContent: "center",
+						}}
+					>
+						<Ic.ChevronLeft />
+					</motion.button>
+					<div>
+						<h1
+							style={{
+								fontFamily: "var(--font-sans)",
+								fontSize: 18,
+								fontWeight: 900,
+								letterSpacing: -0.5,
+							}}
+						>
+							Live Status
+						</h1>
+						<p
+							style={{
+								color: "rgba(255,255,255,.3)",
+								fontSize: 13,
+								fontWeight: 600,
+							}}
+						>
+							Spotly Token Reservation
+						</p>
+					</div>
+				</div>
 
-			{/* MESSAGE */}
-			<div style={{ marginBottom: 56 }}>
-				<AnimatePresence mode="wait">
-					{isCalled ? (
-						<motion.div
-							initial={{ opacity: 0, y: 10 }}
-							animate={{ opacity: 1, y: 0 }}
-							key="called"
+				{/* TOKEN CIRCLE */}
+				<div style={{ ...s.tokenCircle }}>
+					<Orb
+						x="-10%"
+						y="-10%"
+						size="120%"
+						color={`${statusColor}08`}
+						anim="orb1 10s infinite"
+					/>
+					<motion.div
+						layoutId="token-circle"
+						animate={{ scale: isCalled ? [1, 1.05, 1] : 1 }}
+						transition={{ duration: 2, repeat: Infinity }}
+						style={{
+							width: 200,
+							height: 200,
+							borderRadius: "50%",
+							background: "rgba(255,255,255,.01)",
+							border: `2px solid ${statusColor}40`,
+							display: "flex",
+							flexDirection: "column",
+							alignItems: "center",
+							justifyContent: "center",
+							boxShadow: `0 0 60px ${statusColor}10`,
+						}}
+					>
+						<div
+							style={{
+								fontSize: 11,
+								fontWeight: 800,
+								color: "rgba(255,255,255,.3)",
+								textTransform: "uppercase",
+								letterSpacing: 3,
+								marginBottom: 8,
+							}}
 						>
-							<h2
-								style={{
-									fontSize: 32,
-									fontWeight: 900,
-									marginBottom: 12,
-									color: "#fff",
-									letterSpacing: -1,
-								}}
-							>
-								It's your turn!
-							</h2>
-							<p
-								style={{
-									color: "rgba(255,255,255,0.4)",
-									fontSize: 16,
-									lineHeight: 1.6,
-								}}
-							>
-								Your spot is ready. Please present this token at
-								the counter immediately.
-							</p>
-						</motion.div>
-					) : isWaiting ? (
-						<motion.div
-							initial={{ opacity: 0, y: 10 }}
-							animate={{ opacity: 1, y: 0 }}
-							key="waiting"
+							TOKEN
+						</div>
+						<div
+							style={{
+								fontSize: 84,
+								fontWeight: 900,
+								color: "#fff",
+								fontFamily: "var(--font-sans)",
+								lineHeight: 1,
+								letterSpacing: -2,
+							}}
 						>
-							<h2
-								style={{
-									fontSize: 28,
-									fontWeight: 900,
-									marginBottom: 12,
-									letterSpacing: -1,
-								}}
+							{displayToken || entry.tokenNumber}
+						</div>
+					</motion.div>
+				</div>
+
+				{/* STATUS BADGE */}
+				<div
+					style={{
+						...s.statusBadge,
+						color: statusColor,
+						borderColor: `${statusColor}30`,
+					}}
+				>
+					<div
+						style={{
+							width: 8,
+							height: 8,
+							borderRadius: "50%",
+							background: statusColor,
+							boxShadow: `0 0 10px ${statusColor}`,
+						}}
+					/>
+					{entry.status}
+				</div>
+
+				{/* MESSAGE */}
+				<div style={{ marginBottom: 56 }}>
+					<AnimatePresence mode="wait">
+						{isCalled ? (
+							<motion.div
+								initial={{ opacity: 0, y: 10 }}
+								animate={{ opacity: 1, y: 0 }}
+								key="called"
 							>
-								Almost there!
-							</h2>
+								<h2
+									style={{
+										fontSize: 32,
+										fontWeight: 900,
+										marginBottom: 12,
+										color: "#fff",
+										letterSpacing: -1,
+									}}
+								>
+									It's your turn!
+								</h2>
+								<p
+									style={{
+										color: "rgba(255,255,255,0.4)",
+										fontSize: 16,
+										lineHeight: 1.6,
+									}}
+								>
+									Your spot is ready. Please present this
+									token at the counter immediately.
+								</p>
+							</motion.div>
+						) : isWaiting ? (
+							<motion.div
+								initial={{ opacity: 0, y: 10 }}
+								animate={{ opacity: 1, y: 0 }}
+								key="waiting"
+							>
+								<h2
+									style={{
+										fontSize: 28,
+										fontWeight: 900,
+										marginBottom: 12,
+										letterSpacing: -1,
+									}}
+								>
+									Almost there!
+								</h2>
+								<div
+									style={{
+										display: "grid",
+										gridTemplateColumns: "1fr 1fr",
+										gap: 14,
+										marginTop: 32,
+									}}
+								>
+									<div
+										style={{
+											...s.card,
+											padding: "24px 16px",
+											borderRadius: 24,
+											textAlign: "center",
+										}}
+									>
+										<motion.div
+											style={{
+												fontSize: 32,
+												fontWeight: 900,
+												color: "#f5c418",
+												marginBottom: 4,
+											}}
+										>
+											{animatedAheadValue}
+										</motion.div>
+										<div
+											style={{
+												fontSize: 11,
+												color: "rgba(255,255,255,.2)",
+												fontWeight: 800,
+												textTransform: "uppercase",
+												letterSpacing: 1,
+											}}
+										>
+											Ahead Of You
+										</div>
+									</div>
+									<div
+										style={{
+											...s.card,
+											padding: "24px 16px",
+											borderRadius: 24,
+											textAlign: "center",
+										}}
+									>
+										<div
+											style={{
+												fontSize: 32,
+												fontWeight: 900,
+												color: "#00cfff",
+												marginBottom: 4,
+											}}
+										>
+											~
+											{Math.ceil(
+												(ahead * avgWaitPerPerson) / 60,
+											)}
+											m
+										</div>
+										<div
+											style={{
+												fontSize: 11,
+												color: "rgba(255,255,255,.2)",
+												fontWeight: 800,
+												textTransform: "uppercase",
+												letterSpacing: 1,
+											}}
+										>
+											Est. Wait
+										</div>
+									</div>
+								</div>
+
+								{/* Progress Bar */}
+								<div
+									style={{ marginTop: 28, padding: "0 4px" }}
+								>
+									<div
+										style={{
+											height: 6,
+											borderRadius: 3,
+											background: "rgba(255,255,255,.08)",
+											overflow: "hidden",
+										}}
+									>
+										<motion.div
+											initial={{ width: 0 }}
+											animate={{
+												width: `${totalWaiting > 0 ? ((totalWaiting - ahead) / totalWaiting) * 100 : 0}%`,
+											}}
+											transition={{
+												type: "spring",
+												stiffness: 100,
+												damping: 20,
+											}}
+											style={{
+												height: "100%",
+												borderRadius: 3,
+												background:
+													"linear-gradient(90deg, #f5c418, #ff9f43)",
+											}}
+										/>
+									</div>
+									<div
+										style={{
+											display: "flex",
+											justifyContent: "space-between",
+											marginTop: 8,
+										}}
+									>
+										<span
+											style={{
+												fontSize: 11,
+												color: "rgba(255,255,255,.3)",
+												fontWeight: 600,
+											}}
+										>
+											Your position
+										</span>
+										<span
+											style={{
+												fontSize: 11,
+												color: "#f5c418",
+												fontWeight: 700,
+											}}
+										>
+											{totalWaiting > 0
+												? Math.round(
+														((totalWaiting -
+															ahead) /
+															totalWaiting) *
+															100,
+													)
+												: 0}
+											% through
+										</span>
+									</div>
+								</div>
+							</motion.div>
+						) : isServed ? (
+							<motion.div
+								initial={{ opacity: 0, y: 10 }}
+								animate={{ opacity: 1, y: 0 }}
+								key="served"
+							>
+								<h2
+									style={{
+										fontSize: 28,
+										fontWeight: 900,
+										marginBottom: 8,
+										letterSpacing: -1,
+									}}
+								>
+									Served!
+								</h2>
+								<p
+									style={{
+										color: "rgba(255,255,255,0.4)",
+										fontSize: 16,
+									}}
+								>
+									Your request was processed successfully.
+									Thank you for choosing us!
+								</p>
+							</motion.div>
+						) : (
+							<motion.div
+								initial={{ opacity: 0, y: 10 }}
+								animate={{ opacity: 1, y: 0 }}
+								key="missed"
+							>
+								<h2
+									style={{
+										fontSize: 28,
+										fontWeight: 900,
+										marginBottom: 8,
+										color: "#ff4d6d",
+										letterSpacing: -1,
+									}}
+								>
+									Turn Missed
+								</h2>
+								<p
+									style={{
+										color: "rgba(255,255,255,0.4)",
+										fontSize: 16,
+									}}
+								>
+									You weren't available when called. Please
+									rejoin the queue if needed.
+								</p>
+							</motion.div>
+						)}
+					</AnimatePresence>
+				</div>
+
+				{/* ACTIONS */}
+				<div
+					style={{
+						display: "flex",
+						flexDirection: "column",
+						gap: 14,
+					}}
+				>
+					{isWaiting && (
+						<motion.button
+							whileHover={{
+								y: -2,
+								background: "rgba(255,77,109,.15)",
+							}}
+							whileTap={{ scale: 0.98 }}
+							onClick={handleLeave}
+							style={{
+								width: "100%",
+								padding: "18px",
+								borderRadius: 20,
+								background: "rgba(255,77,109,.08)",
+								border: "1px solid rgba(255,77,109,.2)",
+								color: "#ff4d6d",
+								fontWeight: 800,
+								fontSize: 15,
+								cursor: "pointer",
+								transition: "all .25s",
+							}}
+						>
+							Cancel Token
+						</motion.button>
+					)}
+
+					{(isServed || isMissed || isCalled) && (
+						<motion.button
+							whileHover={{
+								y: -2,
+								boxShadow: "0 12px 30px rgba(245,196,24,.3)",
+							}}
+							whileTap={{ scale: 0.98 }}
+							onClick={() => router.push("/home")}
+							style={{
+								width: "100%",
+								padding: "18px",
+								borderRadius: 20,
+								background: THEME.gradients.consumer,
+								color: "#000",
+								fontWeight: 900,
+								fontSize: 15,
+								cursor: "pointer",
+								border: "none",
+								boxShadow: "0 8px 24px rgba(245,196,24,.2)",
+							}}
+						>
+							Return Home
+						</motion.button>
+					)}
+				</div>
+
+				{/* FULL-SCREEN CALLED TAKEOVER */}
+				<AnimatePresence>
+					{isCalled && (
+						<motion.div
+							layoutId="token-circle"
+							initial={{ borderRadius: "50%" }}
+							animate={{
+								position: "fixed",
+								top: 0,
+								left: 0,
+								right: 0,
+								bottom: 0,
+								borderRadius: 0,
+								background:
+									"linear-gradient(135deg, #1fd97c 0%, #00d084 100%)",
+								zIndex: 9999,
+							}}
+							exit={{
+								scale: 0.8,
+								opacity: 0,
+								transition: { duration: 0.3 },
+							}}
+							transition={{
+								type: "spring",
+								stiffness: 100,
+								damping: 20,
+								duration: 0.6,
+							}}
+							style={{
+								display: "flex",
+								flexDirection: "column",
+								alignItems: "center",
+								justifyContent: "center",
+								padding: "20px",
+							}}
+						>
+							{/* Animated background orbs */}
 							<div
 								style={{
-									display: "grid",
-									gridTemplateColumns: "1fr 1fr",
-									gap: 14,
-									marginTop: 32,
+									position: "absolute",
+									width: "200%",
+									height: "200%",
+									top: "-50%",
+									left: "-50%",
+									background:
+										"radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 70%)",
+									animation: "pulse 2s infinite",
 								}}
-							>
-								<div
-									style={{
-										...s.card,
-										padding: "24px 16px",
-										borderRadius: 24,
-										textAlign: "center",
-									}}
-								>
-									<motion.div
-										style={{
-											fontSize: 32,
-											fontWeight: 900,
-											color: "#f5c418",
-											marginBottom: 4,
-										}}
-									>
-										{animatedAheadValue}
-									</motion.div>
-									<div
-										style={{
-											fontSize: 11,
-											color: "rgba(255,255,255,.2)",
-											fontWeight: 800,
-											textTransform: "uppercase",
-											letterSpacing: 1,
-										}}
-									>
-										Ahead Of You
-									</div>
-								</div>
-								<div
-									style={{
-										...s.card,
-										padding: "24px 16px",
-										borderRadius: 24,
-										textAlign: "center",
-									}}
-								>
-									<div
-										style={{
-											fontSize: 32,
-											fontWeight: 900,
-											color: "#00cfff",
-											marginBottom: 4,
-										}}
-									>
-										~
-										{Math.ceil(
-											(ahead * avgWaitPerPerson) / 60,
-										)}
-										m
-									</div>
-									<div
-										style={{
-											fontSize: 11,
-											color: "rgba(255,255,255,.2)",
-											fontWeight: 800,
-											textTransform: "uppercase",
-											letterSpacing: 1,
-										}}
-									>
-										Est. Wait
-									</div>
-								</div>
-							</div>
+							/>
 
-							{/* Progress Bar */}
-							<div style={{ marginTop: 28, padding: "0 4px" }}>
+							<motion.div
+								initial={{ opacity: 0, y: 20 }}
+								animate={{ opacity: 1, y: 0 }}
+								transition={{ delay: 0.3 }}
+								style={{
+									textAlign: "center",
+									color: "#fff",
+									zIndex: 1,
+								}}
+							>
 								<div
 									style={{
-										height: 6,
-										borderRadius: 3,
-										background: "rgba(255,255,255,.08)",
-										overflow: "hidden",
+										fontSize: 18,
+										fontWeight: 800,
+										textTransform: "uppercase",
+										letterSpacing: 3,
+										marginBottom: 16,
+										opacity: 0.9,
 									}}
 								>
-									<motion.div
-										initial={{ width: 0 }}
-										animate={{
-											width: `${totalWaiting > 0 ? ((totalWaiting - ahead) / totalWaiting) * 100 : 0}%`,
-										}}
-										transition={{
-											type: "spring",
-											stiffness: 100,
-											damping: 20,
-										}}
-										style={{
-											height: "100%",
-											borderRadius: 3,
-											background:
-												"linear-gradient(90deg, #f5c418, #ff9f43)",
-										}}
-									/>
+									Your Token
 								</div>
+
 								<div
 									style={{
-										display: "flex",
-										justifyContent: "space-between",
-										marginTop: 8,
+										fontSize: 120,
+										fontWeight: 900,
+										fontFamily: "var(--font-sans)",
+										lineHeight: 1,
+										letterSpacing: -4,
+										marginBottom: 24,
+										textShadow:
+											"0 4px 20px rgba(0,0,0,0.2)",
 									}}
 								>
-									<span
+									{entry.tokenNumber}
+								</div>
+
+								<motion.div
+									initial={{ scale: 0.8 }}
+									animate={{ scale: 1 }}
+									transition={{
+										type: "spring",
+										stiffness: 200,
+										damping: 10,
+										repeat: Infinity,
+										repeatType: "reverse",
+									}}
+									style={{
+										fontSize: 32,
+										fontWeight: 900,
+										marginBottom: 16,
+										textShadow:
+											"0 2px 10px rgba(0,0,0,0.2)",
+									}}
+								>
+									🎉 IT'S YOUR TURN! 🎉
+								</motion.div>
+
+								<div
+									style={{
+										fontSize: 18,
+										opacity: 0.9,
+										marginBottom: 32,
+										lineHeight: 1.4,
+									}}
+								>
+									Please proceed to the counter immediately
+								</div>
+
+								{/* Countdown Timer */}
+								<motion.div
+									animate={{
+										scale:
+											countdown < 30 ? [1, 1.05, 1] : 1,
+									}}
+									transition={{
+										duration: 1,
+										repeat: countdown < 30 ? Infinity : 0,
+									}}
+									style={{
+										display: "inline-block",
+										padding: "16px 32px",
+										borderRadius: 16,
+										background: "rgba(255,255,255,0.2)",
+										backdropFilter: "blur(10px)",
+										border: "2px solid rgba(255,255,255,0.3)",
+									}}
+								>
+									<div
 										style={{
-											fontSize: 11,
-											color: "rgba(255,255,255,.3)",
+											fontSize: 14,
 											fontWeight: 600,
+											opacity: 0.8,
+											marginBottom: 4,
 										}}
 									>
-										Your position
-									</span>
-									<span
+										Time Remaining
+									</div>
+									<div
 										style={{
-											fontSize: 11,
-											color: "#f5c418",
-											fontWeight: 700,
+											fontSize: 24,
+											fontWeight: 900,
+											fontFamily: "monospace",
 										}}
 									>
-										{totalWaiting > 0
-											? Math.round(
-													((totalWaiting - ahead) /
-														totalWaiting) *
-														100,
-												)
-											: 0}
-										% through
-									</span>
-								</div>
-							</div>
-						</motion.div>
-					) : isServed ? (
-						<motion.div
-							initial={{ opacity: 0, y: 10 }}
-							animate={{ opacity: 1, y: 0 }}
-							key="served"
-						>
-							<h2
-								style={{
-									fontSize: 28,
-									fontWeight: 900,
-									marginBottom: 8,
-									letterSpacing: -1,
-								}}
-							>
-								Served!
-							</h2>
-							<p
-								style={{
-									color: "rgba(255,255,255,0.4)",
-									fontSize: 16,
-								}}
-							>
-								Your request was processed successfully. Thank
-								you for choosing us!
-							</p>
-						</motion.div>
-					) : (
-						<motion.div
-							initial={{ opacity: 0, y: 10 }}
-							animate={{ opacity: 1, y: 0 }}
-							key="missed"
-						>
-							<h2
-								style={{
-									fontSize: 28,
-									fontWeight: 900,
-									marginBottom: 8,
-									color: "#ff4d6d",
-									letterSpacing: -1,
-								}}
-							>
-								Turn Missed
-							</h2>
-							<p
-								style={{
-									color: "rgba(255,255,255,0.4)",
-									fontSize: 16,
-								}}
-							>
-								You weren't available when called. Please rejoin
-								the queue if needed.
-							</p>
+										{Math.floor(countdown / 60)}:
+										{(countdown % 60)
+											.toString()
+											.padStart(2, "0")}
+									</div>
+								</motion.div>
+
+								<motion.button
+									initial={{ opacity: 0 }}
+									animate={{ opacity: 1 }}
+									transition={{ delay: 0.5 }}
+									whileHover={{ scale: 1.05 }}
+									whileTap={{ scale: 0.95 }}
+									onClick={() => router.push("/home")}
+									style={{
+										marginTop: 32,
+										padding: "16px 32px",
+										borderRadius: 12,
+										background: "rgba(255,255,255,0.9)",
+										color: "#1fd97c",
+										border: "none",
+										fontSize: 16,
+										fontWeight: 800,
+										cursor: "pointer",
+										boxShadow: "0 4px 20px rgba(0,0,0,0.2)",
+									}}
+								>
+									Done
+								</motion.button>
+							</motion.div>
 						</motion.div>
 					)}
 				</AnimatePresence>
-			</div>
-
-			{/* ACTIONS */}
-			<div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-				{isWaiting && (
-					<motion.button
-						whileHover={{
-							y: -2,
-							background: "rgba(255,77,109,.15)",
-						}}
-						whileTap={{ scale: 0.98 }}
-						onClick={handleLeave}
-						style={{
-							width: "100%",
-							padding: "18px",
-							borderRadius: 20,
-							background: "rgba(255,77,109,.08)",
-							border: "1px solid rgba(255,77,109,.2)",
-							color: "#ff4d6d",
-							fontWeight: 800,
-							fontSize: 15,
-							cursor: "pointer",
-							transition: "all .25s",
-						}}
-					>
-						Cancel Token
-					</motion.button>
-				)}
-
-				{(isServed || isMissed || isCalled) && (
-					<motion.button
-						whileHover={{
-							y: -2,
-							boxShadow: "0 12px 30px rgba(245,196,24,.3)",
-						}}
-						whileTap={{ scale: 0.98 }}
-						onClick={() => router.push("/home")}
-						style={{
-							width: "100%",
-							padding: "18px",
-							borderRadius: 20,
-							background: THEME.gradients.consumer,
-							color: "#000",
-							fontWeight: 900,
-							fontSize: 15,
-							cursor: "pointer",
-							border: "none",
-							boxShadow: "0 8px 24px rgba(245,196,24,.2)",
-						}}
-					>
-						Return Home
-					</motion.button>
-				)}
-			</div>
-		</motion.div>
+			</motion.div>
+			<ReviewDrawer
+				isOpen={showReview}
+				onClose={() => setShowReview(false)}
+				outletId={entry.outletId}
+				outletName={localOutletName || "the outlet"}
+				onSubmitSuccess={() => {
+					addToast("Review shared! Thank you.", "success")
+					router.push("/home")
+				}}
+			/>
 		</>
-	)
 	)
 }

@@ -111,23 +111,19 @@ export class MerchantService {
 			},
 		)
 
-		// Apply sorting if sort=queue_asc is passed
-		if (sort === "queue_asc") {
-			mappedMerchants.sort(
-				(a, b) => a.currentQueueDepth - b.currentQueueDepth,
-			)
-		}
-
-		// Apply distance sorting if lat/lon provided (simple Euclidean distance)
+		// 1. Compute distances first (if lat/lon provided)
 		if (lat !== undefined && lon !== undefined) {
 			mappedMerchants = mappedMerchants.map((m) => {
-				const distances = m.outlets?.map((o) => {
-					if (o.lat === null || o.lng === null) return Infinity
-					const dx = (o.lat - lat) * 111
-					const dy =
-						(o.lng - lon) * 111 * Math.cos((lat * Math.PI) / 180)
-					return Math.sqrt(dx * dx + dy * dy)
-				}) || [Infinity]
+				const distances =
+					m.outlets?.map((o) => {
+						if (o.lat === null || o.lng === null) return Infinity
+						const dx = (o.lat - lat) * 111
+						const dy =
+							(o.lng - lon) *
+							111 *
+							Math.cos((lat * Math.PI) / 180)
+						return Math.sqrt(dx * dx + dy * dy)
+					}) || [Infinity]
 				const nearestDistance = Math.min(...distances)
 				return {
 					...m,
@@ -135,13 +131,18 @@ export class MerchantService {
 						nearestDistance === Infinity ? null : nearestDistance,
 				}
 			})
-			// Sort by distance if no explicit sort specified
-			if (!sort) {
-				mappedMerchants.sort(
-					(a, b) =>
-						(a.distance ?? Infinity) - (b.distance ?? Infinity),
-				)
-			}
+		}
+
+		// 2. Apply sorting
+		if (sort === "queue_asc") {
+			mappedMerchants.sort(
+				(a, b) => a.currentQueueDepth - b.currentQueueDepth,
+			)
+		} else if (lat !== undefined && lon !== undefined) {
+			// Default sort by distance if lat/lon provided and no other sort specified
+			mappedMerchants.sort(
+				(a, b) => (a.distance ?? Infinity) - (b.distance ?? Infinity),
+			)
 		}
 
 		if (limit && limit > 0) {

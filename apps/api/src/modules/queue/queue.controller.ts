@@ -51,20 +51,23 @@ export class QueueController {
 		return { success: true, data }
 	}
 
-	/** GET /api/queue/:outletId — live queue for an outlet with avg wait time */
-	@Get(":outletId")
-	async getQueue(@Param("outletId") outletId: string) {
-		const { entries, avgWaitPerPerson } =
-			await this.queueService.getQueue(outletId)
-		return { success: true, data: { entries, avgWaitPerPerson } }
-	}
-
 	/** GET /api/queue/entry/:entryId — consumer polls their own entry */
 	@Get("entry/:entryId")
 	@UseGuards(FirebaseAuthGuard)
 	async getEntry(@Param("entryId") entryId: string) {
 		const data = await this.queueService.getEntry(entryId)
 		return { success: true, data }
+	}
+
+	/** GET /api/queue/:outletId — live queue for an outlet with avg wait time */
+	@Get(":outletId")
+	async getQueue(@Param("outletId") outletId: string) {
+		const { entries, avgWaitPerPerson, outletName } =
+			await this.queueService.getQueue(outletId)
+		return {
+			success: true,
+			data: { entries, avgWaitPerPerson, outletName },
+		}
 	}
 
 	/** POST /api/queue/join — consumer joins a queue */
