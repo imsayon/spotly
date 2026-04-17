@@ -80,16 +80,6 @@ async getFavorites(@CurrentUser() user: DecodedUser) {
   return { success: true, data };
 }
 
-@Post('favorites')
-@UseGuards(FirebaseAuthGuard)
-async addFavoriteByBody(
-  @CurrentUser() user: DecodedUser,
-  @Body() body: AddFavoriteDto,
-) {
-  await this.userService.addFavorite(user.uid, body.merchantId);
-  return { success: true };
-}
-
 @Post('favorites/:merchantId')
 @UseGuards(FirebaseAuthGuard)
 async addFavorite(

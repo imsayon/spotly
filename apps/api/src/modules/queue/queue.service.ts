@@ -1,4 +1,4 @@
-import { Inject, Injectable, NotFoundException, ConflictException } from "@nestjs/common"
+import { Inject, Injectable, NotFoundException } from "@nestjs/common"
 import {
 	QueueRepository,
 	QUEUE_REPOSITORY,
@@ -29,26 +29,23 @@ export class QueueService {
 
 	/**
 	 * Consumer joins a queue.
+	 * Token number = current waiting count + 1 (temporary — replace with Redis INCR later).
 	 */
 	async joinQueue(userId: string, outletId: string): Promise<QueueEntry> {
-		// Guard: prevent joining a queue you're already in
-		const existing = await this.repo.getQueue(outletId)
-		const alreadyIn = existing.find(
-			(e) => e.userId === userId && (e.status === "WAITING" || e.status === "CALLED"),
-		)
-		if (alreadyIn) {
-			throw new ConflictException("You are already in this queue")
-		}
+		const waiting = await this.repo.countWaiting(outletId)
+		const tokenNumber = waiting + 1
 
 		const entry = await this.repo.joinQueue({
 			userId,
 			outletId,
-			tokenNumber: 0, // repo ignores this and computes it atomically
+			tokenNumber,
 			status: "WAITING",
 			joinedAt: new Date().toISOString(),
 		})
 
+		// Emit live update to all clients in this outlet's room
 		await this.emitQueueUpdate(outletId)
+
 		return entry
 	}
 
