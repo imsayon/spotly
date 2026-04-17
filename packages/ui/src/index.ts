@@ -7,4 +7,5 @@ export { cn } from './components/Button';
 export * from "./components/Icons";
 export * from "./components/Toast";
 export * from "./components/Orb";
+export * from './components/LiveBadge';
 export * from './styles/theme';

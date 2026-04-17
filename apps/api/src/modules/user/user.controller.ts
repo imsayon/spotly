@@ -14,6 +14,11 @@ class RegisterDto {
   role?: UserRole;
 }
 
+class AddFavoriteDto {
+  @IsString()
+  merchantId!: string;
+}
+
 class UpdateProfileDto {
   @IsString() @IsOptional() name?: string;
   @IsString() @IsOptional() phone?: string;
@@ -73,6 +78,16 @@ export class UserController {
 async getFavorites(@CurrentUser() user: DecodedUser) {
   const data = await this.userService.getFavorites(user.uid);
   return { success: true, data };
+}
+
+@Post('favorites')
+@UseGuards(FirebaseAuthGuard)
+async addFavoriteByBody(
+  @CurrentUser() user: DecodedUser,
+  @Body() body: AddFavoriteDto,
+) {
+  await this.userService.addFavorite(user.uid, body.merchantId);
+  return { success: true };
 }
 
 @Post('favorites/:merchantId')

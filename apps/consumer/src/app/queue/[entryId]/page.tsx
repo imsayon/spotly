@@ -11,10 +11,10 @@ import {
 } from "framer-motion"
 import { Ic, useToasts, THEME, Orb } from "@spotly/ui"
 import { useAuthStore } from "@/store/auth.store"
-import api from "@/lib/api"
-import { QueueEntry } from "@spotly/types"
 import { useQueueStore } from "@/store/queue.store"
 import { io, Socket } from "socket.io-client"
+import { ReviewDrawer } from "@/components/ReviewDrawer"
+import { formatDistanceToNow } from "date-fns"
 
 const s = {
 	...THEME.styles,
@@ -59,6 +59,9 @@ export default function ConsumerQueuePage() {
 	const [loading, setLoading] = useState(true)
 	const [ahead, setAhead] = useState(0)
 	const [totalWaiting, setTotalWaiting] = useState(0)
+	const [outletName, setOutletName] = useState("the counter")
+	const [isReviewOpen, setIsReviewOpen] = useState(false)
+	const [timeLimit, setTimeLimit] = useState(300) // 5 minutes in seconds
 
 	// Animated spring value for smooth ahead count transitions
 	const [animatedAheadValue, setAnimatedAheadValue] = useState(ahead)
@@ -76,6 +79,17 @@ export default function ConsumerQueuePage() {
 				const res = await api.get(`/queue/entry/${entryId}`)
 				const currentEntry: QueueEntry = res.data.data
 				setEntry(currentEntry)
+
+				// Fetch outlet details for name
+				if (currentEntry.outletId) {
+					const outletRes = await api.get(`/outlet/${currentEntry.outletId}`)
+					setOutletName(outletRes.data.data.name)
+				}
+				
+				// If already served, maybe show review drawer
+				if (currentEntry.status === 'SERVED') {
+					setIsReviewOpen(true)
+				}
 			} catch (err) {
 				addToast("Failed to load reservation", "error")
 			} finally {
@@ -84,6 +98,21 @@ export default function ConsumerQueuePage() {
 		}
 		if (entryId) fetchData()
 	}, [entryId, addToast])
+
+	// Countdown timer logic when CALLED
+	useEffect(() => {
+		if (entry?.status !== 'CALLED' || !entry.calledAt) return
+		
+		const interval = setInterval(() => {
+			const calledTime = new Date(entry.calledAt!).getTime()
+			const now = Date.now()
+			const elapsed = Math.floor((now - calledTime) / 1000)
+			const remaining = Math.max(0, 300 - elapsed)
+			setTimeLimit(remaining)
+		}, 1000)
+
+		return () => clearInterval(interval)
+	}, [entry?.status, entry?.calledAt])
 
 	// Initial token count-up animation
 	useEffect(() => {
@@ -215,7 +244,64 @@ export default function ConsumerQueuePage() {
 				? "#00cfff"
 				: "#f5c418"
 
+	const formatTime = (seconds: number) => {
+		const mins = Math.floor(seconds / 60)
+		const secs = seconds % 60
+		return `${mins}:${secs.toString().padStart(2, '0')}`
+	}
+
 	return (
+		<>
+		<ReviewDrawer 
+			isOpen={isReviewOpen}
+			onClose={() => setIsReviewOpen(false)}
+			outletId={entry.outletId}
+			outletName={outletName}
+			onSubmitSuccess={() => router.push('/home')}
+		/>
+
+		<AnimatePresence>
+			{isCalled && (
+				<motion.div
+					initial={{ opacity: 0 }}
+					animate={{ opacity: 1 }}
+					exit={{ opacity: 0 }}
+					className="fixed inset-0 z-[200] bg-[#1fd97c] text-black p-8 flex flex-col items-center justify-center text-center"
+				>
+					<motion.div
+						initial={{ scale: 0.8, opacity: 0 }}
+						animate={{ scale: 1, opacity: 1 }}
+						className="mb-12"
+					>
+						<div className="w-32 h-32 bg-black/10 rounded-full flex items-center justify-center mx-auto mb-8 animate-pulse">
+							<Ic.Bell className="w-16 h-16" />
+						</div>
+						<h1 className="text-5xl font-black tracking-tighter mb-4 leading-tight">
+							IT'S YOUR<br />TURN NOW!
+						</h1>
+						<p className="text-xl font-bold opacity-70">
+							Token #{entry.tokenNumber} is ready at {outletName}
+						</p>
+					</motion.div>
+
+					<div className="bg-black/5 rounded-[40px] p-10 w-full mb-12">
+						<div className="text-sm font-black uppercase tracking-widest opacity-50 mb-2">TIME TO REACH</div>
+						<div className="text-7xl font-black font-mono">
+							{formatTime(timeLimit)}
+						</div>
+					</div>
+
+					<motion.button
+						whileTap={{ scale: 0.95 }}
+						onClick={() => router.push('/home')}
+						className="w-full py-6 rounded-3xl bg-black text-white font-black text-xl shadow-2xl"
+					>
+						ALMOST THERE
+					</motion.button>
+				</motion.div>
+			)}
+		</AnimatePresence>
+
 		<motion.div
 			initial={{ opacity: 0, scale: 0.98 }}
 			animate={{ opacity: 1, scale: 1 }}
@@ -647,5 +733,7 @@ export default function ConsumerQueuePage() {
 				)}
 			</div>
 		</motion.div>
+		</>
+	)
 	)
 }

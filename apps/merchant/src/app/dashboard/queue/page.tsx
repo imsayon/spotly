@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useCallback, useRef } from "react"
 import { motion, AnimatePresence } from "framer-motion"
-import { Ic, useToasts, THEME } from "@spotly/ui"
+import { Ic, useToasts, THEME, LiveBadge } from "@spotly/ui"
 import { useAuthStore } from "@/store/auth.store"
 import api from "@/lib/api"
 import { QueueEntry, Outlet } from "@spotly/types"
@@ -227,8 +227,9 @@ export default function MerchantQueue() {
         <div>
           <h1 style={{ fontFamily: 'var(--font-sans)', fontSize: 28, fontWeight: 900, marginBottom: 4, display: 'flex', alignItems: 'center', gap: 10 }}>
             Queue Operator
-            <span style={{ padding: '4px 12px', borderRadius: 999, background: 'rgba(31,217,124,.12)', border: '1px solid rgba(31,217,124,.25)', fontSize: 11, fontWeight: 800, letterSpacing: 1, color: '#1fd97c', textTransform: 'uppercase' as const }}>
-              {wsConnected ? '● Live' : '○ Polling'}
+            <span style={{ padding: '4px 12px', borderRadius: 999, background: wsConnected ? 'rgba(31,217,124,.12)' : 'rgba(255,159,67,.12)', border: `1px solid ${wsConnected ? 'rgba(31,217,124,.25)' : 'rgba(255,159,67,.25)'}`, fontSize: 11, fontWeight: 800, letterSpacing: 1, color: wsConnected ? '#1fd97c' : '#ff9f43', textTransform: 'uppercase' as const, display: 'flex', alignItems: 'center', gap: 6 }}>
+              <span style={{ width: 6, height: 6, borderRadius: '50%', background: 'currentColor', display: 'inline-block', boxShadow: '0 0 8px currentColor' }} />
+              {wsConnected ? 'Live' : 'Polling'}
             </span>
           </h1>
           <p style={{ color: 'rgba(255,255,255,.3)', fontSize: 14 }}>Manage customer flow in real-time</p>
@@ -404,14 +405,8 @@ export default function MerchantQueue() {
                         {q.userId?.slice(0, 2)?.toUpperCase()}
                       </div>
 
-                      <span style={{
-                        padding: '3px 10px', borderRadius: 999, fontSize: 11, fontWeight: 700,
-                        background: q.status === 'CALLED' ? 'rgba(31,217,124,.15)' : 'rgba(255,255,255,.06)',
-                        color: q.status === 'CALLED' ? '#1fd97c' : 'rgba(255,255,255,.4)',
-                        border: `1px solid ${q.status === 'CALLED' ? 'rgba(31,217,124,.25)' : 'rgba(255,255,255,.08)'}`
-                      }}>
-                        {q.status}
-                      </span>
+                      <LiveBadge count={0} label={q.status} className={q.status === 'CALLED' ? '' : 'opacity-60'} />
+
 
                       <span style={{ marginLeft: 'auto', fontSize: 12, color: 'rgba(255,255,255,.25)', fontFamily: 'var(--font-mono)', fontWeight: 600 }}>
                         {new Date(q.joinedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}

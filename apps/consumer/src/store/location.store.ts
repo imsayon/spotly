@@ -10,6 +10,7 @@ interface LocationState {
 	setLoading: (loading: boolean) => void
 	setError: (error: string | null) => void
 	requestLocation: () => Promise<void>
+	initFromSession: () => void
 }
 
 export const useLocationStore = create<LocationState>((set, get) => ({
@@ -17,10 +18,28 @@ export const useLocationStore = create<LocationState>((set, get) => ({
 	permissionGranted: false,
 	isLoading: false,
 	error: null,
-	setCoords: (coords) => set({ coords, error: null }),
-	setPermission: (granted) => set({ permissionGranted: granted }),
+	setCoords: (coords) => {
+		set({ coords, error: null })
+		if (typeof window !== 'undefined') {
+			sessionStorage.setItem('spotly_coords', JSON.stringify(coords))
+		}
+	},
+	setPermission: (granted) => {
+		set({ permissionGranted: granted })
+		if (typeof window !== 'undefined') {
+			sessionStorage.setItem('spotly_perm', granted.toString())
+		}
+	},
 	setLoading: (loading) => set({ isLoading: loading }),
 	setError: (error) => set({ error }),
+	initFromSession: () => {
+		if (typeof window === 'undefined') return
+		const savedCoords = sessionStorage.getItem('spotly_coords')
+		const savedPerm = sessionStorage.getItem('spotly_perm')
+		if (savedCoords) {
+			set({ coords: JSON.parse(savedCoords), permissionGranted: savedPerm === 'true' })
+		}
+	},
 	requestLocation: async () => {
 		set({ isLoading: true, error: null })
 		try {
@@ -30,14 +49,17 @@ export const useLocationStore = create<LocationState>((set, get) => ({
 			}
 			navigator.geolocation.getCurrentPosition(
 				(position) => {
+					const coords = {
+						lat: position.coords.latitude,
+						lon: position.coords.longitude,
+					}
 					set({
-						coords: {
-							lat: position.coords.latitude,
-							lon: position.coords.longitude,
-						},
+						coords,
 						permissionGranted: true,
 						isLoading: false,
 					})
+					sessionStorage.setItem('spotly_coords', JSON.stringify(coords))
+					sessionStorage.setItem('spotly_perm', 'true')
 				},
 				(error) => {
 					let errorMsg = 'Failed to get location'

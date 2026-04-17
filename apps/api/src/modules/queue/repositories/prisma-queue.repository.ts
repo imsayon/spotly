@@ -25,13 +25,24 @@ export class PrismaQueueRepository implements QueueRepository {
 	}
 
 	async joinQueue(data: Omit<QueueEntry, "id">): Promise<QueueEntry> {
-		const created = await this.prisma.queueEntry.create({
-			data: {
-				userId: data.userId,
-				outletId: data.outletId,
-				token: data.tokenNumber,
-				status: "WAITING",
-			},
+		const created = await this.prisma.$transaction(async (tx) => {
+			// Lock: get the highest token currently active (WAITING or CALLED)
+			const lastEntry = await tx.queueEntry.findFirst({
+				where: {
+					outletId: data.outletId,
+					status: { in: ["WAITING", "CALLED"] },
+				},
+				orderBy: { token: "desc" },
+			})
+			const nextToken = (lastEntry?.token ?? 0) + 1
+			return tx.queueEntry.create({
+				data: {
+					userId: data.userId,
+					outletId: data.outletId,
+					token: nextToken,
+					status: "WAITING",
+				},
+			})
 		})
 		return this.mapToDomain(created)
 	}

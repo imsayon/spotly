@@ -47,6 +47,8 @@ export class IntegrationService {
   async fetchShops(lat: number, lon: number, radius = 5000, category?: string): Promise<Merchant[]> {
     this.logger.log(`Fetching shops at (${lat}, ${lon}) with radius ${radius}m`);
     try {
+      if (process.env.ENABLE_DEMO_MERCHANTS === 'false') return [];
+      
       // Use mock data while external APIs are down
       const mockData = this.generateMockPlaces(lat, lon, category, radius);
       if (mockData.length > 0) {
@@ -211,8 +213,23 @@ export class IntegrationService {
           location: 'Nearby',
           rating: parseFloat((3.8 + (seedVal % 20) * 0.1).toFixed(1)),
           estimatedWaitTime: `${(seedVal % 25) + 5} MIN`,
+          currentQueueDepth: seedVal % 15,
           createdAt: new Date().toISOString(),
-        } as Merchant);
+          // Add a default outlet for maps
+          outlets: [
+            {
+              id: `demo-outlet-${areaSeed}-${idx}-${i}`,
+              merchantId: `demo-${areaSeed}-${idx}-${i}`,
+              name: 'Main Branch',
+              address: 'Downtown Street',
+              lat: lat + (Math.random() - 0.5) * 0.02,
+              lng: lon + (Math.random() - 0.5) * 0.02,
+              isActive: true,
+              createdAt: new Date().toISOString(),
+              updatedAt: new Date().toISOString(),
+            }
+          ]
+        } as any);
       }
     });
 

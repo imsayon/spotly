@@ -33,6 +33,7 @@ model Merchant {
   contactEmail String?
   logoUrl     String?
   verified    Boolean  @default(false)
+  createdAt   DateTime @default(now())
   outlets     Outlet[]
   favorites   FavoriteOutlet[]
 }

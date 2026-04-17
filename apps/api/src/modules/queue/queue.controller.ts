@@ -38,6 +38,19 @@ class ServedDto {
 export class QueueController {
 	constructor(private readonly queueService: QueueService) {}
 
+	/** GET /api/queue/history/:userId — consumer gets their queue history */
+	@Get("history/:userId")
+	@UseGuards(FirebaseAuthGuard)
+	async getHistory(
+		@Param("userId") userId: string,
+		@CurrentUser() user: DecodedUser,
+	) {
+		if (userId !== user.uid)
+			throw new ForbiddenException("Forbidden access to history")
+		const data = await this.queueService.getHistory(userId)
+		return { success: true, data }
+	}
+
 	/** GET /api/queue/:outletId — live queue for an outlet with avg wait time */
 	@Get(":outletId")
 	async getQueue(@Param("outletId") outletId: string) {
@@ -98,16 +111,4 @@ export class QueueController {
 		return { success: true }
 	}
 
-	/** GET /api/queue/history/:userId — consumer gets their queue history */
-	@Get("history/:userId")
-	@UseGuards(FirebaseAuthGuard)
-	async getHistory(
-		@Param("userId") userId: string,
-		@CurrentUser() user: DecodedUser,
-	) {
-		if (userId !== user.uid)
-			throw new ForbiddenException("Forbidden access to history")
-		const data = await this.queueService.getHistory(userId)
-		return { success: true, data }
-	}
 }

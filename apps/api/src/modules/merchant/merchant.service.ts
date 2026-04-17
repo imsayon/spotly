@@ -57,6 +57,7 @@ export class MerchantService {
 		sort?: string,
 		lat?: number,
 		lon?: number,
+		limit?: number,
 	): Promise<MerchantWithQueueDepth[]> {
 		// Fetch merchants with outlets
 		const merchants = await this.prisma.merchant.findMany({
@@ -141,6 +142,10 @@ export class MerchantService {
 						(a.distance ?? Infinity) - (b.distance ?? Infinity),
 				)
 			}
+		}
+
+		if (limit && limit > 0) {
+			mappedMerchants = mappedMerchants.slice(0, limit)
 		}
 
 		return mappedMerchants

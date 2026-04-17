@@ -18,6 +18,15 @@ export interface User {
   createdAt: string;
 }
 
+export interface OutletSummary {
+  id: string;
+  name: string;
+  address?: string;
+  lat: number | null;
+  lng: number | null;
+  isActive: boolean;
+}
+
 export interface Merchant {
   id: string;
   ownerId: string;        //owner firebase uid
@@ -31,6 +40,9 @@ export interface Merchant {
   rating?: number;
   estimatedWaitTime?: string;
   createdAt: string;
+  currentQueueDepth?: number;
+  distance?: number | null;
+  outlets?: OutletSummary[];
 }
 
 export interface Outlet {
