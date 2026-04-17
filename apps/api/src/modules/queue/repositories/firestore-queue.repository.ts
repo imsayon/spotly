@@ -189,36 +189,8 @@ export class FirestoreQueueRepository implements QueueRepository {
 
 	async getOutlet(
 		outletId: string,
-	): Promise<{ id: string; name: string; avgServeTimeSeconds: number } | null> {
+	): Promise<{ id: string; avgServeTimeSeconds: number } | null> {
 		// Firestore implementation - return default
-		return { id: outletId, name: "Nearby Shop", avgServeTimeSeconds: 300 }
-	}
-
-	async findActiveEntryByUserAndOutlet(
-		userId: string,
-		outletId: string,
-	): Promise<QueueEntry | null> {
-		try {
-			const snapshot = await this.db
-				.collection(this.collection)
-				.where("userId", "==", userId)
-				.where("outletId", "==", outletId)
-				.where("status", "in", ["WAITING", "CALLED"])
-				.limit(1)
-				.get()
-
-			if (snapshot.empty) return null
-			return snapshot.docs[0].data() as QueueEntry
-		} catch (err) {
-			if (!this.isFirestoreFallbackError(err)) throw err
-			return (
-				Array.from(FirestoreQueueRepository.memoryStore.values()).find(
-					(e) =>
-						e.userId === userId &&
-						e.outletId === outletId &&
-						(e.status === "WAITING" || e.status === "CALLED"),
-				) ?? null
-			)
-		}
+		return { id: outletId, avgServeTimeSeconds: 300 }
 	}
 }

@@ -129,11 +129,10 @@ export const useQueueStore = create<QueueState>()((set, get) => ({
 		set({ loading: true })
 		try {
 			const res = await api.get(`/queue/${outletId}`)
-			const { entries, avgWaitPerPerson, outletName } = res.data.data
+			const { entries, avgWaitPerPerson } = res.data.data
 			set({
 				entries,
 				avgWaitPerPerson: avgWaitPerPerson ?? 300,
-				outletName: outletName ?? null,
 				loading: false,
 			})
 		} catch {
@@ -249,7 +248,7 @@ export const useQueueStore = create<QueueState>()((set, get) => ({
 				Notification.permission === "granted"
 			) {
 				new Notification("🎉 Your Turn!", {
-					body: `Token ${tokenNumber} - Please proceed to ${get().outletName || "the counter"}`,
+					body: `Token ${tokenNumber} - Please proceed to the counter`,
 					icon: "/logo.png",
 					tag: "token_called",
 					requireInteraction: true,

@@ -44,13 +44,7 @@ export interface QueueRepository {
 	/** Get outlet with avgServeTimeSeconds */
 	getOutlet(
 		outletId: string,
-	): Promise<{ id: string; name: string; avgServeTimeSeconds: number } | null>
-
-	/** Find an active (WAITING or CALLED) entry for a user at an outlet */
-	findActiveEntryByUserAndOutlet(
-		userId: string,
-		outletId: string,
-	): Promise<QueueEntry | null>
+	): Promise<{ id: string; avgServeTimeSeconds: number } | null>
 }
 
 export const QUEUE_REPOSITORY = "QUEUE_REPOSITORY"

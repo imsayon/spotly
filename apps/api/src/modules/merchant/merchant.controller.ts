@@ -51,14 +51,12 @@ export class MerchantController {
 		@Query("sort") sort?: string,
 		@Query("lat") lat?: string,
 		@Query("lon") lon?: string,
-		@Query("limit") limit?: string,
 	) {
 		const safeLocation = location?.trim()
 		const safeQuery = q?.trim()
 		const safeCategory = category?.trim()
 		const latNum = lat ? parseFloat(lat) : undefined
 		const lonNum = lon ? parseFloat(lon) : undefined
-		const limitNum = limit ? parseInt(limit, 10) : undefined
 
 		// If lat/lon explicitly provided, bypass Nominatim geocoding
 		if (latNum !== undefined && lonNum !== undefined) {
@@ -69,7 +67,6 @@ export class MerchantController {
 				sort,
 				latNum,
 				lonNum,
-				limitNum,
 			)
 			return {
 				success: true,
@@ -98,7 +95,6 @@ export class MerchantController {
 								sort,
 								coords.lat,
 								coords.lon,
-								limitNum,
 							),
 						])
 
@@ -114,11 +110,9 @@ export class MerchantController {
 							)
 						: externalMerchants
 
-					const combined = [...filteredExternal, ...internalMerchants]
-					
 					return {
 						success: true,
-						data: limitNum ? combined.slice(0, limitNum) : combined,
+						data: [...filteredExternal, ...internalMerchants],
 						meta: {
 							location: coords.displayName,
 							coords: { lat: coords.lat, lon: coords.lon },
@@ -135,9 +129,6 @@ export class MerchantController {
 			safeQuery,
 			safeCategory,
 			sort,
-			undefined,
-			undefined,
-			limitNum,
 		)
 		return {
 			success: true,

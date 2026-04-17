@@ -1,4 +1,4 @@
-import { Inject, Injectable, NotFoundException, ConflictException } from "@nestjs/common"
+import { Inject, Injectable, NotFoundException } from "@nestjs/common"
 import {
 	QueueRepository,
 	QUEUE_REPOSITORY,
@@ -29,23 +29,23 @@ export class QueueService {
 
 	/**
 	 * Consumer joins a queue.
+	 * Token number = current waiting count + 1 (temporary — replace with Redis INCR later).
 	 */
 	async joinQueue(userId: string, outletId: string): Promise<QueueEntry> {
-		// Guard: prevent joining a queue you're already in
-		const alreadyIn = await this.repo.findActiveEntryByUserAndOutlet(userId, outletId)
-		if (alreadyIn) {
-			throw new ConflictException("You are already in this queue")
-		}
+		const waiting = await this.repo.countWaiting(outletId)
+		const tokenNumber = waiting + 1
 
 		const entry = await this.repo.joinQueue({
 			userId,
 			outletId,
-			tokenNumber: 0, // repo ignores this and computes it atomically
+			tokenNumber,
 			status: "WAITING",
 			joinedAt: new Date().toISOString(),
 		})
 
+		// Emit live update to all clients in this outlet's room
 		await this.emitQueueUpdate(outletId)
+
 		return entry
 	}
 
@@ -54,7 +54,7 @@ export class QueueService {
 	 */
 	async getQueue(
 		outletId: string,
-	): Promise<{ entries: QueueEntry[]; avgWaitPerPerson: number; outletName?: string }> {
+	): Promise<{ entries: QueueEntry[]; avgWaitPerPerson: number }> {
 		const [entries, outlet] = await Promise.all([
 			this.repo.getQueue(outletId),
 			this.repo.getOutlet(outletId),
@@ -62,28 +62,17 @@ export class QueueService {
 
 		const avgWaitPerPerson = outlet?.avgServeTimeSeconds ?? 300 // default 5 minutes
 
-		return { 
-			entries, 
-			avgWaitPerPerson, 
-			outletName: outlet?.name 
-		}
+		return { entries, avgWaitPerPerson }
 	}
 
 	/**
 	 * Get a single queue entry by ID.
 	 */
-	async getEntry(entryId: string): Promise<any> {
+	async getEntry(entryId: string): Promise<QueueEntry> {
 		const entry = await this.repo.getEntry(entryId)
 		if (!entry)
 			throw new NotFoundException(`Queue entry ${entryId} not found`)
-
-		const outlet = await this.repo.getOutlet(entry.outletId)
-
-		return {
-			...entry,
-			outletName: outlet?.name,
-			avgWaitPerPerson: outlet?.avgServeTimeSeconds ?? 300,
-		}
+		return entry
 	}
 
 	/**

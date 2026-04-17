@@ -25,24 +25,13 @@ export class PrismaQueueRepository implements QueueRepository {
 	}
 
 	async joinQueue(data: Omit<QueueEntry, "id">): Promise<QueueEntry> {
-		const created = await this.prisma.$transaction(async (tx) => {
-			// Lock: get the highest token currently active (WAITING or CALLED)
-			const lastEntry = await tx.queueEntry.findFirst({
-				where: {
-					outletId: data.outletId,
-					status: { in: ["WAITING", "CALLED"] },
-				},
-				orderBy: { token: "desc" },
-			})
-			const nextToken = (lastEntry?.token ?? 0) + 1
-			return tx.queueEntry.create({
-				data: {
-					userId: data.userId,
-					outletId: data.outletId,
-					token: nextToken,
-					status: "WAITING",
-				},
-			})
+		const created = await this.prisma.queueEntry.create({
+			data: {
+				userId: data.userId,
+				outletId: data.outletId,
+				token: data.tokenNumber,
+				status: "WAITING",
+			},
 		})
 		return this.mapToDomain(created)
 	}
@@ -169,25 +158,11 @@ export class PrismaQueueRepository implements QueueRepository {
 
 	async getOutlet(
 		outletId: string,
-	): Promise<{ id: string; name: string; avgServeTimeSeconds: number } | null> {
+	): Promise<{ id: string; avgServeTimeSeconds: number } | null> {
 		const outlet = await this.prisma.outlet.findUnique({
 			where: { id: outletId },
-			select: { id: true, name: true, avgServeTimeSeconds: true },
+			select: { id: true, avgServeTimeSeconds: true },
 		})
-		return outlet as any
-	}
-
-	async findActiveEntryByUserAndOutlet(
-		userId: string,
-		outletId: string,
-	): Promise<QueueEntry | null> {
-		const entry = await this.prisma.queueEntry.findFirst({
-			where: {
-				userId,
-				outletId,
-				status: { in: ["WAITING", "CALLED"] },
-			},
-		})
-		return entry ? this.mapToDomain(entry) : null
+		return outlet
 	}
 }
