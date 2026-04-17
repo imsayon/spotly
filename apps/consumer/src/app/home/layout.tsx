@@ -3,6 +3,8 @@
 import React, { useState } from "react"
 import { usePathname, useRouter } from "next/navigation"
 import { useAuthStore } from "@/store/auth.store"
+import { useLocationStore } from "@/store/location.store"
+import { useQueueStore } from "@/store/queue.store"
 import { Ic, useToasts, ToastContainer } from "@spotly/ui"
 import Link from "next/link"
 
@@ -25,7 +27,13 @@ export default function ConsumerLayout({
   const pathname = usePathname()
   const router = useRouter()
   const { user, profile } = useAuthStore()
+  const { initFromSession } = useLocationStore()
+  const { myEntry } = useQueueStore()
   const { toasts, add: addToast } = useToasts()
+
+  React.useEffect(() => {
+    initFromSession()
+  }, [initFromSession])
   
   const [showNotif, setShowNotif] = useState(false)
   const notifCount = 3
@@ -38,7 +46,7 @@ export default function ConsumerLayout({
     { id: '/home/profile', icon: <Ic.User />, label: 'Profile' },
   ]
 
-  const inQueue = false // Mocked for now
+  const inQueue = !!myEntry
 
   return (
     <div className="consumer-shell min-h-screen text-white bg-[var(--bg)] font-sans">

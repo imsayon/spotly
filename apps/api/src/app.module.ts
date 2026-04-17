@@ -10,6 +10,7 @@ import { MenuModule } from './modules/menu/menu.module';
 import { AnalyticsModule } from './modules/analytics/analytics.module';
 import { WebsocketModule } from './modules/websocket/websocket.module';
 import { IntegrationModule } from './modules/integration/integration.module';
+import { ReviewModule } from './modules/review/review.module';
 import { PrismaModule } from './prisma/prisma.module';
 
 @Module({
@@ -25,6 +26,7 @@ import { PrismaModule } from './prisma/prisma.module';
     AnalyticsModule,
     WebsocketModule,
     IntegrationModule,
+    ReviewModule,
   ],
   controllers: [AppController],
 })

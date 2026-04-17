@@ -14,6 +14,11 @@ class RegisterDto {
   role?: UserRole;
 }
 
+class AddFavoriteDto {
+  @IsString()
+  merchantId!: string;
+}
+
 class UpdateProfileDto {
   @IsString() @IsOptional() name?: string;
   @IsString() @IsOptional() phone?: string;
