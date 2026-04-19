@@ -144,7 +144,7 @@ export const useQueueStore = create<QueueState>()((set, get) => ({
       
       // Browser notification
       if ('Notification' in window && Notification.permission === 'granted') {
-        new Notification('Your turn', {
+        new Notification('🎉 Your Turn!', {
           body: `Token ${tokenNumber} - Please proceed to the counter`,
           icon: '/logo.png',
           tag: 'token_called',
@@ -160,7 +160,7 @@ export const useQueueStore = create<QueueState>()((set, get) => ({
         navigator.vibrate([200, 100, 200]);
       }
       
-      console.log(`Token ${tokenNumber} has been called.`);
+      console.log(`✅ Token ${tokenNumber} has been called!`);
     }
   },
 }));

@@ -201,7 +201,7 @@ export default function ConsumerMerchantPage() {
               <div style={{ flex: 1 }}>
                 <div style={{ fontWeight: 800, fontSize: 19, marginBottom: 6, color: '#fff' }}>{o.name}</div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6, color: 'rgba(255,255,255,.3)', fontSize: 13, fontWeight: 600 }}>
-                  <Ic.MapPin /><span>{o.address || 'Location unavailable'}</span>
+                  <Ic.MapPin /><span>{o.address || 'Bengaluru, India'}</span>
                 </div>
                 <div style={{ display: 'flex', gap: 16, marginTop: 18 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, fontWeight: 700, color: 'rgba(255,255,255,.5)' }}>

@@ -4,8 +4,6 @@ import React, { useState, useEffect } from "react"
 import { Ic, useToasts } from "@spotly/ui"
 import dynamic from 'next/dynamic'
 import api from "@/lib/api"
-import { useLiveLocation } from "@/lib/useLiveLocation"
-import { getMerchantIcon } from "@/lib/merchantIcon"
 
 const MapDiscovery = dynamic(() => import('@/components/MapDiscovery'), { 
   ssr: false,
@@ -32,14 +30,13 @@ export default function ConsumerExplore() {
   const [view, setView] = useState('map')
   const [selected, setSelected] = useState<any>(null)
   const [favorites, setFavorites] = useState<Set<string>>(new Set())
-  const { locationText, coordinates, isDenied, refresh } = useLiveLocation()
 
   const toggleFav = (id: string, e?: React.MouseEvent) => {
     if(e) e.stopPropagation();
     setFavorites(prev => {
       const n = new Set(prev)
       if (n.has(id)) { n.delete(id); addToast('Removed from favorites', 'info') }
-      else { n.add(id); addToast('Added to favorites', 'success') }
+      else { n.add(id); addToast('Added to favorites ❤️', 'success') }
       return n
     })
   }
@@ -67,37 +64,10 @@ export default function ConsumerExplore() {
     <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
       <h1 style={{ fontFamily: 'var(--font-sans)', fontSize: 24, fontWeight: 900, marginBottom: 16 }}>Explore <span style={s.gradCText as React.CSSProperties}>Nearby</span></h1>
 
-      <div style={{ marginBottom: 14, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
-        <div style={{ display: 'inline-flex', alignItems: 'center', gap: 7, color: 'var(--t2)', fontSize: 13, fontWeight: 600 }}>
-          <Ic.MapPin />
-          <span>{locationText}</span>
-        </div>
-        {isDenied && (
-          <button
-            onClick={refresh}
-            style={{
-              background: 'rgba(245,196,24,.12)',
-              color: '#f5c418',
-              border: '1px solid rgba(245,196,24,.24)',
-              borderRadius: 999,
-              padding: '4px 10px',
-              fontSize: 11,
-              fontWeight: 700,
-              cursor: 'pointer',
-            }}
-          >
-            Enable location
-          </button>
-        )}
-      </div>
-
       <div style={{ display: 'flex', gap: 3, background: 'rgba(255,255,255,.04)', padding: 3, borderRadius: 11, marginBottom: 18, border: '1px solid var(--bdr)' }}>
-        {[
-          { v: 'map', l: 'Map', icon: <Ic.Map size={14} /> },
-          { v: 'list', l: 'List', icon: <Ic.List size={14} /> },
-        ].map(({ v, l, icon }) => (
+        {[{ v: 'map', l: '🗺 Map' }, { v: 'list', l: '📋 List' }].map(({ v, l }) => (
           <button key={v} onClick={() => setView(v)} style={{ flex: 1, padding: '9px', borderRadius: 9, border: 'none', background: view === v ? 'rgba(255,255,255,.1)' : 'transparent', color: view === v ? '#fff' : 'var(--t3)', fontWeight: 700, fontSize: 13, cursor: 'pointer', fontFamily: 'var(--font-sans)', transition: 'all .2s' }}>
-            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>{icon}{l}</span>
+            {l}
           </button>
         ))}
       </div>
@@ -106,16 +76,12 @@ export default function ConsumerExplore() {
         <div style={{ position: 'relative' }}>
           <MapDiscovery 
             merchants={merchants} 
-            center={coordinates ? [coordinates.latitude, coordinates.longitude] : undefined}
-            userLocation={coordinates ? [coordinates.latitude, coordinates.longitude] : undefined}
             onSelect={(m) => setSelected(m)} 
           />
           {selected && (
             <div style={{ position: 'absolute', bottom: 20, left: 12, right: 12, zIndex: 1000 }}>
               <div style={{ ...s.glassStrong, borderRadius: 14, padding: '14px 16px', display: 'flex', alignItems: 'center', gap: 12, cursor: 'pointer', animation: 'slideUp .3s ease' }} onClick={() => addToast("Joining queue...", "success")}>
-                <div style={{ width: 34, height: 34, borderRadius: 10, background: 'rgba(245,196,24,.12)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#f5c418' }}>
-                  {getMerchantIcon(selected.category || selected.name)}
-                </div>
+                <div style={{ fontSize: 26 }}>🏪</div>
                 <div style={{ flex: 1 }}>
                   <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 2 }}>{selected.name}</div>
                   <div style={{ fontSize: 12, color: 'var(--t3)' }}>{selected.outlets?.length || 0} branches · {selected.category}</div>
@@ -131,12 +97,12 @@ export default function ConsumerExplore() {
             <div key={m.id} style={{ ...s.card, padding: '14px', display: 'flex', alignItems: 'center', gap: 12, cursor: 'pointer' }}
               className="hover:border-[#f5c41840] hover:translate-x-1"
               onClick={() => setSelected(m)}>
-              <div style={{ width: 50, height: 50, borderRadius: 13, background: `rgba(245,196,24,.1)`, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#f5c418', flexShrink: 0 }}>{getMerchantIcon(m.category || m.name)}</div>
+              <div style={{ width: 50, height: 50, borderRadius: 13, background: `rgba(245,196,24,.1)`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 26, flexShrink: 0 }}>🏪</div>
               <div style={{ flex: 1 }}>
                 <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 2 }}>{m.name}</div>
                 <div style={{ fontSize: 12, color: 'var(--t3)', marginBottom: 6 }}>{m.category} · {m.address || 'Nearby'}</div>
                 <div style={{ display: 'flex', gap: 7 }}>
-                  <span style={{ ...s.badge('yellow') as React.CSSProperties, fontSize: 10, display: 'inline-flex', alignItems: 'center', gap: 4 }}><Ic.Clock size={11} /> {m.estimatedWaitTime || '15 MIN'}</span>
+                  <span style={{ ...s.badge('yellow') as React.CSSProperties, fontSize: 10 }}>⏱ {m.estimatedWaitTime || '15 MIN'}</span>
                   <span style={{ ...s.badge('gray') as React.CSSProperties, fontSize: 10 }}>{m.outlets?.length || 0} branches</span>
                 </div>
               </div>

@@ -20,7 +20,6 @@ interface MapDiscoveryProps {
     center?: [number, number]
     zoom?: number
     onSelect: (merchant: any) => void
-    userLocation?: [number, number]
 }
 
 function MapResizer() {
@@ -31,19 +30,7 @@ function MapResizer() {
     return null
 }
 
-function RecenterMap({ center }: { center?: [number, number] }) {
-    const map = useMap()
-
-    useEffect(() => {
-        if (center) {
-            map.setView(center)
-        }
-    }, [map, center])
-
-    return null
-}
-
-export default function MapDiscovery({ merchants, center = [12.9716, 77.5946], zoom = 13, onSelect, userLocation }: MapDiscoveryProps) {
+export default function MapDiscovery({ merchants, center = [12.9716, 77.5946], zoom = 13, onSelect }: MapDiscoveryProps) {
     const [isMounted, setIsMounted] = useState(false)
 
     useEffect(() => {
@@ -66,21 +53,13 @@ export default function MapDiscovery({ merchants, center = [12.9716, 77.5946], z
                     url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
                 />
                 <MapResizer />
-                <RecenterMap center={center} />
-                {userLocation && (
-                    <Marker position={userLocation}>
-                        <Popup>
-                            <div style={{ color: '#000', fontWeight: 700 }}>You are here</div>
-                        </Popup>
-                    </Marker>
-                )}
                 {merchants.map((m) => {
                     // Collect all pins (main location + outlets)
                     const pins: any[] = []
-                    if (Number.isFinite(m.lat) && Number.isFinite(m.lng)) pins.push({ lat: m.lat, lng: m.lng, label: m.name, isMain: true })
+                    if (m.lat && m.lng) pins.push({ lat: m.lat, lng: m.lng, label: m.name, isMain: true })
                     if (m.outlets) {
                         m.outlets.forEach((o: any) => {
-                            if (Number.isFinite(o.lat) && Number.isFinite(o.lng)) pins.push({ lat: o.lat, lng: o.lng, label: `${m.name} - ${o.name}`, id: o.id })
+                            if (o.lat && o.lng) pins.push({ lat: o.lat, lng: o.lng, label: `${m.name} - ${o.name}`, id: o.id })
                         })
                     }
 
