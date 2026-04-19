@@ -5,16 +5,21 @@ import { MerchantService } from './merchant.service';
 import { FirebaseAuthGuard } from '../auth/guards/firebase-auth.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { DecodedUser } from '../auth/auth.service';
-import { IsNotEmpty, IsOptional, IsString } from 'class-validator';
+import { IsEmail, IsInt, IsNotEmpty, IsNumber, IsOptional, IsString } from 'class-validator';
 
 class CreateMerchantDto {
-  @IsString()
-  @IsNotEmpty()
-  name!: string;
-
-  @IsString()
-  @IsNotEmpty()
-  category!: string;
+  @IsString() @IsNotEmpty() name!: string;
+  @IsString() @IsNotEmpty() category!: string;
+  @IsString() @IsOptional() description?: string;
+  @IsString() @IsOptional() phone?: string;
+  @IsString() @IsOptional() contactEmail?: string;
+  @IsString() @IsOptional() website?: string;
+  @IsString() @IsOptional() address?: string;
+  @IsNumber() @IsOptional() lat?: number;
+  @IsNumber() @IsOptional() lng?: number;
+  @IsInt() @IsOptional() foundingYear?: number;
+  @IsString() @IsOptional() logoUrl?: string;
+  @IsString() @IsOptional() gstNumber?: string;
 }
 
 class UpdateMerchantDto {
@@ -22,8 +27,14 @@ class UpdateMerchantDto {
   @IsString() @IsOptional() category?: string;
   @IsString() @IsOptional() description?: string;
   @IsString() @IsOptional() phone?: string;
-  @IsString() @IsOptional() contactEmail?: string;
+  @IsEmail() @IsOptional() contactEmail?: string;
+  @IsString() @IsOptional() website?: string;
+  @IsString() @IsOptional() address?: string;
+  @IsNumber() @IsOptional() lat?: number;
+  @IsNumber() @IsOptional() lng?: number;
+  @IsInt() @IsOptional() foundingYear?: number;
   @IsString() @IsOptional() logoUrl?: string;
+  @IsString() @IsOptional() gstNumber?: string;
 }
 
 import { IntegrationService } from '../integration/integration.service';
@@ -106,7 +117,7 @@ export class MerchantController {
     @CurrentUser() user: DecodedUser,
     @Body() body: CreateMerchantDto,
   ) {
-    const data = await this.merchantService.create(user.uid, body.name, body.category);
+    const data = await this.merchantService.create(user.uid, body);
     return { success: true, data };
   }
 

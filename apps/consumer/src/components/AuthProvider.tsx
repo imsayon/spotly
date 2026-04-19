@@ -10,12 +10,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     const auth = getFirebaseAuth();
-    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
       setUser(user);
       if (user) {
-        const store = useAuthStore.getState();
-        await store.registerOnBackend('CONSUMER');
-        await store.fetchProfile();
+        useAuthStore.getState().fetchProfile();
       }
     });
 

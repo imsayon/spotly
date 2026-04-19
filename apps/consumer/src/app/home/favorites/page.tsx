@@ -3,7 +3,6 @@
 import React, { useState } from "react"
 import { Ic, useToasts } from "@spotly/ui"
 import { MERCHANTS } from "@spotly/ui/src/data/mock"
-import { getMerchantIcon } from "@/lib/merchantIcon"
 
 const s = {
   card: { background: 'var(--s1)', border: '1px solid var(--bdr)', borderRadius: 18, padding: 22, transition: 'all .3s cubic-bezier(.25,.46,.45,.94)' },
@@ -23,7 +22,7 @@ export default function ConsumerFavorites() {
     setFavorites(prev => {
       const n = new Set(prev)
       if (n.has(id)) { n.delete(id); addToast('Removed from favorites', 'info') }
-      else { n.add(id); addToast('Added to favorites', 'success') }
+      else { n.add(id); addToast('Added to favorites ❤️', 'success') }
       return n
     })
   }
@@ -32,12 +31,12 @@ export default function ConsumerFavorites() {
 
   return (
     <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
-      <h1 style={{ fontFamily: 'var(--font-sans)', fontSize: 24, fontWeight: 900, marginBottom: 4, display: 'flex', alignItems: 'center', gap: 8 }}><Ic.Heart f={true} />Saved Places</h1>
+      <h1 style={{ fontFamily: 'var(--font-sans)', fontSize: 24, fontWeight: 900, marginBottom: 4 }}>Saved Places ❤️</h1>
       <p style={{ color: 'var(--t3)', fontSize: 13, marginBottom: 20 }}>{favMerchants.length} saved merchants</p>
       
       {favMerchants.length === 0 ? (
         <div style={{ textAlign: 'center', padding: '60px 20px', color: 'var(--t3)' }}>
-          <div style={{ fontSize: 48, marginBottom: 12, color: 'rgba(255,255,255,.4)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Ic.Heart f={false} /></div>
+          <div style={{ fontSize: 48, marginBottom: 12 }}>💔</div>
           <p style={{ fontWeight: 700, fontSize: 16, marginBottom: 6 }}>No saved places yet</p>
           <p style={{ fontSize: 13 }}>Tap the heart on any merchant to save</p>
         </div>
@@ -46,12 +45,12 @@ export default function ConsumerFavorites() {
           {favMerchants.map(m => (
             <div key={m.id} style={{ ...s.card, padding: '16px', display: 'flex', alignItems: 'center', gap: 14, cursor: 'pointer' }}
               className="hover:border-[#ff4d6d40] active:scale-[0.98]">
-              <div style={{ width: 52, height: 52, borderRadius: 14, background: `${m.color}18`, color: m.color, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>{getMerchantIcon(m.cat)}</div>
+              <div style={{ width: 52, height: 52, borderRadius: 14, background: `${m.color}18`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 28, flexShrink: 0 }}>{m.emoji}</div>
               <div style={{ flex: 1 }}>
                 <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 2 }}>{m.name}</div>
-                <div style={{ fontSize: 12, color: 'var(--t3)', marginBottom: 5 }}>{m.cat} - {m.area}</div>
+                <div style={{ fontSize: 12, color: 'var(--t3)', marginBottom: 5 }}>{m.cat} · {m.area}</div>
                 <div style={{ display: 'flex', gap: 7 }}>
-                  <span style={{ ...s.badge('yellow') as React.CSSProperties, fontSize: 10 }}><Ic.Clock /> {m.waitStr}</span>
+                  <span style={{ ...s.badge('yellow') as React.CSSProperties, fontSize: 10 }}>⏱ {m.waitStr}</span>
                   <span style={{ ...s.badge('gray') as React.CSSProperties, fontSize: 10 }}>{m.queue} in queue</span>
                 </div>
               </div>

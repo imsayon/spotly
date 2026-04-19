@@ -14,7 +14,6 @@ model User {
   email     String?  @unique
   phone     String?  @unique
   name      String?
-  location  String?
   role      Role     @default(CONSUMER)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -29,7 +28,17 @@ model Merchant {
   name        String
   category    String
   description String?
+  phone       String?
+  contactEmail String?
+  website     String?
+  address     String?
+  foundingYear Int?
+  logoUrl     String?
+  gstNumber   String?
+  lat         Float?
+  lng         Float?
   verified    Boolean  @default(false)
+  
   outlets     Outlet[]
 }
 

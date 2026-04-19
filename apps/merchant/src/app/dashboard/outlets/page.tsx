@@ -1,8 +1,16 @@
 "use client"
 
-import React, { useState } from "react"
+import React, { useState, useEffect } from "react"
 import { Ic, useToasts, THEME } from "@spotly/ui"
 import { useRouter } from "next/navigation"
+import api from "@/lib/api"
+import { useAuthStore } from "@/store/auth.store"
+import dynamic from 'next/dynamic'
+
+const MapPicker = dynamic(() => import('@/components/MapPicker'), { 
+  ssr: false,
+  loading: () => <div style={{ height: '300px', background: 'rgba(255,255,255,.05)', borderRadius: 12, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>Loading Map...</div>
+})
 
 // Extended styles for this page
 const s = {
@@ -53,36 +61,119 @@ const s = {
   badge: THEME.badge,
 };
 
-// Mock Data
-const MOCK_OUTLETS = [
-  { id: 'o1', name: 'Main Branch - Indiranagar', addr: '12th Main Road, HAL 2nd Stage', open: true, queue: 14, hours: '9:00 AM – 9:00 PM' },
-  { id: 'o2', name: 'Airport Terminal 2', addr: 'KIAL, Devanahalli', open: true, queue: 8, hours: '24 Hours' },
-  { id: 'o3', name: 'HSR Layout', addr: '27th Main Rd, Sector 2', open: false, queue: 0, hours: '10:00 AM – 10:00 PM' },
-];
-
 export default function MerchantOutlets() {
   const router = useRouter()
   const { add: addToast } = useToasts()
+  const { merchantProfile, loading: authLoading } = useAuthStore()
   
-  const [outlets, setOutlets] = useState<any[]>(MOCK_OUTLETS)
+  const [outlets, setOutlets] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
   const [showForm, setShowForm] = useState(false)
   const [newName, setNewName] = useState('')
   const [newAddr, setNewAddr] = useState('')
+  const [newLat, setNewLat] = useState<number | undefined>()
+  const [newLng, setNewLng] = useState<number | undefined>()
 
-  const create = () => {
-    if (!newName) return
-    const id = `o${outlets.length + 1}`
-    setOutlets(p => [...p, { id, name: newName, addr: newAddr || 'Bengaluru', open: true, queue: 0, hours: '9:00 AM – 9:00 PM' }])
-    setNewName('')
-    setNewAddr('')
-    setShowForm(false)
-    addToast(`${newName} outlet created!`, 'success')
+  useEffect(() => {
+    if (!authLoading) {
+      if (merchantProfile?.id) {
+        loadOutlets()
+      } else {
+        setLoading(false)
+      }
+    }
+  }, [merchantProfile, authLoading])
+
+  const loadOutlets = async () => {
+    try {
+      setLoading(true)
+      const res = await api.get(`/outlet/merchant/${merchantProfile?.id}`)
+      if (res.data.success) {
+        // Map backend fields to UI fields
+        const mapped = res.data.data.map((o: any) => ({
+          ...o,
+          addr: o.address,
+          open: o.isActive,
+          queue: 0, // TODO: Fetch real queue count
+          hours: '9:00 AM – 9:00 PM' // TODO: Add hours to database model
+        }))
+        setOutlets(mapped)
+      }
+    } catch (err) {
+      console.error('Failed to load outlets:', err)
+      addToast('Failed to load outlets', 'error')
+    } finally {
+      setLoading(false)
+    }
   }
 
-  const toggleOpen = (id: string, e: React.MouseEvent) => {
+  const create = async () => {
+    if (!newName) return
+    try {
+      const res = await api.post('/outlet', {
+        name: newName,
+        address: newAddr || 'Bengaluru',
+        lat: newLat,
+        lng: newLng
+      })
+      
+      if (res.data.success) {
+        addToast(`${newName} outlet created!`, 'success')
+        setNewName('')
+        setNewAddr('')
+        setNewLat(undefined)
+        setNewLng(undefined)
+        setShowForm(false)
+        loadOutlets() // Refresh list
+      }
+    } catch (err) {
+      addToast('Failed to create outlet', 'error')
+    }
+  }
+
+  const toggleOpen = async (id: string, e: React.MouseEvent) => {
     e.stopPropagation()
-    setOutlets(p => p.map(o => o.id === id ? { ...o, open: !o.open } : o))
-    addToast('Status updated', 'info')
+    const outlet = outlets.find(o => o.id === id)
+    if (!outlet) return
+
+    try {
+      const newStatus = !outlet.open
+      const res = await api.patch(`/outlet/${id}`, {
+        isActive: newStatus
+      })
+      
+      if (res.data.success) {
+        setOutlets(p => p.map(o => o.id === id ? { ...o, open: newStatus } : o))
+        addToast('Status updated', 'info')
+      }
+    } catch (err) {
+      addToast('Failed to update status', 'error')
+    }
+  }
+
+  // Handle stuck loading if no profile exists
+  if ((authLoading || loading) && outlets.length === 0) {
+    return (
+      <div style={{ padding: 100, textAlign: 'center', opacity: .5 }}>
+        <p className="animate-pulse">Loading your business outlets...</p>
+      </div>
+    )
+  }
+
+  // Handle case where user has no merchant profile yet
+  if (!merchantProfile && !authLoading) {
+    return (
+      <div style={{ padding: 100, textAlign: 'center' }}>
+        <div style={{ fontSize: 40, marginBottom: 20 }}>🏪</div>
+        <h2 style={{ fontWeight: 900, fontSize: 24, marginBottom: 12 }}>Finish Business Setup</h2>
+        <p style={{ color: 'var(--t3)', maxWidth: 400, margin: '0 auto 32px' }}>
+          You need to complete your business registration before managing outlets.
+        </p>
+        <button style={s.btnM} onClick={() => router.push('/dashboard/business')}>
+          Set Up Business Profile
+        </button>
+      </div>
+    )
   }
 
   return (
@@ -110,20 +201,35 @@ export default function MerchantOutlets() {
                 onChange={e => setNewName(e.target.value)}
               />
             </div>
-            <div>
-              <label style={{ fontSize: 11, fontWeight: 700, color: 'var(--t3)', textTransform: 'uppercase', letterSpacing: .8, display: 'block', marginBottom: 8 }}>Address</label>
-              <input 
-                style={s.input} 
-                placeholder="123 Main St, Area, City" 
-                value={newAddr} 
-                onChange={e => setNewAddr(e.target.value)} 
+            <div style={{ marginBottom: 16 }}>
+              <label style={{ fontSize: 11, fontWeight: 700, color: 'var(--t3)', textTransform: 'uppercase', letterSpacing: .8, display: 'block', marginBottom: 8 }}>Pin exact location</label>
+              <MapPicker 
+                lat={newLat} 
+                lng={newLng} 
+                onSelect={(lat, lng) => { setNewLat(lat); setNewLng(lng) }} 
               />
+              {newLat && (
+                <div style={{ fontSize: 10, color: 'rgba(31,217,124,.6)', marginTop: 8, fontFamily: 'var(--font-mono)' }}>
+                  📍 {newLat.toFixed(6)}, {newLng?.toFixed(6)}
+                </div>
+              )}
             </div>
           </div>
           <div style={{ display: 'flex', gap: 10 }}>
             <button style={{ ...s.btnM, gap: 6 }} onClick={create}><Ic.Check />Create Outlet</button>
             <button style={s.btnGhost} onClick={() => setShowForm(false)}>Cancel</button>
           </div>
+        </div>
+      )}
+
+      {outlets.length === 0 && !loading && (
+        <div style={{ ...s.card, padding: 60, textAlign: 'center', background: 'rgba(255,255,255,.01)' }}>
+          <div style={{ fontSize: 40, marginBottom: 16 }}>🗺️</div>
+          <h3 style={{ fontWeight: 800, fontSize: 18, marginBottom: 8 }}>No Outlets Yet</h3>
+          <p style={{ color: 'var(--t3)', fontSize: 14, maxWidth: 300, margin: '0 auto 24px' }}>
+            Register your first business location to start managing queues.
+          </p>
+          <button style={s.btnM} onClick={() => setShowForm(true)}>Add Your First Outlet</button>
         </div>
       )}
 
