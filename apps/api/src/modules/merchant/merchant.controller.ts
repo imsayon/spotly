@@ -5,7 +5,7 @@ import { MerchantService } from './merchant.service';
 import { FirebaseAuthGuard } from '../auth/guards/firebase-auth.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { DecodedUser } from '../auth/auth.service';
-import { IsEmail, IsInt, IsNotEmpty, IsOptional, IsString } from 'class-validator';
+import { IsEmail, IsInt, IsNotEmpty, IsNumber, IsOptional, IsString } from 'class-validator';
 
 class CreateMerchantDto {
   @IsString() @IsNotEmpty() name!: string;
@@ -15,6 +15,8 @@ class CreateMerchantDto {
   @IsString() @IsOptional() contactEmail?: string;
   @IsString() @IsOptional() website?: string;
   @IsString() @IsOptional() address?: string;
+  @IsNumber() @IsOptional() lat?: number;
+  @IsNumber() @IsOptional() lng?: number;
   @IsInt() @IsOptional() foundingYear?: number;
   @IsString() @IsOptional() logoUrl?: string;
   @IsString() @IsOptional() gstNumber?: string;
@@ -28,6 +30,8 @@ class UpdateMerchantDto {
   @IsEmail() @IsOptional() contactEmail?: string;
   @IsString() @IsOptional() website?: string;
   @IsString() @IsOptional() address?: string;
+  @IsNumber() @IsOptional() lat?: number;
+  @IsNumber() @IsOptional() lng?: number;
   @IsInt() @IsOptional() foundingYear?: number;
   @IsString() @IsOptional() logoUrl?: string;
   @IsString() @IsOptional() gstNumber?: string;

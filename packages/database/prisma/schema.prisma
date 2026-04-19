@@ -35,6 +35,8 @@ model Merchant {
   foundingYear Int?
   logoUrl     String?
   gstNumber   String?
+  lat         Float?
+  lng         Float?
   verified    Boolean  @default(false)
   
   outlets     Outlet[]

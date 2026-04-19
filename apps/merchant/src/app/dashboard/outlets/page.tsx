@@ -5,6 +5,12 @@ import { Ic, useToasts, THEME } from "@spotly/ui"
 import { useRouter } from "next/navigation"
 import api from "@/lib/api"
 import { useAuthStore } from "@/store/auth.store"
+import dynamic from 'next/dynamic'
+
+const MapPicker = dynamic(() => import('@/components/MapPicker'), { 
+  ssr: false,
+  loading: () => <div style={{ height: '300px', background: 'rgba(255,255,255,.05)', borderRadius: 12, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>Loading Map...</div>
+})
 
 // Extended styles for this page
 const s = {
@@ -65,6 +71,8 @@ export default function MerchantOutlets() {
   const [showForm, setShowForm] = useState(false)
   const [newName, setNewName] = useState('')
   const [newAddr, setNewAddr] = useState('')
+  const [newLat, setNewLat] = useState<number | undefined>()
+  const [newLng, setNewLng] = useState<number | undefined>()
 
   useEffect(() => {
     if (!authLoading) {
@@ -104,13 +112,17 @@ export default function MerchantOutlets() {
     try {
       const res = await api.post('/outlet', {
         name: newName,
-        address: newAddr || 'Bengaluru'
+        address: newAddr || 'Bengaluru',
+        lat: newLat,
+        lng: newLng
       })
       
       if (res.data.success) {
         addToast(`${newName} outlet created!`, 'success')
         setNewName('')
         setNewAddr('')
+        setNewLat(undefined)
+        setNewLng(undefined)
         setShowForm(false)
         loadOutlets() // Refresh list
       }
@@ -189,14 +201,18 @@ export default function MerchantOutlets() {
                 onChange={e => setNewName(e.target.value)}
               />
             </div>
-            <div>
-              <label style={{ fontSize: 11, fontWeight: 700, color: 'var(--t3)', textTransform: 'uppercase', letterSpacing: .8, display: 'block', marginBottom: 8 }}>Address</label>
-              <input 
-                style={s.input} 
-                placeholder="123 Main St, Area, City" 
-                value={newAddr} 
-                onChange={e => setNewAddr(e.target.value)} 
+            <div style={{ marginBottom: 16 }}>
+              <label style={{ fontSize: 11, fontWeight: 700, color: 'var(--t3)', textTransform: 'uppercase', letterSpacing: .8, display: 'block', marginBottom: 8 }}>Pin exact location</label>
+              <MapPicker 
+                lat={newLat} 
+                lng={newLng} 
+                onSelect={(lat, lng) => { setNewLat(lat); setNewLng(lng) }} 
               />
+              {newLat && (
+                <div style={{ fontSize: 10, color: 'rgba(31,217,124,.6)', marginTop: 8, fontFamily: 'var(--font-mono)' }}>
+                  📍 {newLat.toFixed(6)}, {newLng?.toFixed(6)}
+                </div>
+              )}
             </div>
           </div>
           <div style={{ display: 'flex', gap: 10 }}>

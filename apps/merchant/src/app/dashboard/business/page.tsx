@@ -4,6 +4,12 @@ import React, { useState, useEffect } from "react"
 import { Ic, useToasts, THEME } from "@spotly/ui"
 import { useAuthStore } from "@/store/auth.store"
 import api from "@/lib/api"
+import dynamic from 'next/dynamic'
+
+const MapPicker = dynamic(() => import('@/components/MapPicker'), { 
+  ssr: false,
+  loading: () => <div style={{ height: '300px', background: 'rgba(255,255,255,.05)', borderRadius: 12, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>Loading Map...</div>
+})
 
 // Extended styles for this page
 const s = {
@@ -67,6 +73,8 @@ export default function MerchantBusiness() {
     contactEmail: '',
     website: '',
     address: '',
+    lat: undefined as number | undefined,
+    lng: undefined as number | undefined,
     foundingYear: '',
     gstNumber: ''
   })
@@ -81,6 +89,8 @@ export default function MerchantBusiness() {
         contactEmail: merchantProfile.contactEmail || '',
         website: merchantProfile.website || '',
         address: merchantProfile.address || '',
+        lat: merchantProfile.lat,
+        lng: merchantProfile.lng,
         foundingYear: merchantProfile.foundingYear?.toString() || '',
         gstNumber: merchantProfile.gstNumber || ''
       })
@@ -92,7 +102,9 @@ export default function MerchantBusiness() {
       setLoading(true)
       const data = {
         ...form,
-        foundingYear: form.foundingYear ? parseInt(form.foundingYear) : undefined
+        foundingYear: form.foundingYear ? parseInt(form.foundingYear) : undefined,
+        lat: form.lat,
+        lng: form.lng
       }
 
       const res = profile 
@@ -241,7 +253,7 @@ export default function MerchantBusiness() {
             />
           </div>
 
-          <div style={{ marginBottom: 0 }}>
+          <div style={{ marginBottom: 16 }}>
             <label style={{ fontSize: 10, fontWeight: 700, color: 'rgba(255,255,255,.25)', textTransform: 'uppercase', letterSpacing: 1, display: 'block', marginBottom: 8 }}>Corporate HQ</label>
             <input 
               style={s.input} 
@@ -249,6 +261,20 @@ export default function MerchantBusiness() {
               onChange={e => setForm({...form, address: e.target.value})}
               placeholder="City, Region"
             />
+          </div>
+
+          <div style={{ marginBottom: 0 }}>
+            <label style={{ fontSize: 10, fontWeight: 700, color: 'rgba(255,255,255,.25)', textTransform: 'uppercase', letterSpacing: 1, display: 'block', marginBottom: 8 }}>Pin exact location</label>
+            <MapPicker 
+              lat={form.lat} 
+              lng={form.lng} 
+              onSelect={(lat, lng) => setForm({...form, lat, lng})} 
+            />
+            {form.lat && (
+              <div style={{ fontSize: 10, color: 'rgba(31,217,124,.6)', marginTop: 8, fontFamily: 'var(--font-mono)' }}>
+                📍 {form.lat.toFixed(6)}, {form.lng?.toFixed(6)}
+              </div>
+            )}
           </div>
         </div>
       </div>

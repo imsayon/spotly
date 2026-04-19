@@ -22,6 +22,8 @@ export class MerchantService {
         contactEmail: data.contactEmail,
         website: data.website,
         address: data.address,
+        lat: data.lat,
+        lng: data.lng,
         foundingYear: data.foundingYear,
         logoUrl: data.logoUrl,
         gstNumber: data.gstNumber,
@@ -32,6 +34,9 @@ export class MerchantService {
   async findById(id: string): Promise<Merchant> {
     const merchant = await this.prisma.merchant.findUnique({
       where: { id },
+      include: {
+        outlets: true,
+      },
     });
     if (!merchant) {
       throw new NotFoundException(`Merchant ${id} not found`);
@@ -50,12 +55,18 @@ export class MerchantService {
           ],
         }),
       },
+      include: {
+        outlets: true,
+      },
     });
   }
 
   async findByUser(userId: string): Promise<Merchant | null> {
     return this.prisma.merchant.findUnique({
       where: { ownerId: userId },
+      include: {
+        outlets: true,
+      },
     });
   }
 
@@ -75,9 +86,14 @@ export class MerchantService {
         contactEmail: data.contactEmail,
         website: data.website,
         address: data.address,
+        lat: data.lat,
+        lng: data.lng,
         foundingYear: data.foundingYear,
         logoUrl: data.logoUrl,
         gstNumber: data.gstNumber,
+      },
+      include: {
+        outlets: true,
       },
     });
   }

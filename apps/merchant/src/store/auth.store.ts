@@ -16,6 +16,8 @@ export interface MerchantProfile {
   foundingYear?: number;
   logoUrl?: string;
   gstNumber?: string;
+  lat?: number;
+  lng?: number;
 }
 
 interface AuthState {
