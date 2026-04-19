@@ -117,7 +117,7 @@ export default function LandingPage() {
             textTransform: 'uppercase',
             letterSpacing: 1.5
           }}>
-            <Ic.Sparkle /> Skip lines in Bengaluru
+            <Ic.Sparkle /> Skip lines near you
           </div>
         </motion.div>
 
