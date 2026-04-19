@@ -40,13 +40,11 @@ export class UserService {
         id: uid,
         name: data.name,
         phone: data.phone,
-        location: data.location,
         role: Role.CONSUMER,
       },
       update: {
         name: data.name,
         phone: data.phone,
-        location: data.location,
       },
     });
   }

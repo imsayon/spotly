@@ -18,13 +18,6 @@ export class MerchantService {
         name: data.name || 'Set Your Business Name',
         category: data.category || 'General',
         description: data.description,
-        phone: data.phone,
-        contactEmail: data.contactEmail,
-        website: data.website,
-        address: data.address,
-        foundingYear: data.foundingYear,
-        logoUrl: data.logoUrl,
-        gstNumber: data.gstNumber,
       },
     });
   }
@@ -71,13 +64,6 @@ export class MerchantService {
         name: data.name,
         category: data.category,
         description: data.description,
-        phone: data.phone,
-        contactEmail: data.contactEmail,
-        website: data.website,
-        address: data.address,
-        foundingYear: data.foundingYear,
-        logoUrl: data.logoUrl,
-        gstNumber: data.gstNumber,
       },
     });
   }
