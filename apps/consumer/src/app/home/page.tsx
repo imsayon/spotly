@@ -6,12 +6,15 @@ import { motion, AnimatePresence } from "framer-motion"
 import { Ic, useToasts, THEME } from "@spotly/ui"
 import { useAuthStore } from "@/store/auth.store"
 import api from "@/lib/api"
+import { useLiveLocation } from "@/lib/useLiveLocation"
+import { getMerchantIcon } from "@/lib/merchantIcon"
 import { s } from "./home.styles"
 
 export default function ConsumerHome() {
   const { user, profile } = useAuthStore()
   const { add: addToast } = useToasts()
   const router = useRouter()
+  const { locationText, isDenied, refresh } = useLiveLocation()
 
   const displayName = profile?.name || (user as any)?.user_metadata?.name || user?.email?.split('@')[0] || 'Member'
   
@@ -69,9 +72,30 @@ export default function ConsumerHome() {
             Hey, {displayName.split(' ')[0]}
           </h1>
           <div style={{ display: 'flex', alignItems: 'center', gap: 6, color: 'rgba(255,255,255,.3)', fontSize: 13, fontWeight: 600 }}>
-            <Ic.MapPin /><span>Bengaluru, India</span>
+            <Ic.MapPin /><span>{locationText}</span>
             <div style={{ width: 4, height: 4, borderRadius: '50%', background: '#1fd97c' }} />
           </div>
+          {isDenied && (
+            <button
+              onClick={refresh}
+              style={{
+                marginTop: 8,
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 6,
+                background: 'rgba(245,196,24,.12)',
+                border: '1px solid rgba(245,196,24,.25)',
+                color: '#f5c418',
+                borderRadius: 999,
+                padding: '5px 10px',
+                fontSize: 11,
+                fontWeight: 700,
+                cursor: 'pointer',
+              }}
+            >
+              <Ic.MapPin size={12} /> Enable location
+            </button>
+          )}
         </div>
         <div style={{ width: 48, height: 48, borderRadius: 16, background: 'rgba(255,255,255,.05)', border: '1px solid rgba(255,255,255,.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18, fontWeight: 800 }}>
           {displayName[0].toUpperCase()}
@@ -180,12 +204,12 @@ export default function ConsumerHome() {
                 onClick={() => router.push(`/merchant/${m.id}`)}
               >
                 <div style={{ width: 68, height: 68, borderRadius: 18, background: 'rgba(255,255,255,.02)', border: '1px solid rgba(255,255,255,.06)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#f5c418', flexShrink: 0 }}>
-                  {m.category?.toLowerCase()?.includes('coffee') ? <Ic.Clock /> : m.category?.toLowerCase()?.includes('health') ? <Ic.Activity /> : <Ic.Store />}
+                  {getMerchantIcon(m.category || m.name)}
                 </div>
                 <div style={{ flex: 1 }}>
                   <div style={{ fontWeight: 800, fontSize: 18, marginBottom: 4 }}>{m.name}</div>
                   <div style={{ fontSize: 13, color: 'rgba(255,255,255,.3)', display: 'flex', alignItems: 'center', gap: 6, fontWeight: 600 }}>
-                    <span>{m.category}</span> · <span>{m.location || 'Bengaluru'}</span>
+                    <span>{m.category}</span> · <span>{m.location || locationText.split(',')[0] || 'Nearby'}</span>
                   </div>
                 </div>
                 <div style={{ textAlign: 'right' }}>

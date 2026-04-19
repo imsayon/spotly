@@ -1,9 +1,10 @@
 "use client"
 
-import React from "react"
+import React, { useEffect, useState } from "react"
 import { useAuthStore } from "@/store/auth.store"
 import { Ic, useToasts } from "@spotly/ui"
 import { MERCHANTS } from "@spotly/ui/src/data/mock"
+import { getMerchantIcon } from "@/lib/merchantIcon"
 
 const s = {
   card: { background: 'var(--s1)', border: '1px solid var(--bdr)', borderRadius: 18, padding: 22, transition: 'all .3s cubic-bezier(.25,.46,.45,.94)' },
@@ -17,8 +18,41 @@ const s = {
 }
 
 export default function ConsumerProfile() {
-  const { user, profile, signOut } = useAuthStore()
+  const { user, profile, signOut, updateProfile, fetchProfile } = useAuthStore()
   const { add: addToast } = useToasts()
+  const [isEditing, setIsEditing] = useState(false)
+  const [saving, setSaving] = useState(false)
+  const [form, setForm] = useState({
+    name: profile?.name || '',
+    phone: profile?.phone || '',
+    location: profile?.location || '',
+  })
+
+  useEffect(() => {
+    setForm({
+      name: profile?.name || '',
+      phone: profile?.phone || '',
+      location: profile?.location || '',
+    })
+  }, [profile?.name, profile?.phone, profile?.location])
+
+  const onSave = async () => {
+    try {
+      setSaving(true)
+      await updateProfile({
+        name: form.name.trim(),
+        phone: form.phone.trim(),
+        location: form.location.trim(),
+      } as any)
+      await fetchProfile()
+      setIsEditing(false)
+      addToast('Profile updated', 'success')
+    } catch {
+      addToast('Could not update profile', 'error')
+    } finally {
+      setSaving(false)
+    }
+  }
   
   const stats = [{ n: 23, l: 'Queues Joined' }, { n: '4.1h', l: 'Time Saved' }, { n: 18, l: 'Merchants' }]
   
@@ -31,10 +65,54 @@ export default function ConsumerProfile() {
         <h2 style={{ fontFamily: 'var(--font-sans)', fontSize: 22, fontWeight: 900, marginBottom: 3 }}>
           {profile?.name || user?.email?.split('@')[0] || "Arjun Sharma"}
         </h2>
-        <p style={{ color: 'var(--t3)', fontSize: 13 }}>+91 98765 43210 · {profile?.location || "Indiranagar"}</p>
+        <p style={{ color: 'var(--t3)', fontSize: 13 }}>{profile?.phone || 'No phone'} · {profile?.location || "Unknown location"}</p>
         <div style={{ display: 'flex', justifyContent: 'center', gap: 6, marginTop: 10 }}>
           <span style={s.badge('yellow') as React.CSSProperties}>Consumer</span>
-          <span style={s.badge('green') as React.CSSProperties}>✓ Verified</span>
+          <span style={{ ...s.badge('green') as React.CSSProperties, display: 'inline-flex', alignItems: 'center', gap: 4 }}><Ic.Check size={12} /> Verified</span>
+        </div>
+      </div>
+
+      <div style={{ ...s.card, marginBottom: 22, padding: '18px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+          <h3 style={{ fontWeight: 800, fontFamily: 'var(--font-sans)', fontSize: 15 }}>Profile Details</h3>
+          {!isEditing ? (
+            <button onClick={() => setIsEditing(true)} style={{ background: 'rgba(245,196,24,.15)', border: '1px solid rgba(245,196,24,.25)', color: '#f5c418', borderRadius: 10, fontSize: 12, fontWeight: 700, padding: '7px 10px', cursor: 'pointer' }}>
+              Edit Profile
+            </button>
+          ) : (
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button onClick={() => setIsEditing(false)} style={{ background: 'rgba(255,255,255,.06)', border: '1px solid var(--bdr)', color: 'var(--t2)', borderRadius: 10, fontSize: 12, fontWeight: 700, padding: '7px 10px', cursor: 'pointer' }}>
+                Cancel
+              </button>
+              <button disabled={saving} onClick={onSave} style={{ background: 'rgba(31,217,124,.2)', border: '1px solid rgba(31,217,124,.35)', color: '#1fd97c', borderRadius: 10, fontSize: 12, fontWeight: 700, padding: '7px 10px', cursor: 'pointer' }}>
+                {saving ? 'Saving...' : 'Save'}
+              </button>
+            </div>
+          )}
+        </div>
+
+        <div style={{ display: 'grid', gap: 10 }}>
+          <input
+            disabled={!isEditing}
+            value={form.name}
+            onChange={(e) => setForm((p) => ({ ...p, name: e.target.value }))}
+            placeholder="Full name"
+            style={{ background: 'rgba(255,255,255,.04)', border: '1px solid var(--bdr)', borderRadius: 10, padding: '10px 12px', color: '#fff', fontSize: 13 }}
+          />
+          <input
+            disabled={!isEditing}
+            value={form.phone}
+            onChange={(e) => setForm((p) => ({ ...p, phone: e.target.value }))}
+            placeholder="Phone number"
+            style={{ background: 'rgba(255,255,255,.04)', border: '1px solid var(--bdr)', borderRadius: 10, padding: '10px 12px', color: '#fff', fontSize: 13 }}
+          />
+          <input
+            disabled={!isEditing}
+            value={form.location}
+            onChange={(e) => setForm((p) => ({ ...p, location: e.target.value }))}
+            placeholder="Location"
+            style={{ background: 'rgba(255,255,255,.04)', border: '1px solid var(--bdr)', borderRadius: 10, padding: '10px 12px', color: '#fff', fontSize: 13 }}
+          />
         </div>
       </div>
 
@@ -50,7 +128,7 @@ export default function ConsumerProfile() {
       <h3 style={{ fontWeight: 800, fontFamily: 'var(--font-sans)', fontSize: 16, marginBottom: 12 }}>Recent History</h3>
       {MERCHANTS.slice(0, 4).map((m, i) => (
         <div key={m.id} style={{ ...s.card, padding: '12px', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 12 }}>
-          <div style={{ fontSize: 24, flexShrink: 0 }}>{m.emoji}</div>
+          <div style={{ width: 36, height: 36, borderRadius: 10, background: 'rgba(245,196,24,.12)', color: '#f5c418', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>{getMerchantIcon(m.cat || m.name)}</div>
           <div style={{ flex: 1 }}>
             <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 2 }}>{m.name}</div>
             <div style={{ fontSize: 11, color: 'var(--t3)' }}>{['Yesterday 2:15PM', 'Last week', '3 days ago', 'This morning'][i]} · Token #{40 + i}</div>
@@ -60,7 +138,12 @@ export default function ConsumerProfile() {
       ))}
 
       <div style={{ ...s.card, marginTop: 18, padding: '6px' }}>
-        {[{ l: 'Notifications', ic: '🔔' }, { l: 'Privacy & Data', ic: '🔒' }, { l: 'Help & Support', ic: '❓' }, { l: 'Sign Out', ic: '🚪', d: true }].map(item => (
+        {[
+          { l: 'Notifications', ic: <Ic.Bell /> },
+          { l: 'Privacy & Data', ic: <Ic.Shield /> },
+          { l: 'Help & Support', ic: <Ic.Settings /> },
+          { l: 'Sign Out', ic: <Ic.LogOut />, d: true },
+        ].map(item => (
           <div key={item.l} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '13px 12px', borderRadius: 11, cursor: 'pointer', color: item.d ? '#ff4d6d' : 'var(--t2)', transition: 'all .2s' }} 
             className="hover:bg-[#ffffff0a]"
             onClick={() => {
@@ -69,7 +152,7 @@ export default function ConsumerProfile() {
                 signOut()
               }
             }}>
-            <span style={{ fontSize: 18 }}>{item.ic}</span>
+            <span style={{ display: 'inline-flex', alignItems: 'center' }}>{item.ic}</span>
             <span style={{ fontWeight: 500, fontSize: 14, flex: 1 }}>{item.l}</span>
             <Ic.ChevR />
           </div>

@@ -5,6 +5,7 @@ import { usePathname, useRouter } from "next/navigation"
 import { useAuthStore } from "@/store/auth.store"
 import { Ic, useToasts, ToastContainer } from "@spotly/ui"
 import Link from "next/link"
+import { useLiveLocation } from "@/lib/useLiveLocation"
 
 const s = {
   glass: { background: 'rgba(255,255,255,.035)', backdropFilter: 'blur(24px)', WebkitBackdropFilter: 'blur(24px)', border: '1px solid var(--bdr)' },
@@ -24,8 +25,9 @@ export default function ConsumerLayout({
 }) {
   const pathname = usePathname()
   const router = useRouter()
-  const { user, profile } = useAuthStore()
+  const { user, profile, signOut } = useAuthStore()
   const { toasts, add: addToast } = useToasts()
+  const { locationText } = useLiveLocation()
   
   const [showNotif, setShowNotif] = useState(false)
   const notifCount = 3
@@ -34,7 +36,7 @@ export default function ConsumerLayout({
     { id: '/home', icon: <Ic.Home />, label: 'Home' },
     { id: '/home/explore', icon: <Ic.Map />, label: 'Explore' },
     { id: '/home/queue', icon: <Ic.Clock />, label: 'Queue' },
-    { id: '/home/favorites', icon: <Ic.Heart f={false} />, label: 'Saved' },
+    { id: '/home/favorites', icon: <Ic.Heart />, label: 'Saved' },
     { id: '/home/profile', icon: <Ic.User />, label: 'Profile' },
   ]
 
@@ -46,7 +48,7 @@ export default function ConsumerLayout({
       {/* SIDEBAR (Desktop) */}
       <aside className="consumer-sidebar hidden md:flex flex-col border-r border-[#ffffff10] w-[240px] bg-[#0c0c12] p-5 h-screen fixed left-0 top-0">
         <div className="consumer-brand flex items-center gap-3 mb-10">
-          <div style={{ width: 34, height: 34, borderRadius: 10, ...s.gradC, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16 }}>⏱</div>
+          <div style={{ width: 34, height: 34, borderRadius: 10, ...s.gradC, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#000' }}><Ic.Clock size={16} /></div>
           <div>
             <h2 className="text-xl font-black font-syne uppercase tracking-tight m-0 leading-none">spotly</h2>
             <div style={{ fontSize: 10, color: 'var(--t4)', fontWeight: 700, letterSpacing: .5 }}>CONSUMER DASHBOARD</div>
@@ -75,12 +77,26 @@ export default function ConsumerLayout({
             </div>
             <div style={{ minWidth: 0, position: 'relative', zIndex: 1 }}>
               <div style={{ fontWeight: 800, fontSize: 13, color: '#fff' }} className="truncate">{profile?.name || user?.email?.split('@')[0]}</div>
-              <div style={{ fontSize: 11, color: 'var(--t3)' }} className="truncate">{profile?.location || "Bengaluru, IN"}</div>
+              <div style={{ fontSize: 11, color: 'var(--t3)' }} className="truncate">{profile?.location || locationText}</div>
             </div>
           </div>
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', position: 'relative', zIndex: 1 }}>
             <span style={s.badge('green') as React.CSSProperties}>Verified</span>
-            <span style={s.badge('yellow') as React.CSSProperties}>Live alerts</span>
+            <button
+              onClick={() => {
+                addToast('Signing out...', 'info')
+                signOut()
+              }}
+              style={{
+                ...s.badge('yellow') as React.CSSProperties,
+                background: 'rgba(255,77,109,.12)',
+                border: '1px solid rgba(255,77,109,.25)',
+                color: '#ff4d6d',
+                cursor: 'pointer',
+              }}
+            >
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}><Ic.LogOut size={12} /> Logout</span>
+            </button>
           </div>
         </div>
       </aside>
@@ -95,7 +111,7 @@ export default function ConsumerLayout({
           </button>
 
           <div className="brand md:hidden flex items-center gap-2">
-            <div style={{ width: 28, height: 28, borderRadius: 8, ...s.gradC, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14 }}>⏱</div>
+            <div style={{ width: 28, height: 28, borderRadius: 8, ...s.gradC, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#000' }}><Ic.Clock size={14} /></div>
             <span className="font-black tracking-tight font-syne text-[17px]">spotly</span>
           </div>
 
@@ -121,12 +137,12 @@ export default function ConsumerLayout({
                 <button style={{ background: 'none', border: 'none', color: 'var(--t3)', cursor: 'pointer', fontSize: 12, fontWeight: 600 }} onClick={() => setShowNotif(false)} className="hover:text-white transition-colors">Clear all</button>
               </div>
               {[
-                { icon: '🔔', text: 'Your token #43 is coming up soon!', time: '2m ago', c: 'yellow' },
-                { icon: '✅', text: 'Artisan Bakehouse confirmed your spot', time: '8m ago', c: 'green' },
-                { icon: '⚡', text: 'Coffee Lab has 0 queue — join now!', time: '15m ago', c: 'yellow' },
+                { icon: <Ic.Bell />, text: 'Your token #43 is coming up soon!', time: '2m ago', c: 'yellow' },
+                { icon: <Ic.Check />, text: 'Artisan Bakehouse confirmed your spot', time: '8m ago', c: 'green' },
+                { icon: <Ic.Zap />, text: 'Coffee Lab has zero queue - join now!', time: '15m ago', c: 'yellow' },
               ].map((n, i) => (
                 <div key={i} style={{ padding: '14px 20px', borderBottom: '1px solid var(--bdr)', display: 'flex', gap: 12, cursor: 'pointer', transition: 'all .2s' }} className="hover:bg-[#ffffff0a] active:bg-[#ffffff10]">
-                  <span style={{ fontSize: 22, flexShrink: 0 }}>{n.icon}</span>
+                  <span style={{ width: 22, height: 22, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>{n.icon}</span>
                   <div>
                     <p style={{ fontSize: 13, lineHeight: 1.45, marginBottom: 4, fontWeight: 500, color: '#e5e7eb' }}>{n.text}</p>
                     <span style={{ fontSize: 11, color: 'var(--t3)', fontWeight: 600 }}>{n.time}</span>

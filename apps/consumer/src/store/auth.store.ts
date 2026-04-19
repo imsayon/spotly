@@ -59,13 +59,27 @@ export const useAuthStore = create<AuthState>()((set, get) => ({
       set({ profile });
       return profile;
     } catch {
-      return null;
+      try {
+        await get().registerOnBackend('CONSUMER');
+        const retry = await api.get('/user/me');
+        const profile = retry.data.data;
+        set({ profile });
+        return profile;
+      } catch {
+        return null;
+      }
     }
   },
 
   updateProfile: async (data) => {
-    const res = await api.patch('/user/me', data);
-    set({ profile: res.data.data, forceOnboarding: false });
+    try {
+      const res = await api.patch('/user/me', data);
+      set({ profile: res.data.data, forceOnboarding: false });
+    } catch {
+      await get().registerOnBackend('CONSUMER');
+      const retry = await api.patch('/user/me', data);
+      set({ profile: retry.data.data, forceOnboarding: false });
+    }
   },
 
   clearProfile: async () => {

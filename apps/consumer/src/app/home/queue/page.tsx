@@ -43,7 +43,7 @@ export default function ConsumerQueue() {
         if (p <= 0) { 
           clearInterval(t); 
           setStatus('CALLED'); 
-          addToast("It's your turn! 🔔", 'success'); 
+          addToast("It's your turn", 'success'); 
           return 0; 
         }
         setCurrentToken(ct => ct + 1)
@@ -64,9 +64,9 @@ export default function ConsumerQueue() {
   const mins = Math.floor(seconds / 60)
   const secs = seconds % 60
 
-  const statusStyles: Record<string, { color: string; bg: string; border: string; icon: string; anim: string }> = {
-    WAITING: { color: '#f5c418', bg: 'rgba(245,196,24,.07)', border: 'rgba(245,196,24,.25)', icon: '⏳', anim: 'animate-pulse' },
-    CALLED: { color: '#1fd97c', bg: 'rgba(31,217,124,.1)', border: 'rgba(31,217,124,.3)', icon: '🔔', anim: 'animate-bounce' },
+  const statusStyles: Record<string, { color: string; bg: string; border: string; icon: React.ReactNode; anim: string }> = {
+    WAITING: { color: '#f5c418', bg: 'rgba(245,196,24,.07)', border: 'rgba(245,196,24,.25)', icon: <Ic.Clock size={12} />, anim: 'animate-pulse' },
+    CALLED: { color: '#1fd97c', bg: 'rgba(31,217,124,.1)', border: 'rgba(31,217,124,.3)', icon: <Ic.Bell size={12} />, anim: 'animate-bounce' },
   }
   const statusStyle = statusStyles[status] ?? statusStyles['WAITING']
 
@@ -77,7 +77,7 @@ export default function ConsumerQueue() {
           <h1 style={{ fontFamily: 'var(--font-sans)', fontSize: 22, fontWeight: 900, marginBottom: 2 }}>Your Queue</h1>
           <p style={{ color: 'var(--t3)', fontSize: 13 }}>{entry.outlet}</p>
         </div>
-        <span style={{ ...s.badge(status === 'CALLED' ? 'green' : 'yellow') as React.CSSProperties }}>{status === 'CALLED' ? '🔔 CALLED' : '⏳ WAITING'}</span>
+        <span style={{ ...s.badge(status === 'CALLED' ? 'green' : 'yellow') as React.CSSProperties }}>{status === 'CALLED' ? 'CALLED' : 'WAITING'}</span>
       </div>
 
       {/* TOKEN CIRCLE */}
@@ -88,16 +88,16 @@ export default function ConsumerQueue() {
         <div className={statusStyle.anim} style={{ width: 200, height: 200, borderRadius: '50%', margin: '0 auto', background: statusStyle.bg, border: `2px solid ${statusStyle.border}`, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', transition: 'all .6s', position: 'relative', zIndex: 2 }}>
           <div style={{ fontSize: 10, fontWeight: 700, color: statusStyle.color, textTransform: 'uppercase', letterSpacing: 1.5, marginBottom: 2 }}>Token</div>
           <div style={{ fontFamily: 'var(--font-mono)', fontSize: 80, fontWeight: 800, color: statusStyle.color, lineHeight: 1 }}>{entry.token}</div>
-          <div style={{ fontSize: 12, fontWeight: 700, color: statusStyle.color }}>{statusStyle.icon} {status === 'CALLED' ? "YOUR TURN!" : "Waiting"}</div>
+          <div style={{ fontSize: 12, fontWeight: 700, color: statusStyle.color, display: 'inline-flex', alignItems: 'center', gap: 6 }}><span style={{ display: 'inline-flex' }}>{statusStyle.icon}</span>{status === 'CALLED' ? "YOUR TURN" : "Waiting"}</div>
         </div>
       </div>
 
       {status === 'CALLED' ? (
         <div className="animate-in zoom-in-95 duration-300" style={{ ...s.card, background: 'rgba(31,217,124,.08)', borderColor: 'rgba(31,217,124,.28)', marginBottom: 18, padding: '20px', textAlign: 'center' }}>
-          <div style={{ fontSize: 40, marginBottom: 8 }}>🎉</div>
+          <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 8, color: '#1fd97c' }}><Ic.Check size={28} /></div>
           <div style={{ fontFamily: 'var(--font-sans)', fontWeight: 900, fontSize: 20, color: '#1fd97c', marginBottom: 4 }}>Proceed to the counter!</div>
           <p style={{ color: 'var(--t2)', fontSize: 14 }}>Don't keep them waiting</p>
-          <button style={{ ...s.btnM, marginTop: 16, width: '100%', justifyContent: 'center' }} onClick={() => { addToast('Served! Hope you had a great time.', 'success'); router.push('/home') }}>Mark as Served ✓</button>
+          <button style={{ ...s.btnM, marginTop: 16, width: '100%', justifyContent: 'center' }} onClick={() => { addToast('Served! Hope you had a great time.', 'success'); router.push('/home') }}>Mark as Served</button>
         </div>
       ) : (
         <>
@@ -144,7 +144,7 @@ export default function ConsumerQueue() {
             </div>
             <span style={{ ...s.badge(q.status === 'CALLED' ? 'green' : q.status === 'WAITING' ? 'yellow' : 'gray') as React.CSSProperties, fontSize: 10 }}>{q.status}</span>
             <span style={{ marginLeft: 'auto', fontSize: 11, color: 'var(--t3)' }}>{q.wait}</span>
-            {q.token === entry.token && <span style={{ fontSize: 10, fontWeight: 800, color: '#f5c418' }}>← You</span>}
+            {q.token === entry.token && <span style={{ fontSize: 10, fontWeight: 800, color: '#f5c418' }}>You</span>}
           </div>
         ))}
       </div>
