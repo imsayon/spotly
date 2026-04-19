@@ -27,6 +27,7 @@ export class MerchantService {
         foundingYear: data.foundingYear,
         logoUrl: data.logoUrl,
         gstNumber: data.gstNumber,
+
       },
     });
   }
@@ -91,6 +92,7 @@ export class MerchantService {
         foundingYear: data.foundingYear,
         logoUrl: data.logoUrl,
         gstNumber: data.gstNumber,
+
       },
       include: {
         outlets: true,

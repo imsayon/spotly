@@ -1,9 +1,10 @@
 "use client"
 
-import React, { useState, useEffect } from "react"
+import React, { useState, useEffect, useMemo } from "react"
 import { Ic, useToasts } from "@spotly/ui"
 import dynamic from 'next/dynamic'
 import api from "@/lib/api"
+import { useLiveLocation } from "@/lib/useLiveLocation"
 
 const MapDiscovery = dynamic(() => import('@/components/MapDiscovery'), { 
   ssr: false,
@@ -25,6 +26,8 @@ const s = {
 
 export default function ConsumerExplore() {
   const { add: addToast } = useToasts()
+  const { location, label, loading: locLoading, isDenied, requestLocation } = useLiveLocation()
+  
   const [merchants, setMerchants] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [view, setView] = useState('map')
@@ -32,23 +35,30 @@ export default function ConsumerExplore() {
   const [favorites, setFavorites] = useState<Set<string>>(new Set())
 
   const toggleFav = (id: string, e?: React.MouseEvent) => {
-    if(e) e.stopPropagation();
+    if (e) e.stopPropagation()
     setFavorites(prev => {
       const n = new Set(prev)
-      if (n.has(id)) { n.delete(id); addToast('Removed from favorites', 'info') }
-      else { n.add(id); addToast('Added to favorites ❤️', 'success') }
+      if (n.has(id)) {
+        n.delete(id)
+        addToast('Removed from favorites', 'info')
+      } else {
+        n.add(id)
+        addToast('Added to favorites', 'success')
+      }
       return n
     })
   }
 
   useEffect(() => {
     loadMerchants()
-  }, [])
+  }, [location])
 
   const loadMerchants = async () => {
     try {
       setLoading(true)
-      const res = await api.get('/merchant')
+      // Fetch with current location if available
+      const params = location ? `?lat=${location.latitude}&lng=${location.longitude}` : ''
+      const res = await api.get(`/merchant${params}`)
       if (res.data.success) {
         setMerchants(res.data.data)
       }
@@ -62,12 +72,37 @@ export default function ConsumerExplore() {
 
   return (
     <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
-      <h1 style={{ fontFamily: 'var(--font-sans)', fontSize: 24, fontWeight: 900, marginBottom: 16 }}>Explore <span style={s.gradCText as React.CSSProperties}>Nearby</span></h1>
+      <h1 style={{ fontFamily: 'var(--font-sans)', fontSize: 24, fontWeight: 900, marginBottom: 8 }}>
+        Explore <span style={s.gradCText as React.CSSProperties}>Nearby</span>
+      </h1>
+      <p style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: 'var(--t3)', marginBottom: 16 }}>
+        <Ic.MapPin /> {locLoading ? 'Detecting your location...' : label}
+      </p>
+
+      {isDenied && (
+        <div style={{ ...s.card, padding: '12px 14px', marginBottom: 14, border: '1px solid rgba(245,196,24,.28)', background: 'rgba(245,196,24,.06)' }}>
+          <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
+            <div style={{ color: '#f5c418', marginTop: 2 }}><Ic.MapPin /></div>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontSize: 13, fontWeight: 800, marginBottom: 3 }}>Location permission denied</div>
+              <div style={{ fontSize: 12, color: 'var(--t3)', lineHeight: 1.4 }}>
+                Open browser site settings for this app, allow location access, and retry.
+              </div>
+            </div>
+            <button type="button" onClick={requestLocation} style={{ border: 'none', borderRadius: 9, padding: '6px 10px', background: '#f5c418', color: '#000', fontSize: 11, fontWeight: 800, cursor: 'pointer' }}>
+              Retry
+            </button>
+          </div>
+        </div>
+      )}
 
       <div style={{ display: 'flex', gap: 3, background: 'rgba(255,255,255,.04)', padding: 3, borderRadius: 11, marginBottom: 18, border: '1px solid var(--bdr)' }}>
-        {[{ v: 'map', l: '🗺 Map' }, { v: 'list', l: '📋 List' }].map(({ v, l }) => (
-          <button key={v} onClick={() => setView(v)} style={{ flex: 1, padding: '9px', borderRadius: 9, border: 'none', background: view === v ? 'rgba(255,255,255,.1)' : 'transparent', color: view === v ? '#fff' : 'var(--t3)', fontWeight: 700, fontSize: 13, cursor: 'pointer', fontFamily: 'var(--font-sans)', transition: 'all .2s' }}>
-            {l}
+        {[
+          { v: 'map', l: 'Map', icon: <Ic.Map /> },
+          { v: 'list', l: 'List', icon: <Ic.Grid /> },
+        ].map(({ v, l, icon }) => (
+          <button key={v} onClick={() => setView(v)} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, flex: 1, padding: '9px', borderRadius: 9, border: 'none', background: view === v ? 'rgba(255,255,255,.1)' : 'transparent', color: view === v ? '#fff' : 'var(--t3)', fontWeight: 700, fontSize: 13, cursor: 'pointer', fontFamily: 'var(--font-sans)', transition: 'all .2s' }}>
+            {icon}{l}
           </button>
         ))}
       </div>
@@ -95,7 +130,8 @@ export default function ConsumerExplore() {
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
           {merchants.map(m => (
             <div key={m.id} style={{ ...s.card, padding: '14px', display: 'flex', alignItems: 'center', gap: 12, cursor: 'pointer' }}
-              className="hover:border-[#f5c41840] hover:translate-x-1"
+              onMouseEnter={e => e.currentTarget.style.borderColor = '#f5c41840'}
+              onMouseLeave={e => e.currentTarget.style.borderColor = 'var(--bdr)'}
               onClick={() => setSelected(m)}>
               <div style={{ width: 50, height: 50, borderRadius: 13, background: `rgba(245,196,24,.1)`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 26, flexShrink: 0 }}>🏪</div>
               <div style={{ flex: 1 }}>
@@ -106,7 +142,7 @@ export default function ConsumerExplore() {
                   <span style={{ ...s.badge('gray') as React.CSSProperties, fontSize: 10 }}>{m.outlets?.length || 0} branches</span>
                 </div>
               </div>
-              <Ic.ChevR />
+              <Ic.ChevronRight />
             </div>
           ))}
         </div>

@@ -1,11 +1,13 @@
 "use client"
 
-import React, { useState, useEffect } from "react"
+import React, { useEffect, useCallback, useRef } from "react"
+import { motion, AnimatePresence } from "framer-motion"
 import { Ic, useToasts, THEME } from "@spotly/ui"
-import { useRouter } from "next/navigation"
 import { useAuthStore } from "@/store/auth.store"
+import { useQueueStore, ExtendedQueueEntry } from "@/store/queue.store"
 
-// Extended styles for this page
+// ─── Styles ────────────────────────────────────────────────────────────────────
+
 const s = {
   ...THEME.styles,
   btnM: {
@@ -21,7 +23,8 @@ const s = {
     fontSize: 14,
     border: 'none',
     cursor: 'pointer',
-    transition: 'all .22s'
+    transition: 'all .22s',
+    minHeight: 48,
   } as React.CSSProperties,
   btnGhost: {
     display: 'inline-flex',
@@ -36,195 +39,490 @@ const s = {
     fontSize: 14,
     border: '1px solid rgba(255,255,255,.12)',
     cursor: 'pointer',
-    transition: 'all .2s'
+    transition: 'all .2s',
+    minHeight: 44,
   } as React.CSSProperties,
-  gradM: { background: THEME.gradients.merchant } as React.CSSProperties,
-  gradMText: THEME.gradients.merchantText,
-  badge: THEME.badge,
-};
+  btnDanger: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: 6,
+    padding: '9px 16px',
+    borderRadius: 10,
+    background: 'rgba(255,77,109,.1)',
+    color: '#ff4d6d',
+    fontWeight: 600,
+    fontSize: 13,
+    border: '1px solid rgba(255,77,109,.2)',
+    cursor: 'pointer',
+    transition: 'all .2s',
+    minHeight: 40,
+  } as React.CSSProperties,
+  btnAccept: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: 6,
+    padding: '9px 16px',
+    borderRadius: 10,
+    background: 'rgba(31,217,124,.1)',
+    color: '#1fd97c',
+    fontWeight: 600,
+    fontSize: 13,
+    border: '1px solid rgba(31,217,124,.2)',
+    cursor: 'pointer',
+    transition: 'all .2s',
+    minHeight: 40,
+  } as React.CSSProperties,
+}
 
-// Mock Data
-const ACTIVITY_FEED = [
-  { id: 1, token: 45, action: 'joined', outlet: 'Main Branch', time: '2m ago', color: '#1fd97c' },
-  { id: 2, token: 44, action: 'served', outlet: 'Main Branch', time: '5m ago', color: '#00cfff' },
-  { id: 3, token: 42, action: 'missed', outlet: 'Airport T2', time: '12m ago', color: '#ff4d6d' },
-  { id: 4, token: 41, action: 'served', outlet: 'Main Branch', time: '18m ago', color: '#00cfff' },
-];
+// ─── Status badge helper ───────────────────────────────────────────────────────
 
-const ANALYTICS = {
-  daily: [
-    { time: '9am', v: 12 }, { time: '10am', v: 28 }, { time: '11am', v: 45 },
-    { time: '12pm', v: 82 }, { time: '1pm', v: 70 }, { time: '2pm', v: 64 },
-    { time: '3pm', v: 38 }, { time: '4pm', v: 52 }, { time: '5pm', v: 92 },
-    { time: '6pm', v: 104 }, { time: '7pm', v: 88 }, { time: '8pm', v: 42 },
-  ].map(d => ({ ...d, v: typeof d.v === 'string' ? 70 : d.v }))
-};
+function StatusBadge({ status }: { status: string }) {
+  const cfg: Record<string, { color: string; bg: string; border: string; label: string }> = {
+    WAITING:            { color: '#f5c418', bg: 'rgba(245,196,24,.12)',  border: 'rgba(245,196,24,.25)',  label: 'Waiting' },
+    CALLED:             { color: '#00cfff', bg: 'rgba(0,207,255,.12)',   border: 'rgba(0,207,255,.25)',   label: 'Called' },
+    SERVED:             { color: '#1fd97c', bg: 'rgba(31,217,124,.12)',  border: 'rgba(31,217,124,.25)',  label: 'Served' },
+    MISSED:             { color: '#ff4d6d', bg: 'rgba(255,77,109,.12)',  border: 'rgba(255,77,109,.25)',  label: 'Missed' },
+    PENDING_ACCEPTANCE: { color: '#a78bfa', bg: 'rgba(167,139,250,.12)', border: 'rgba(167,139,250,.25)', label: 'Pending' },
+  }
+  const c = cfg[status] ?? cfg.WAITING
+  return (
+    <span style={{
+      padding: '3px 10px', borderRadius: 999, fontSize: 11, fontWeight: 700,
+      background: c.bg, color: c.color, border: `1px solid ${c.border}`,
+      whiteSpace: 'nowrap',
+    }}>
+      {c.label}
+    </span>
+  )
+}
 
-const OUTLETS = [
-  { id: 'o1', name: 'Main Branch - Indiranagar', open: true, queue: 14, hours: '9am - 9pm' },
-  { id: 'o2', name: 'Airport Terminal 2', open: true, queue: 8, hours: '24 Hours' },
-];
+// ─── Open/Closed Toggle ────────────────────────────────────────────────────────
 
-export default function MerchantDashboard() {
-  const router = useRouter()
-  const { user, merchantProfile } = useAuthStore()
-  const { add: addToast } = useToasts()
-  const [activityFeed, setActivityFeed] = useState(ACTIVITY_FEED)
+function OpenClosedToggle({ isOpen, onToggle }: { isOpen: boolean; onToggle: () => void }) {
+  return (
+    <button
+      onClick={onToggle}
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: 10,
+        padding: '10px 20px',
+        borderRadius: 99,
+        background: isOpen ? 'rgba(31,217,124,.1)' : 'rgba(255,77,109,.1)',
+        border: `1px solid ${isOpen ? 'rgba(31,217,124,.3)' : 'rgba(255,77,109,.3)'}`,
+        color: isOpen ? '#1fd97c' : '#ff4d6d',
+        fontWeight: 800,
+        fontSize: 13,
+        cursor: 'pointer',
+        transition: 'all .3s',
+        letterSpacing: 0.5,
+      }}
+    >
+      <span style={{
+        width: 10, height: 10, borderRadius: '50%',
+        background: isOpen ? '#1fd97c' : '#ff4d6d',
+        boxShadow: isOpen ? '0 0 8px rgba(31,217,124,.6)' : '0 0 8px rgba(255,77,109,.6)',
+        animation: isOpen ? 'pulse 2s infinite' : 'none',
+        flexShrink: 0,
+      }} />
+      {isOpen ? 'OPEN' : 'CLOSED'}
+    </button>
+  )
+}
 
-  // Simulate live activity
-  useEffect(() => {
-    const t = setInterval(() => {
-      const actions = ['joined', 'served', 'joined', 'missed'];
-      const tokens = [50, 51, 52, 53];
-      const outlets = ['Main Branch', 'Airport Terminal 2'];
-      const colors = ['#1fd97c', '#00cfff', '#1fd97c', '#ff4d6d'];
-      
-      const newIdx = Math.floor(Math.random() * actions.length);
-      setActivityFeed(prev => [{
-        id: Date.now(),
-        token: tokens[newIdx],
-        action: actions[newIdx],
-        outlet: outlets[Math.floor(Math.random() * outlets.length)],
-        time: 'just now',
-        color: colors[newIdx],
-      }, ...prev.slice(0, 7)]);
-    }, 8000);
-    return () => clearInterval(t);
-  }, []);
+// ─── Queue Entry Row ───────────────────────────────────────────────────────────
 
-  const stats = [
-    { n: 23, s: '', l: 'Waiting now', c: '#f5c418', ic: '⏳', sub: '+3 last hour', trend: true },
-    { n: 148, s: '', l: 'Served today', c: '#1fd97c', ic: '✓', sub: '+12% vs yesterday', trend: true },
-    { n: '4.2', s: 'm', l: 'Avg wait', c: '#a78bfa', ic: '⏱', sub: '↓ 0.8 min', trend: false },
-    { n: '4.8', s: '★', l: 'Rating', c: '#fb923c', ic: '★', sub: '98 reviews', trend: true },
-  ];
-
-  const maxH = Math.max(...ANALYTICS.daily.map(d => d.v));
+function QueueRow({ entry, onCallNext, onServed, onAccept, onReject }: {
+  entry: ExtendedQueueEntry
+  onCallNext?: () => void
+  onServed: () => void
+  onAccept: () => void
+  onReject: () => void
+}) {
+  const isPending = entry.status === 'PENDING_ACCEPTANCE'
+  const isMissed  = entry.status === 'MISSED'
+  const isCalled  = entry.status === 'CALLED'
 
   return (
-    <div className="animate-in fade-in slide-in-from-bottom-4 duration-500" style={{ padding: '36px 36px 40px' }}>
-      {/* HEADER */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 32 }}>
+    <motion.div
+      layout
+      initial={{ opacity: 0, x: -12 }}
+      animate={{ opacity: isMissed ? 0.5 : 1, x: 0 }}
+      exit={{ opacity: 0, x: 12 }}
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: 12,
+        padding: '14px 18px',
+        borderRadius: 14,
+        background: isPending
+          ? 'rgba(167,139,250,.06)'
+          : isCalled
+          ? 'rgba(0,207,255,.05)'
+          : isMissed
+          ? 'rgba(255,77,109,.04)'
+          : 'rgba(255,255,255,.02)',
+        border: `1px solid ${
+          isPending
+            ? 'rgba(167,139,250,.2)'
+            : isCalled
+            ? 'rgba(0,207,255,.15)'
+            : isMissed
+            ? 'rgba(255,77,109,.15)'
+            : 'rgba(255,255,255,.06)'
+        }`,
+        textDecoration: isMissed ? 'line-through' : 'none',
+      }}
+    >
+      {/* Token */}
+      <div style={{
+        width: 42, height: 42, borderRadius: 12, flexShrink: 0,
+        background: isPending ? 'rgba(167,139,250,.15)' : isCalled ? 'rgba(0,207,255,.12)' : 'rgba(255,255,255,.06)',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        fontFamily: 'var(--font-mono)', fontWeight: 900, fontSize: 15,
+        color: isPending ? '#a78bfa' : isCalled ? '#00cfff' : 'rgba(255,255,255,.5)',
+      }}>
+        #{entry.tokenNumber}
+      </div>
+
+      {/* Avatar */}
+      <div style={{
+        width: 34, height: 34, borderRadius: '50%', flexShrink: 0,
+        background: `hsl(${(entry.tokenNumber * 41) % 360},55%,45%)`,
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        fontSize: 11, fontWeight: 900, color: '#fff',
+      }}>
+        {entry.userId?.slice(0, 2)?.toUpperCase() ?? '?'}
+      </div>
+
+      {/* Status */}
+      <StatusBadge status={entry.status} />
+
+      {/* Time */}
+      <span style={{
+        fontSize: 11, color: 'rgba(255,255,255,.2)',
+        fontFamily: 'var(--font-mono)', fontWeight: 600, marginLeft: 4,
+      }}>
+        {new Date(entry.joinedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+      </span>
+
+      {/* Actions */}
+      <div style={{ marginLeft: 'auto', display: 'flex', gap: 8, alignItems: 'center' }}>
+        {isPending && (
+          <>
+            <motion.button
+              whileTap={{ scale: 0.95 }}
+              style={s.btnAccept}
+              onClick={onAccept}
+            >
+              ✓ Accept
+            </motion.button>
+            <motion.button
+              whileTap={{ scale: 0.95 }}
+              style={s.btnDanger}
+              onClick={onReject}
+            >
+              ✕ Reject
+            </motion.button>
+          </>
+        )}
+        {entry.status === 'WAITING' && (
+          <motion.button
+            whileHover={{ background: 'rgba(255,77,109,.2)' }}
+            style={{ ...s.btnDanger, padding: '5px 12px', fontSize: 11, borderRadius: 8, minHeight: 32 }}
+            onClick={onReject}
+          >
+            Remove
+          </motion.button>
+        )}
+      </div>
+    </motion.div>
+  )
+}
+
+// ─── Main Dashboard Component ─────────────────────────────────────────────────
+
+export default function MerchantDashboard() {
+  const { user, merchantProfile } = useAuthStore()
+  const { add: addToast } = useToasts()
+  const store = useQueueStore()
+  const pollRef = useRef<NodeJS.Timeout | null>(null)
+
+  // Inject toast function into store
+  useEffect(() => {
+    store.setToastFn(addToast as any)
+  }, [addToast])
+
+  // Bootstrap: fetch outlets + connect WebSocket
+  useEffect(() => {
+    if (!merchantProfile?.id) return
+
+    store.fetchOutlets(merchantProfile.id)
+    store.connectSocket()
+
+    // Fallback poll every 8s
+    pollRef.current = setInterval(() => store.fetchQueue(), 8000)
+
+    return () => {
+      store.disconnectSocket()
+      if (pollRef.current) clearInterval(pollRef.current)
+    }
+  }, [merchantProfile?.id])
+
+  // Re-join socket room when outlet changes
+  useEffect(() => {
+    // fetchQueue is called inside setSelectedOutletId / fetchOutlets
+  }, [store.selectedOutletId])
+
+  // ── Derived state ───────────────────────────────────────────────────────────
+  const entries       = store.entries
+  const waiting       = entries.filter(e => e.status === 'WAITING')
+  const pending       = entries.filter(e => e.status === 'PENDING_ACCEPTANCE')
+  const called        = entries.find(e => e.status === 'CALLED') ?? null
+  const servedToday   = entries.filter(e => e.status === 'SERVED').length
+  const missedToday   = entries.filter(e => e.status === 'MISSED').length
+
+  // ── Loading ─────────────────────────────────────────────────────────────────
+  if (store.loading) {
+    return (
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '60vh' }}>
+        <motion.div
+          animate={{ rotate: 360 }}
+          transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
+          style={{ width: 44, height: 44, border: '3px solid rgba(255,255,255,.04)', borderTopColor: '#1fd97c', borderRadius: '50%' }}
+        />
+      </div>
+    )
+  }
+
+  // ── No profile ──────────────────────────────────────────────────────────────
+  if (!merchantProfile) {
+    return (
+      <div style={{ padding: '60px 20px', textAlign: 'center', maxWidth: 400, margin: '0 auto' }}>
+        <div style={{ fontSize: 48, marginBottom: 20 }}>📊</div>
+        <h2 style={{ fontFamily: 'var(--font-sans)', fontWeight: 800, fontSize: 22, marginBottom: 8 }}>
+          Complete Onboarding First
+        </h2>
+        <p style={{ color: 'var(--t3)', fontSize: 14, marginBottom: 24, lineHeight: 1.5 }}>
+          Set up your merchant profile to start managing queues.
+        </p>
+        <a href="/onboarding" style={{ ...s.btnM, textDecoration: 'none', display: 'inline-flex' }}>
+          Start Onboarding
+        </a>
+      </div>
+    )
+  }
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      style={{ padding: '32px 36px 56px' }}
+    >
+      {/* ═══ HEADER ═══ */}
+      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 28, flexWrap: 'wrap', gap: 16 }}>
         <div>
-          <h1 style={{ fontFamily: 'var(--font-sans)', fontSize: 30, fontWeight: 900, marginBottom: 4 }}>
-            Good morning, {merchantProfile?.name?.split(' ')[0] || user?.email?.split('@')[0] || 'Merchant'} 👋
-          </h1>
-          <p style={{ color: 'rgba(255,255,255,.35)', fontSize: 14 }}>The Coffee Lab · {OUTLETS.length} outlets · {new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}</p>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 4 }}>
+            <h1 style={{ fontFamily: 'var(--font-sans)', fontSize: 28, fontWeight: 900, lineHeight: 1.1 }}>
+              {merchantProfile.name}
+            </h1>
+            <span style={{
+              padding: '4px 12px', borderRadius: 99,
+              background: 'rgba(31,217,124,.1)', border: '1px solid rgba(31,217,124,.2)',
+              color: '#1fd97c', fontSize: 11, fontWeight: 800, textTransform: 'uppercase', letterSpacing: 1,
+            }}>
+              {merchantProfile.category}
+            </span>
+          </div>
+          <p style={{ color: 'rgba(255,255,255,.3)', fontSize: 14 }}>
+            {new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
+          </p>
         </div>
-        <div style={{ display: 'flex', gap: 10 }}>
-          <button style={{ ...s.btnGhost, gap: 6, fontSize: 13 }} onClick={() => router.push('/dashboard/outlets')}><Ic.Plus />New Outlet</button>
-          <button style={{ ...s.btnM, gap: 6, fontSize: 13 }} onClick={() => { router.push('/dashboard/queue'); addToast('Queue operator opened', 'info') }}><Ic.Zap />Open Queue</button>
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          {/* WS status */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, fontWeight: 700, color: store.wsConnected ? '#1fd97c' : 'rgba(255,255,255,.3)' }}>
+            <div style={{ width: 7, height: 7, borderRadius: '50%', background: store.wsConnected ? '#1fd97c' : 'rgba(255,255,255,.3)', boxShadow: store.wsConnected ? '0 0 6px rgba(31,217,124,.5)' : 'none' }} />
+            {store.wsConnected ? 'Live' : 'Polling'}
+          </div>
+
+          {/* Outlet selector */}
+          {store.outlets.length > 1 && (
+            <select
+              value={store.selectedOutletId}
+              onChange={e => store.setSelectedOutletId(e.target.value)}
+              style={{
+                padding: '10px 14px', borderRadius: 12,
+                background: 'rgba(255,255,255,.04)',
+                border: '1px solid rgba(255,255,255,.1)',
+                color: '#fff', fontSize: 13, fontWeight: 600, cursor: 'pointer', outline: 'none',
+              }}
+            >
+              {store.outlets.map(o => <option key={o.id} value={o.id} style={{ background: '#0f0f14' }}>{o.name}</option>)}
+            </select>
+          )}
+
+          {/* Open/Closed toggle — ALWAYS VISIBLE */}
+          <OpenClosedToggle isOpen={store.isOpen} onToggle={store.toggleOpen} />
         </div>
       </div>
 
-      {/* STAT CARDS */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 14, marginBottom: 24 }}>
-        {stats.map((st, i) => (
-          <div key={i} style={{ ...s.card, padding: '24px', cursor: 'pointer', position: 'relative', overflow: 'hidden' }}>
-            <div style={{ position: 'absolute', top: -20, right: -20, width: 90, height: 90, borderRadius: '50%', background: st.c, opacity: .06, filter: 'blur(20px)' }} />
-            <div style={{ width: 42, height: 42, borderRadius: 12, background: `${st.c}18`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20, marginBottom: 16 }}>{st.ic}</div>
-            <div style={{ fontFamily: 'var(--font-mono)', fontSize: 32, fontWeight: 800, color: st.c, marginBottom: 4, letterSpacing: -1 }}>{st.n}{st.s}</div>
-            <div style={{ fontSize: 12, color: 'rgba(255,255,255,.35)', marginBottom: 8 }}>{st.l}</div>
-            <div style={{ fontSize: 11, color: `${st.c}cc`, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 5 }}>{st.trend && <Ic.TrendUp />}{st.sub}</div>
+      {/* ═══ STATS ROW ═══ */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))', gap: 14, marginBottom: 24 }}>
+        {[
+          { label: 'Waiting',          value: waiting.length,    color: '#f5c418', icon: '⏳', sub: `${pending.length} pending acceptance` },
+          { label: 'Now Serving',       value: called ? `#${called.tokenNumber}` : '—', color: '#00cfff', icon: '🔔', sub: called ? 'Token called' : 'Queue idle' },
+          { label: 'Served Today',      value: servedToday,       color: '#1fd97c', icon: '✓',  sub: 'Completed sessions' },
+          { label: 'Missed Today',      value: missedToday,       color: '#ff4d6d', icon: '⚠️', sub: 'Did not show up' },
+        ].map((st) => (
+          <div key={st.label} style={{ ...s.card, padding: '22px', position: 'relative', overflow: 'hidden' }}>
+            <div style={{ position: 'absolute', top: -20, right: -20, width: 80, height: 80, borderRadius: '50%', background: st.color, opacity: .06, filter: 'blur(20px)' }} />
+            <div style={{ width: 38, height: 38, borderRadius: 11, background: `${st.color}18`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18, marginBottom: 14 }}>{st.icon}</div>
+            <div style={{ fontFamily: 'var(--font-mono)', fontSize: 30, fontWeight: 800, color: st.color, marginBottom: 2, letterSpacing: -1, lineHeight: 1 }}>{st.value}</div>
+            <div style={{ fontSize: 11, color: 'rgba(255,255,255,.3)', marginBottom: 4 }}>{st.label}</div>
+            <div style={{ fontSize: 11, color: `${st.color}99`, fontWeight: 700 }}>{st.sub}</div>
           </div>
         ))}
       </div>
 
-      {/* TWO COL */}
-      <div style={{ display: 'grid', gridTemplateColumns: '3fr 2fr', gap: 16, marginBottom: 16 }}>
-        {/* TRAFFIC CHART */}
-        <div style={{ ...s.card, padding: '24px' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-            <h3 style={{ fontFamily: 'var(--font-sans)', fontWeight: 800, fontSize: 16 }}>Today's Traffic</h3>
-            <span style={{ ...s.badge('merchant'), fontSize: 10, background: 'rgba(255,255,255,.05)', border: '1px solid rgba(255,255,255,.1)' } as React.CSSProperties}>Live · Updates every 15m</span>
-          </div>
-          <div style={{ display: 'flex', alignItems: 'flex-end', gap: 5, height: 120, marginBottom: 12 }}>
-            {ANALYTICS.daily.map((d: any, i: number) => {
-              const pct = (d.v / maxH) * 100
-              const isHigh = pct > 75
-              return (
-                <div key={i} style={{ flex: 1, height: '100%', display: 'flex', alignItems: 'flex-end', position: 'relative', cursor: 'pointer' }} title={`${d.time}: ${d.v} tokens`}>
-                  <div style={{ width: '100%', borderRadius: '4px 4px 0 0', background: isHigh ? 'linear-gradient(180deg,#f5c418,#ff6316)' : THEME.gradients.merchant, height: `${pct}%`, minHeight: 4, transition: 'height .8s ease-out', opacity: .8 }} />
-                </div>
-              )
-            })}
-          </div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 9, color: 'rgba(255,255,255,.25)', fontWeight: 600 }}>
-            {ANALYTICS.daily.filter((_: any, i: number) => i % 3 === 0).map((d: any) => <span key={d.time}>{d.time}</span>)}
-          </div>
+      {store.outlets.length === 0 ? (
+        <div style={{ ...s.card, padding: 60, textAlign: 'center', borderStyle: 'dashed', opacity: 0.6 }}>
+          <div style={{ fontSize: 48, marginBottom: 12 }}>🏪</div>
+          <div style={{ fontWeight: 800, fontSize: 18, marginBottom: 6 }}>No outlets yet</div>
+          <p style={{ color: 'rgba(255,255,255,.3)', fontSize: 14 }}>Complete onboarding to create your first outlet.</p>
         </div>
+      ) : (
+        <>
+          {/* ═══ NOW SERVING + CALL NEXT ═══ */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 16, marginBottom: 20 }}>
 
-        {/* ACTIVITY FEED */}
-        <div style={{ ...s.card, padding: '24px', display: 'flex', flexDirection: 'column' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 18 }}>
-            <h3 style={{ fontFamily: 'var(--font-sans)', fontWeight: 800, fontSize: 16 }}>Live Activity</h3>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 10, color: '#1fd97c', fontWeight: 800, letterSpacing: .5 }}>
-              <div style={{ width: 6, height: 6, borderRadius: '50%', background: '#1fd97c', animation: 'pulse 2s infinite' }} />
-              REAL-TIME
+            {/* Now Serving card */}
+            <motion.div layout style={{
+              ...s.card, padding: '32px', textAlign: 'center',
+              background: called ? 'rgba(0,207,255,.05)' : 'rgba(255,255,255,.01)',
+              borderColor: called ? 'rgba(0,207,255,.2)' : 'rgba(255,255,255,.06)',
+              position: 'relative', overflow: 'hidden',
+            }}>
+              <div style={{ position: 'absolute', top: -30, right: -30, width: 120, height: 120, borderRadius: '50%', background: called ? 'rgba(0,207,255,.1)' : 'rgba(255,255,255,.02)', filter: 'blur(30px)' }} />
+              <div style={{ fontSize: 11, fontWeight: 700, color: '#00cfff', textTransform: 'uppercase', letterSpacing: 1.5, marginBottom: 10, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+                🔔 Now Serving
+              </div>
+              <AnimatePresence mode="wait">
+                <motion.div
+                  key={called?.tokenNumber ?? 'empty'}
+                  initial={{ scale: 0.8, opacity: 0 }}
+                  animate={{ scale: 1, opacity: 1 }}
+                  exit={{ scale: 0.8, opacity: 0 }}
+                  style={{ fontFamily: 'var(--font-mono)', fontSize: 80, fontWeight: 800, color: called ? '#fff' : 'rgba(255,255,255,.08)', lineHeight: 1, marginBottom: 8 }}
+                >
+                  {called ? `#${called.tokenNumber}` : '—'}
+                </motion.div>
+              </AnimatePresence>
+              {called && (
+                <div style={{ fontSize: 13, color: 'rgba(255,255,255,.4)', marginBottom: 20 }}>
+                  User: {called.userId?.slice(0, 8)}…
+                </div>
+              )}
+              {called ? (
+                <div style={{ display: 'flex', gap: 10, justifyContent: 'center' }}>
+                  <motion.button whileHover={{ scale: 1.04, y: -1 }} whileTap={{ scale: 0.96 }} style={s.btnM} onClick={() => store.markServed(called.id)}>
+                    ✓ Mark Served
+                  </motion.button>
+                </div>
+              ) : (
+                <p style={{ color: 'rgba(255,255,255,.2)', fontSize: 13, fontWeight: 600 }}>Queue is idle</p>
+              )}
+            </motion.div>
+
+            {/* Call Next card */}
+            <div style={{ ...s.card, padding: '32px', textAlign: 'center' }}>
+              <AnimatePresence mode="wait">
+                <motion.div
+                  key={waiting.length}
+                  initial={{ scale: 0.7, opacity: 0 }}
+                  animate={{ scale: 1, opacity: 1 }}
+                  style={{ fontFamily: 'var(--font-mono)', fontSize: 64, fontWeight: 800, color: waiting.length > 0 ? '#f5c418' : 'rgba(255,255,255,.1)', lineHeight: 1, marginBottom: 4 }}
+                >
+                  {waiting.length}
+                </motion.div>
+              </AnimatePresence>
+              <div style={{ fontSize: 13, color: 'rgba(255,255,255,.3)', marginBottom: 24, fontWeight: 600 }}>
+                {waiting.length === 1 ? 'customer waiting' : 'customers waiting'}
+              </div>
+              <motion.button
+                whileHover={{ scale: 1.02, y: -2, boxShadow: '0 12px 28px rgba(31,217,124,.3)' }}
+                whileTap={{ scale: 0.97 }}
+                style={{
+                  ...s.btnM, width: '100%', padding: '18px',
+                  fontSize: 15, borderRadius: 14, gap: 10,
+                  opacity: waiting.length === 0 ? 0.45 : 1,
+                  cursor: waiting.length === 0 ? 'not-allowed' : 'pointer',
+                }}
+                onClick={store.callNext}
+                disabled={waiting.length === 0}
+              >
+                <Ic.Bell />
+                {waiting.length > 0 ? `Call #${waiting[0].tokenNumber}` : 'Queue Empty'}
+              </motion.button>
+              {waiting.length > 0 && (
+                <p style={{ fontSize: 11, color: 'rgba(255,255,255,.2)', marginTop: 10, fontFamily: 'var(--font-mono)' }}>
+                  Next: Token #{waiting[0]?.tokenNumber}
+                </p>
+              )}
             </div>
           </div>
-          <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 0 }}>
-            {activityFeed.map((a, i) => (
-              <div key={a.id} className="animate-in slide-in-from-left-4 duration-300" style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 0', borderBottom: i < activityFeed.length - 1 ? '1px solid rgba(255,255,255,.05)' : 'none' }}>
-                <div style={{ width: 32, height: 32, borderRadius: 10, background: `${a.color}18`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'var(--font-mono)', fontWeight: 800, fontSize: 12, color: a.color, flexShrink: 0 }}>#{a.token}</div>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: 13, color: 'rgba(255,255,255,.8)', fontWeight: 600, textTransform: 'capitalize' }}>{a.action}</div>
-                  <div style={{ fontSize: 11, color: 'rgba(255,255,255,.25)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{a.outlet}</div>
-                </div>
-                <span style={{ fontSize: 10, color: 'rgba(255,255,255,.2)', flexShrink: 0, fontWeight: 600 }}>{a.time}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
 
-      {/* QUICK STATUS */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 16 }}>
-        <div style={{ ...s.card, padding: '24px' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 20 }}>
-            <h3 style={{ fontFamily: 'var(--font-sans)', fontWeight: 800, fontSize: 15 }}>Outlet Status</h3>
-            <button style={{ ...s.btnGhost, padding: '5px 12px', fontSize: 11, borderRadius: 8 }} onClick={() => router.push('/dashboard/outlets')}>View All</button>
-          </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-            {OUTLETS.map((o: any) => (
-              <div key={o.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 0', borderBottom: '1px solid rgba(255,255,255,.05)' }}>
-                <div style={{ width: 8, height: 8, borderRadius: '50%', background: o.open ? '#1fd97c' : '#374151', flexShrink: 0, boxShadow: o.open ? '0 0 10px rgba(31,217,124,.4)' : 'none' }} />
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontWeight: 700, fontSize: 14, color: 'rgba(255,255,255,.8)' }}>{o.name}</div>
-                  <div style={{ fontSize: 11, color: 'rgba(255,255,255,.25)' }}>Today: {o.hours}</div>
-                </div>
-                <div style={{ textAlign: 'right' }}>
-                  <div style={{ fontFamily: 'var(--font-mono)', fontWeight: 800, fontSize: 22, color: o.open ? '#f5c418' : 'rgba(255,255,255,.15)', lineHeight: 1 }}>{o.queue}</div>
-                  <div style={{ fontSize: 10, color: 'rgba(255,255,255,.2)', fontWeight: 700, marginTop: 4 }}>WAITING</div>
-                </div>
+          {/* ═══ LIVE QUEUE BOARD ═══ */}
+          <div style={{ ...s.card, padding: '24px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20, flexWrap: 'wrap', gap: 10 }}>
+              <h3 style={{ fontFamily: 'var(--font-sans)', fontWeight: 800, fontSize: 17 }}>Live Queue</h3>
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                {pending.length > 0 && (
+                  <span style={{ padding: '3px 10px', borderRadius: 999, background: 'rgba(167,139,250,.12)', border: '1px solid rgba(167,139,250,.25)', fontSize: 11, fontWeight: 700, color: '#a78bfa' }}>
+                    {pending.length} Pending
+                  </span>
+                )}
+                <span style={{ padding: '3px 10px', borderRadius: 999, background: 'rgba(245,196,24,.12)', border: '1px solid rgba(245,196,24,.22)', fontSize: 11, fontWeight: 700, color: '#f5c418' }}>
+                  {waiting.length} Waiting
+                </span>
+                <span style={{ padding: '3px 10px', borderRadius: 999, background: 'rgba(31,217,124,.12)', border: '1px solid rgba(31,217,124,.22)', fontSize: 11, fontWeight: 700, color: '#1fd97c' }}>
+                  {entries.filter(e => e.status === 'CALLED').length} Called
+                </span>
               </div>
-            ))}
-          </div>
-        </div>
+            </div>
 
-        <div style={{ ...s.card, padding: '24px' }}>
-          <h3 style={{ fontFamily: 'var(--font-sans)', fontWeight: 800, fontSize: 15, marginBottom: 20 }}>Terminal Actions</h3>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-            {[
-              { l: 'Call Next', ic: <Ic.Bell />, c: '#1fd97c', a: () => router.push('/dashboard/queue') },
-              { l: 'Add Outlet', ic: <Ic.Plus />, c: '#a78bfa', a: () => router.push('/dashboard/outlets') },
-              { l: 'Analytics', ic: <Ic.Bar />, c: '#f5c418', a: () => router.push('/dashboard/analytics') },
-              { l: 'Business', ic: <Ic.Building />, c: '#fb923c', a: () => router.push('/dashboard/business') },
-            ].map(a => (
-              <button 
-                key={a.l} 
-                onClick={a.a} 
-                style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 8, padding: '18px 10px', borderRadius: 14, background: 'rgba(255,255,255,.03)', border: '1px solid rgba(255,255,255,.06)', color: a.c, fontWeight: 700, fontSize: 12, cursor: 'pointer', transition: 'all .2s' }} 
-                onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,.06)'; e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.borderColor = `${a.c}44` }} 
-                onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,255,255,.03)'; e.currentTarget.style.transform = ''; e.currentTarget.style.borderColor = 'rgba(255,255,255,.06)' }}
-              >
-                <div style={{ width: 32, height: 32, borderRadius: '50%', background: `${a.c}18`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{a.ic}</div>
-                {a.l}
-              </button>
-            ))}
+            {entries.length === 0 ? (
+              <div style={{ textAlign: 'center', padding: '52px 20px', color: 'rgba(255,255,255,.15)' }}>
+                <div style={{ fontSize: 40, marginBottom: 10 }}>🍃</div>
+                <div style={{ fontWeight: 700, fontSize: 15 }}>The queue is empty</div>
+                <div style={{ fontSize: 13, marginTop: 4 }}>Customers who join will appear here in real-time</div>
+              </div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8, maxHeight: '50vh', overflowY: 'auto' }}>
+                <AnimatePresence>
+                  {/* PENDING first */}
+                  {[...pending, ...entries.filter(e => e.status !== 'PENDING_ACCEPTANCE')].map(entry => (
+                    <QueueRow
+                      key={entry.id}
+                      entry={entry}
+                      onServed={() => store.markServed(entry.id)}
+                      onAccept={() => store.acceptEntry(entry.id)}
+                      onReject={() => store.rejectEntry(entry.id)}
+                    />
+                  ))}
+                </AnimatePresence>
+              </div>
+            )}
           </div>
-        </div>
-      </div>
-    </div>
+        </>
+      )}
+
+      <style>{`
+        @keyframes pulse {
+          0%, 100% { opacity: 1; }
+          50% { opacity: 0.5; }
+        }
+      `}</style>
+    </motion.div>
   )
 }
