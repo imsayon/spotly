@@ -8,8 +8,14 @@ export interface MerchantProfile {
   userId: string;
   name: string;
   category: string;
+  description?: string;
   phone?: string;
+  contactEmail?: string;
+  website?: string;
   address?: string;
+  foundingYear?: number;
+  logoUrl?: string;
+  gstNumber?: string;
 }
 
 interface AuthState {

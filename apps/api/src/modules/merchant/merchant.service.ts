@@ -6,7 +6,7 @@ import { Merchant } from '@spotly/database';
 export class MerchantService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async create(userId: string, name: string, category: string): Promise<Merchant> {
+  async create(userId: string, data: Partial<Merchant>): Promise<Merchant> {
     const existing = await this.findByUser(userId);
     if (existing) {
       return existing;
@@ -15,8 +15,16 @@ export class MerchantService {
     return this.prisma.merchant.create({
       data: {
         ownerId: userId,
-        name,
-        category,
+        name: data.name || 'Set Your Business Name',
+        category: data.category || 'General',
+        description: data.description,
+        phone: data.phone,
+        contactEmail: data.contactEmail,
+        website: data.website,
+        address: data.address,
+        foundingYear: data.foundingYear,
+        logoUrl: data.logoUrl,
+        gstNumber: data.gstNumber,
       },
     });
   }
@@ -63,6 +71,13 @@ export class MerchantService {
         name: data.name,
         category: data.category,
         description: data.description,
+        phone: data.phone,
+        contactEmail: data.contactEmail,
+        website: data.website,
+        address: data.address,
+        foundingYear: data.foundingYear,
+        logoUrl: data.logoUrl,
+        gstNumber: data.gstNumber,
       },
     });
   }

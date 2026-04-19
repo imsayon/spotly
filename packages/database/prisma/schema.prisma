@@ -29,7 +29,15 @@ model Merchant {
   name        String
   category    String
   description String?
+  phone       String?
+  contactEmail String?
+  website     String?
+  address     String?
+  foundingYear Int?
+  logoUrl     String?
+  gstNumber   String?
   verified    Boolean  @default(false)
+  
   outlets     Outlet[]
 }
 
