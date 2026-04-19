@@ -9,22 +9,30 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-model User {
-  id        String   @id @default(uuid())
-  email     String?  @unique
-  phone     String?  @unique
-  name      String?
-  role      Role     @default(CONSUMER)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
 
+
+model User {
+  id              String   @id @default(uuid())
+  email           String?  @unique
+  phone           String?  @unique
+  isPhoneVerified Boolean  @default(false)
+  name            String?
+  location        String?
+  role            Role     @default(CONSUMER)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  merchant  Merchant?
   queues    QueueEntry[]
   reviews   Review[]
 }
 
+
 model Merchant {
   id          String   @id @default(uuid())
   ownerId     String   @unique
+  user        User     @relation(fields: [ownerId], references: [id])
+  spotId      String?  @unique // User-facing ID (e.g., SPOT-1234)
   name        String
   category    String
   description String?
@@ -41,6 +49,7 @@ model Merchant {
   
   outlets     Outlet[]
 }
+
 
 model Outlet {
   id          String   @id @default(uuid())
