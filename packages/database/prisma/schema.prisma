@@ -14,6 +14,7 @@ model User {
   email     String?  @unique
   phone     String?  @unique
   name      String?
+  location  String?
   role      Role     @default(CONSUMER)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
