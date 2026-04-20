@@ -6,14 +6,14 @@ import { User, Role } from '@spotly/database';
 export class UserService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async upsertUser(uid: string, phone: string | null, name: string, role: string = 'CONSUMER'): Promise<User> {
+  async upsertUser(uid: string, email: string | null, name: string, role: string = 'CONSUMER'): Promise<User> {
     const existing = await this.findById(uid);
     if (existing) return existing;
 
     return this.prisma.user.create({
       data: {
         id: uid, // Use Firebase UID as Prisma ID
-        phone: phone || undefined,
+        email: email || undefined,
         name: name,
         role: role as Role,
       },
@@ -34,11 +34,19 @@ export class UserService {
   }
 
   async updateProfile(uid: string, data: Partial<User>): Promise<User | null> {
-    return this.prisma.user.update({
+    return this.prisma.user.upsert({
       where: { id: uid },
-      data: {
+      create: {
+        id: uid,
         name: data.name,
         phone: data.phone,
+        location: data.location,
+        role: Role.CONSUMER,
+      },
+      update: {
+        name: data.name,
+        phone: data.phone,
+        location: data.location,
       },
     });
   }

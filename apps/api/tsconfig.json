@@ -14,6 +14,7 @@
     "outDir": "./dist",
     "baseUrl": "./",
     "paths": {
+      "@spotly/database": ["../../packages/database/src/index.ts"],
       "@spotly/types": ["../../packages/types/src/index.ts"]
     }
   },

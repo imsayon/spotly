@@ -5,7 +5,8 @@ import api from '@/lib/api';
 
 export interface MerchantProfile {
   id: string;
-  userId: string;
+  ownerId: string;
+  spotId?: string;
   name: string;
   category: string;
   description?: string;
@@ -18,7 +19,9 @@ export interface MerchantProfile {
   gstNumber?: string;
   lat?: number;
   lng?: number;
+  outlets?: any[];
 }
+
 
 interface AuthState {
   user: FirebaseUser | null;
@@ -57,6 +60,8 @@ export const useAuthStore = create<AuthState>()((set, get) => ({
         set({ merchantProfile: null });
         return null;
       }
+      console.error('[AuthStore] fetchMerchantProfile Error:', err);
+      // Let the caller handle or see the error if they check the console, otherwise return null
       return null;
     }
   },

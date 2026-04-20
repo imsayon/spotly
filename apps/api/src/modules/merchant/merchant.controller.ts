@@ -8,8 +8,8 @@ import { DecodedUser } from '../auth/auth.service';
 import { IsEmail, IsInt, IsNotEmpty, IsNumber, IsOptional, IsString } from 'class-validator';
 
 class CreateMerchantDto {
-  @IsString() @IsNotEmpty() name!: string;
-  @IsString() @IsNotEmpty() category!: string;
+  @IsString() @IsOptional() name?: string;
+  @IsString() @IsOptional() category?: string;
   @IsString() @IsOptional() description?: string;
   @IsString() @IsOptional() phone?: string;
   @IsString() @IsOptional() contactEmail?: string;

@@ -30,8 +30,13 @@ async function bootstrap() {
   app.setGlobalPrefix('api');
 
   const port = process.env.PORT ?? 3001;
-  await app.listen(port);
-  console.log(`🚀 Spotly API running on http://localhost:${port}/api`);
+  console.log(`[Bootstrap] Attempting to listen on port ${port}...`);
+  try {
+    await app.listen(port);
+    console.log(`🚀 Spotly API running on http://localhost:${port}/api`);
+  } catch (error) {
+    console.error(`[Bootstrap] Error listening on port ${port}:`, error);
+  }
 }
 
 bootstrap();

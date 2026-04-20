@@ -140,6 +140,21 @@ export class FirestoreQueueRepository implements QueueRepository {
     }
   }
 
+  async acceptEntry(entryId: string): Promise<void> {
+    try {
+      await this.db
+        .collection(this.collection)
+        .doc(entryId)
+        .update({ status: 'WAITING' as QueueStatus });
+    } catch (err) {
+      if (!this.isFirestoreFallbackError(err)) throw err;
+      const existing = FirestoreQueueRepository.memoryStore.get(entryId);
+      if (existing) {
+        FirestoreQueueRepository.memoryStore.set(entryId, { ...existing, status: 'WAITING' });
+      }
+    }
+  }
+
   async countWaiting(outletId: string): Promise<number> {
     try {
       const snapshot = await this.db

@@ -22,13 +22,14 @@ api.interceptors.request.use(async (config) => {
   return config;
 });
 
-// ─── Response Interceptor — Normalize errors ─────────────────────────────────
+// ─── Response Interceptor — Preserve full error for catch blocks ─────────────
 api.interceptors.response.use(
   (response) => response,
   (error) => {
-    const message =
-      error.response?.data?.message ?? error.message ?? 'Something went wrong';
-    return Promise.reject(new Error(message));
+    if (error.response) {
+      error.message = error.response.data?.message ?? error.response.statusText ?? 'Request failed';
+    }
+    return Promise.reject(error);
   },
 );
 

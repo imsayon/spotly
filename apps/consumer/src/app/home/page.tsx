@@ -7,13 +7,16 @@ import { Ic, useToasts, THEME } from "@spotly/ui"
 import { useAuthStore } from "@/store/auth.store"
 import api from "@/lib/api"
 import { s } from "./home.styles"
+import { useLiveLocation } from "@/lib/useLiveLocation"
 
 export default function ConsumerHome() {
   const { user, profile } = useAuthStore()
   const { add: addToast } = useToasts()
   const router = useRouter()
+  const { label: liveLocationLabel, isDenied, requestLocation } = useLiveLocation({ prompt: true })
 
   const displayName = profile?.name || (user as any)?.user_metadata?.name || user?.email?.split('@')[0] || 'Member'
+  const shownLocation = liveLocationLabel !== "Location unavailable" ? liveLocationLabel : (profile?.location || "Location unavailable")
   
   const [merchants, setMerchants] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
@@ -45,8 +48,8 @@ export default function ConsumerHome() {
   ];
 
   const OFFERS = [
-    { id: 1, title: 'Spotly Gold', sub: 'Priority queueing at 12 partner cafés', emoji: 'Premium', bg: 'rgba(245,196,24,.07)', color: '#f5c418' },
-    { id: 2, title: 'Free Wait', sub: 'Join any clinical queue for free today', emoji: 'Health', bg: 'rgba(31,217,124,.07)', color: '#1fd97c' },
+    { id: 1, title: 'Spotly Gold', sub: 'Priority queueing at 12 partner cafés', iconLabel: 'Premium', bg: 'rgba(245,196,24,.07)', color: '#f5c418' },
+    { id: 2, title: 'Free Wait', sub: 'Join any clinical queue for free today', iconLabel: 'Health', bg: 'rgba(31,217,124,.07)', color: '#1fd97c' },
   ];
 
   const filtered = (merchants || []).filter(m => {
@@ -69,7 +72,7 @@ export default function ConsumerHome() {
             Hey, {displayName.split(' ')[0]}
           </h1>
           <div style={{ display: 'flex', alignItems: 'center', gap: 6, color: 'rgba(255,255,255,.3)', fontSize: 13, fontWeight: 600 }}>
-            <Ic.MapPin /><span>Bengaluru, India</span>
+            <Ic.MapPin /><span>{shownLocation}</span>
             <div style={{ width: 4, height: 4, borderRadius: '50%', background: '#1fd97c' }} />
           </div>
         </div>
@@ -77,6 +80,27 @@ export default function ConsumerHome() {
           {displayName[0].toUpperCase()}
         </div>
       </div>
+
+      {isDenied && (
+        <div style={{ ...s.card, padding: '14px 16px', marginBottom: 18, border: '1px solid rgba(245,196,24,.28)', background: 'rgba(245,196,24,.06)' }}>
+          <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
+            <div style={{ color: '#f5c418', marginTop: 2 }}><Ic.MapPin /></div>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontSize: 13, fontWeight: 800, marginBottom: 4 }}>Location access is off</div>
+              <div style={{ fontSize: 12, color: 'rgba(255,255,255,.65)', lineHeight: 1.45 }}>
+                Enable location permission from your browser site settings, then retry to show your precise area.
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={requestLocation}
+              style={{ border: 'none', borderRadius: 9, padding: '7px 10px', background: '#f5c418', color: '#000', fontSize: 11, fontWeight: 800, cursor: 'pointer' }}
+            >
+              Retry
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* SEARCH */}
       <div style={{ position: 'relative', marginBottom: 24 }}>

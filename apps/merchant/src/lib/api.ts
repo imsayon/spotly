@@ -18,9 +18,17 @@ api.interceptors.request.use(async (config) => {
   return config;
 });
 
+// ─── Response Interceptor — Preserve full error for catch blocks ─────────
 api.interceptors.response.use(
   (r) => r,
-  (err) => Promise.reject(new Error(err.response?.data?.message ?? err.message ?? 'Error')),
+  (err) => {
+    // Re-throw original axios error so catch blocks can access err.response.data
+    // Attach a clean .message for convenience
+    if (err.response) {
+      err.message = err.response.data?.message ?? err.response.statusText ?? 'Request failed';
+    }
+    return Promise.reject(err);
+  },
 );
 
 export default api;

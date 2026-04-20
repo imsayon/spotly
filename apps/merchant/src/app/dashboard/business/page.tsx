@@ -63,6 +63,9 @@ const s = {
 export default function MerchantBusiness() {
   const { add: addToast } = useToasts()
   const { user, merchantProfile, fetchMerchantProfile } = useAuthStore()
+
+  // Declare profile early so handleUpdate closure captures correct value
+  const profile = merchantProfile
   
   const [loading, setLoading] = useState(false)
   const [form, setForm] = useState({
@@ -112,18 +115,18 @@ export default function MerchantBusiness() {
         : await api.post('/merchant', data)
       
       if (res.data.success) {
-        await fetchMerchantProfile() // Sync global store
+        await fetchMerchantProfile()
         addToast(profile ? 'Business profile updated!' : 'Business profile created!', 'success')
       }
     } catch (err: any) {
-      console.error('Update failed:', err)
-      addToast(err.response?.data?.message || 'Failed to update profile', 'error')
+      // err may be a plain Error (after axios interceptor) or an axios error
+      const msg = err?.response?.data?.message || err?.message || 'Failed to update profile'
+      console.error('[BusinessProfile] Update failed:', err)
+      addToast(msg, 'error')
     } finally {
       setLoading(false)
     }
   }
-
-  const profile = merchantProfile
 
   return (
     <div className="animate-in fade-in slide-in-from-bottom-4 duration-500" style={{ padding: '36px 36px 40px', maxWidth: 820 }}>
@@ -134,7 +137,7 @@ export default function MerchantBusiness() {
           <p style={{ color: 'rgba(255,255,255,.35)', fontSize: 14 }}>Manage your brand identity and legal credentials</p>
         </div>
         <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '7px 14px', borderRadius: 999, background: 'rgba(31,217,124,.12)', border: '1px solid rgba(31,217,124,.2)', color: '#1fd97c', fontSize: 12, fontWeight: 800 }}>
-          <Ic.Shield /> {profile?.verified ? 'Verified Merchant' : 'Pending Verification'}
+          <Ic.Shield /> {(profile as any)?.verified ? 'Verified Merchant' : 'Pending Verification'}
         </div>
       </div>
 
@@ -154,7 +157,7 @@ export default function MerchantBusiness() {
             {profile?.description || (profile ? "Tell us more about your business..." : "Complete your profile to start managing outlets.")}
           </p>
           <div style={{ display: 'flex', gap: 20, fontSize: 12, color: 'rgba(255,255,255,.25)', fontWeight: 600 }}>
-            <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><Ic.Store />{profile?.outlets?.length || 0} Outlets</span>
+            <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><Ic.Store />{(profile as any)?.outlets?.length || 0} Outlets</span>
             <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><Ic.Star />4.8 Rating</span>
             <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><Ic.Users />New Partner</span>
           </div>
@@ -265,11 +268,33 @@ export default function MerchantBusiness() {
 
           <div style={{ marginBottom: 0 }}>
             <label style={{ fontSize: 10, fontWeight: 700, color: 'rgba(255,255,255,.25)', textTransform: 'uppercase', letterSpacing: 1, display: 'block', marginBottom: 8 }}>Pin exact location</label>
-            <MapPicker 
-              lat={form.lat} 
-              lng={form.lng} 
-              onSelect={(lat, lng) => setForm({...form, lat, lng})} 
-            />
+            <div style={{ display: 'flex', gap: 10, marginBottom: 12 }}>
+              <div style={{ flex: 1 }}>
+                <MapPicker 
+                  lat={form.lat} 
+                  lng={form.lng} 
+                  onSelect={(lat, lng) => setForm({...form, lat, lng})} 
+                />
+              </div>
+              <button 
+                type="button"
+                onClick={() => {
+                  if (navigator.geolocation) {
+                    navigator.geolocation.getCurrentPosition(
+                      (pos) => {
+                        setForm(prev => ({ ...prev, lat: pos.coords.latitude, lng: pos.coords.longitude }));
+                        addToast('Location detected!', 'success');
+                      },
+                      () => addToast('Failed to detect location', 'error')
+                    );
+                  }
+                }}
+                style={{ ...s.btnGhost, padding: '0 12px', height: '44px', borderRadius: 12, flexShrink: 0 }}
+                title="Detect current location"
+              >
+                <Ic.Activity />
+              </button>
+            </div>
             {form.lat && (
               <div style={{ fontSize: 10, color: 'rgba(31,217,124,.6)', marginTop: 8, fontFamily: 'var(--font-mono)' }}>
                 📍 {form.lat.toFixed(6)}, {form.lng?.toFixed(6)}

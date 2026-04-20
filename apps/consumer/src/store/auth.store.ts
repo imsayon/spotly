@@ -64,8 +64,14 @@ export const useAuthStore = create<AuthState>()((set, get) => ({
   },
 
   updateProfile: async (data) => {
-    const res = await api.patch('/user/me', data);
-    set({ profile: res.data.data, forceOnboarding: false });
+    try {
+      const res = await api.patch('/user/me', data);
+      set({ profile: res.data.data, forceOnboarding: false });
+    } catch (error) {
+      await get().registerOnBackend('CONSUMER');
+      const res = await api.patch('/user/me', data);
+      set({ profile: res.data.data, forceOnboarding: false });
+    }
   },
 
   clearProfile: async () => {

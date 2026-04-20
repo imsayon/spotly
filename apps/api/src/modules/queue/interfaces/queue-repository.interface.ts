@@ -31,6 +31,9 @@ export interface QueueRepository {
 
   /** Count WAITING entries for an outlet */
   countWaiting(outletId: string): Promise<number>;
+
+  /** Accept a PENDING_ACCEPTANCE entry, moving it to WAITING */
+  acceptEntry(entryId: string): Promise<void>;
 }
 
 export const QUEUE_REPOSITORY = 'QUEUE_REPOSITORY';

@@ -6,7 +6,7 @@ import { MerchantService } from '../merchant/merchant.service';
 import { FirebaseAuthGuard } from '../auth/guards/firebase-auth.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { DecodedUser } from '../auth/auth.service';
-import { IsNotEmpty, IsOptional, IsString } from 'class-validator';
+import { IsNotEmpty, IsNumber, IsOptional, IsString } from 'class-validator';
 
 class CreateOutletDto {
   @IsString()
@@ -16,6 +16,51 @@ class CreateOutletDto {
   @IsString()
   @IsOptional()
   address?: string;
+
+  @IsNumber()
+  @IsOptional()
+  lat?: number;
+
+  @IsNumber()
+  @IsOptional()
+  lng?: number;
+
+  @IsString()
+  @IsOptional()
+  openTime?: string;
+
+  @IsString()
+  @IsOptional()
+  closeTime?: string;
+}
+
+class UpdateOutletDto {
+  @IsString()
+  @IsOptional()
+  name?: string;
+
+  @IsString()
+  @IsOptional()
+  address?: string;
+
+  @IsNumber()
+  @IsOptional()
+  lat?: number;
+
+  @IsNumber()
+  @IsOptional()
+  lng?: number;
+
+  @IsString()
+  @IsOptional()
+  openTime?: string;
+
+  @IsString()
+  @IsOptional()
+  closeTime?: string;
+
+  @IsOptional()
+  isActive?: boolean;
 }
 
 @Controller('outlet')
@@ -51,7 +96,7 @@ export class OutletController {
     if (!merchant) {
       return { success: false, message: 'You must register as a merchant first' };
     }
-    const data = await this.outletService.create(merchant.id, body.name, body.address);
+    const data = await this.outletService.create(merchant.id, body.name, body.address, body.lat, body.lng, body.openTime, body.closeTime);
     return { success: true, data };
   }
   /** PATCH /api/outlet/:id — merchant updates an outlet */
@@ -60,7 +105,7 @@ export class OutletController {
   async update(
     @CurrentUser() user: DecodedUser,
     @Param('id') id: string,
-    @Body() body: Partial<CreateOutletDto> & { isActive?: boolean },
+    @Body() body: UpdateOutletDto,
   ) {
     const merchant = await this.merchantService.findByUser(user.uid);
     if (!merchant) {

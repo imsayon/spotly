@@ -6,12 +6,25 @@ import { Outlet } from '@spotly/database';
 export class OutletService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async create(merchantId: string, name: string, address: string = ''): Promise<Outlet> {
+  async create(
+    merchantId: string,
+    name: string,
+    address: string = '',
+    lat?: number,
+    lng?: number,
+    openTime?: string,
+    closeTime?: string,
+  ): Promise<Outlet> {
+    console.log(`[OutletService] Creating outlet "${name}" for merchant ${merchantId}`);
     return this.prisma.outlet.create({
       data: {
         merchantId,
         name,
         address,
+        lat,
+        lng,
+        openTime: openTime || '09:00',
+        closeTime: closeTime || '21:00',
       },
     });
   }
