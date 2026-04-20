@@ -32,12 +32,12 @@ export default function ConsumerFavorites() {
 
   return (
     <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
-      <h1 style={{ fontFamily: 'var(--font-sans)', fontSize: 24, fontWeight: 900, marginBottom: 4, display: 'flex', alignItems: 'center', gap: 8 }}><Ic.Heart f={true} />Saved Places</h1>
+      <h1 style={{ fontFamily: 'var(--font-sans)', fontSize: 24, fontWeight: 900, marginBottom: 4, display: 'flex', alignItems: 'center', gap: 8 }}><Ic.Heart fill="#ff4d6d" color="#ff4d6d" />Saved Places</h1>
       <p style={{ color: 'var(--t3)', fontSize: 13, marginBottom: 20 }}>{favMerchants.length} saved merchants</p>
       
       {favMerchants.length === 0 ? (
         <div style={{ textAlign: 'center', padding: '60px 20px', color: 'var(--t3)' }}>
-          <div style={{ fontSize: 48, marginBottom: 12, color: 'rgba(255,255,255,.4)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Ic.Heart f={false} /></div>
+          <div style={{ fontSize: 48, marginBottom: 12, color: 'rgba(255,255,255,.4)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Ic.Heart fill="none" /></div>
           <p style={{ fontWeight: 700, fontSize: 16, marginBottom: 6 }}>No saved places yet</p>
           <p style={{ fontSize: 13 }}>Tap the heart on any merchant to save</p>
         </div>
@@ -57,7 +57,7 @@ export default function ConsumerFavorites() {
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 8, alignItems: 'center' }}>
                 <div onClick={(e) => toggleFav(m.id, e)} className="hover:scale-110 active:scale-95 transition-transform">
-                  <Ic.Heart f={true} />
+                  <Ic.Heart fill="#ff4d6d" color="#ff4d6d" />
                 </div>
                 <Ic.ChevR />
               </div>

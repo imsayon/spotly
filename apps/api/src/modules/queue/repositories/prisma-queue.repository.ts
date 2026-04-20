@@ -16,7 +16,7 @@ export class PrismaQueueRepository implements QueueRepository {
       id: entry.id,
       userId: entry.userId,
       outletId: entry.outletId,
-      tokenNumber: entry.token,
+      tokenNumber: entry.tokenNumber,
       // Map Prisma enum to the domain union type string
       status: entry.status === 'CANCELLED' ? 'MISSED' : (entry.status as any),
       joinedAt: entry.createdAt.toISOString(),
@@ -28,8 +28,8 @@ export class PrismaQueueRepository implements QueueRepository {
       data: {
         userId: data.userId,
         outletId: data.outletId,
-        token: data.tokenNumber,
-        status: 'WAITING',
+        tokenNumber: data.tokenNumber,
+        status: 'PENDING_ACCEPTANCE',
       },
     });
     return this.mapToDomain(created);
@@ -39,9 +39,9 @@ export class PrismaQueueRepository implements QueueRepository {
     const entries = await this.prisma.queueEntry.findMany({
       where: {
         outletId,
-        status: { in: ['WAITING', 'CALLED'] },
+        status: { in: ['PENDING_ACCEPTANCE', 'WAITING', 'CALLED'] },
       },
-      orderBy: { token: 'asc' },
+      orderBy: { tokenNumber: 'asc' },
     });
     return entries.map(this.mapToDomain);
   }
@@ -57,7 +57,7 @@ export class PrismaQueueRepository implements QueueRepository {
     // 1. Find the first WAITING entry
     const nextWaiting = await this.prisma.queueEntry.findFirst({
       where: { outletId, status: 'WAITING' },
-      orderBy: { token: 'asc' },
+      orderBy: { tokenNumber: 'asc' },
     });
 
     if (!nextWaiting) return null;
@@ -95,6 +95,13 @@ export class PrismaQueueRepository implements QueueRepository {
   async countWaiting(outletId: string): Promise<number> {
     return this.prisma.queueEntry.count({
       where: { outletId, status: 'WAITING' },
+    });
+  }
+
+  async acceptEntry(entryId: string): Promise<void> {
+    await this.prisma.queueEntry.update({
+      where: { id: entryId },
+      data: { status: 'WAITING' },
     });
   }
 }

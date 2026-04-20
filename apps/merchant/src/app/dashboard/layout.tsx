@@ -29,6 +29,7 @@ export default function MerchantLayout({ children }: { children: React.ReactNode
   const nav = [
     { id: '/dashboard',           ic: <Ic.Grid />,     l: 'Dashboard' },
     { id: '/dashboard/queue',     ic: <Ic.Users />,    l: 'Queue Operator' },
+    { id: '/dashboard/business',  ic: <Ic.Building />, l: 'Business Profile' },
     { id: '/dashboard/inventory', ic: <Ic.Tag />,      l: 'Inventory' },
     { id: '/dashboard/outlets',   ic: <Ic.Store />,    l: 'Outlet Control' },
     { id: '/dashboard/settings',  ic: <Ic.Settings />, l: 'Settings' },

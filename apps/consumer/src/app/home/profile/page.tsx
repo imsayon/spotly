@@ -1,11 +1,17 @@
 "use client"
 
 import React, { useEffect, useState } from "react"
+import dynamic from 'next/dynamic'
 import { useAuthStore } from "@/store/auth.store"
 import { Ic, useToasts } from "@spotly/ui"
 import { MERCHANTS } from "@spotly/ui/src/data/mock"
 import { getMerchantIcon } from "@/lib/merchantIcon"
 import { useLiveLocation } from "@/lib/useLiveLocation"
+
+const MapPicker = dynamic(() => import('@/components/MapPicker'), { 
+  ssr: false,
+  loading: () => <div style={{ height: '300px', background: 'rgba(255,255,255,.05)', borderRadius: 12, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>Loading Map...</div>
+})
 
 const s = {
   card: { background: 'var(--s1)', border: '1px solid var(--bdr)', borderRadius: 18, padding: 22, transition: 'all .3s cubic-bezier(.25,.46,.45,.94)' },
@@ -79,30 +85,47 @@ export default function ConsumerProfile() {
 
       {editing && (
         <div style={{ ...s.card, marginBottom: 16, padding: 16 }}>
-          <div style={{ display: 'grid', gap: 10 }}>
-            <input
-              value={form.name}
-              onChange={(e) => setForm(prev => ({ ...prev, name: e.target.value }))}
-              placeholder="Full name"
-              style={{ background: 'rgba(255,255,255,.03)', border: '1px solid var(--bdr)', color: '#fff', borderRadius: 10, padding: '10px 12px', fontSize: 13, outline: 'none' }}
-            />
-            <input
-              value={form.phone}
-              onChange={(e) => setForm(prev => ({ ...prev, phone: e.target.value }))}
-              placeholder="Phone number"
-              style={{ background: 'rgba(255,255,255,.03)', border: '1px solid var(--bdr)', color: '#fff', borderRadius: 10, padding: '10px 12px', fontSize: 13, outline: 'none' }}
-            />
-            <input
-              value={form.location}
-              onChange={(e) => setForm(prev => ({ ...prev, location: e.target.value }))}
-              placeholder="Location"
-              style={{ background: 'rgba(255,255,255,.03)', border: '1px solid var(--bdr)', color: '#fff', borderRadius: 10, padding: '10px 12px', fontSize: 13, outline: 'none' }}
-            />
-            <div style={{ display: 'flex', gap: 10 }}>
-              <button type="button" onClick={saveProfile} disabled={saving} style={{ flex: 1, padding: '10px 12px', borderRadius: 10, border: 'none', background: 'linear-gradient(135deg,#f5c418,#ff6316)', color: '#000', fontWeight: 800, cursor: 'pointer' }}>
-                {saving ? 'Saving...' : 'Save changes'}
+          <div style={{ display: 'grid', gap: 12 }}>
+            <div style={{ display: 'grid', gap: 6 }}>
+              <label style={{ fontSize: 11, fontWeight: 800, color: 'var(--t3)', textTransform: 'uppercase' }}>Display Name</label>
+              <input
+                value={form.name}
+                onChange={(e) => setForm(prev => ({ ...prev, name: e.target.value }))}
+                placeholder="Full name"
+                style={{ background: 'rgba(255,255,255,.03)', border: '1px solid var(--bdr)', color: '#fff', borderRadius: 10, padding: '10px 12px', fontSize: 13, outline: 'none' }}
+              />
+            </div>
+            
+            <div style={{ display: 'grid', gap: 6 }}>
+              <label style={{ fontSize: 11, fontWeight: 800, color: 'var(--t3)', textTransform: 'uppercase' }}>Phone Number</label>
+              <input
+                value={form.phone}
+                onChange={(e) => setForm(prev => ({ ...prev, phone: e.target.value }))}
+                placeholder="Phone number"
+                style={{ background: 'rgba(255,255,255,.03)', border: '1px solid var(--bdr)', color: '#fff', borderRadius: 10, padding: '10px 12px', fontSize: 13, outline: 'none' }}
+              />
+            </div>
+
+            <div style={{ display: 'grid', gap: 6 }}>
+              <label style={{ fontSize: 11, fontWeight: 800, color: 'var(--t3)', textTransform: 'uppercase' }}>Location (Tap map to change)</label>
+              <div style={{ position: 'relative' }}>
+                <input
+                  value={form.location}
+                  onChange={(e) => setForm(prev => ({ ...prev, location: e.target.value }))}
+                  placeholder="Location"
+                  style={{ background: 'rgba(255,255,255,.03)', border: '1px solid var(--bdr)', color: '#fff', borderRadius: 10, padding: '10px 12px', fontSize: 13, outline: 'none', width: '100%', marginBottom: 10 }}
+                />
+                <MapPicker 
+                  onSelect={(lat, lng, label) => setForm(prev => ({ ...prev, location: label || "" }))} 
+                />
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', gap: 10, marginTop: 8 }}>
+              <button type="button" onClick={saveProfile} disabled={saving} style={{ flex: 1, padding: '12px 12px', borderRadius: 10, border: 'none', background: 'linear-gradient(135deg,#f5c418,#ff6316)', color: '#000', fontWeight: 800, cursor: 'pointer', boxShadow: '0 8px 20px rgba(245,196,24,.2)' }}>
+                {saving ? 'Saving...' : 'Save Profile'}
               </button>
-              <button type="button" onClick={() => setEditing(false)} style={{ flex: 1, padding: '10px 12px', borderRadius: 10, border: '1px solid var(--bdr)', background: 'rgba(255,255,255,.04)', color: '#fff', fontWeight: 700, cursor: 'pointer' }}>
+              <button type="button" onClick={() => setEditing(false)} style={{ flex: 1, padding: '12px 12px', borderRadius: 10, border: '1px solid var(--bdr)', background: 'rgba(255,255,255,.04)', color: '#fff', fontWeight: 700, cursor: 'pointer' }}>
                 Cancel
               </button>
             </div>

@@ -36,7 +36,7 @@ export default function ConsumerLayout({
     { id: '/home', icon: <Ic.Home />, label: 'Home' },
     { id: '/home/explore', icon: <Ic.Map />, label: 'Explore' },
     { id: '/home/queue', icon: <Ic.Clock />, label: 'Queue' },
-    { id: '/home/favorites', icon: <Ic.Heart f={false} />, label: 'Saved' },
+    { id: '/home/favorites', icon: <Ic.Heart fill="none" />, label: 'Saved' },
     { id: '/home/profile', icon: <Ic.User />, label: 'Profile' },
   ]
 

@@ -192,50 +192,52 @@ function OnboardingFlow() {
     setError('');
 
     try {
-      // 1. Create merchant — only send fields Prisma schema accepts (name, category, description)
+      // 1. Create or retrieve merchant with ALL fields in one shot
       const merchantRes = await api.post('/merchant', {
         name: businessName,
         category,
+        phone,
+        address: businessAddress,
+        lat: location?.lat,
+        lng: location?.lng,
       });
-      const merchant = merchantRes.data.data;
 
-      // 2. Persist extra info (phone, address, location) into description via PATCH
-      const inventoryItems = Array.from(selectedItems);
-      const descriptionPayload = [
-        phone ? `Phone: ${phone}` : null,
-        businessAddress ? `Address: ${businessAddress}` : null,
-        location ? `Location: ${location.lat.toFixed(6)},${location.lng.toFixed(6)}` : null,
-        inventoryItems.length > 0 ? `Inventory: ${inventoryItems.join(', ')}` : null,
-      ]
-        .filter(Boolean)
-        .join(' | ');
-
-      try {
-        await api.patch('/merchant/me', { description: descriptionPayload });
-      } catch {
-        // Non-fatal — profile created, extra fields are best-effort
+      if (!merchantRes.data.success) {
+        throw new Error(merchantRes.data.message || 'Failed to create merchant');
       }
 
-      // 3. Persist inventory to localStorage for the Inventory page
+      const merchant = merchantRes.data.data;
+
+      // 2. Persist inventory to localStorage for the Inventory page
+      const inventoryItems = Array.from(selectedItems);
       localStorage.setItem(
         `spotly_inventory_${merchant.id}`,
         JSON.stringify(inventoryItems.map((name) => ({ name, available: true })))
       );
 
-      // 4. Create outlet — only fields Outlet schema accepts
-      await api.post('/outlet', {
-        name: outletName,
-        address: outletAddress,
-        lat: location?.lat,
-        lng: location?.lng,
-      });
+      // 3. Create outlet with location + hours
+      try {
+        await api.post('/outlet', {
+          name: outletName,
+          address: outletAddress,
+          lat: location?.lat,
+          lng: location?.lng,
+          openTime,
+          closeTime,
+        });
+      } catch (outletErr: any) {
+        // Outlet creation failure is non-fatal — merchant is created, redirect anyway
+        console.warn('[Onboarding] Outlet creation failed (non-fatal):', outletErr?.message);
+      }
 
-      // 5. Update auth store so RouteGuard won't redirect back to onboarding
+      // 4. Update auth store so RouteGuard won't redirect back to onboarding
       setMerchantProfile(merchant);
 
       router.replace('/dashboard');
-    } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Setup failed. Please try again.');
+    } catch (err: any) {
+      const msg = err?.response?.data?.message || err?.message || 'Setup failed. Please try again.';
+      console.error('[Onboarding] Completion failed:', err);
+      setError(msg);
       setIsLoading(false);
     }
   };

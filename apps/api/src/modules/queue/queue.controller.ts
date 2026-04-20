@@ -86,6 +86,17 @@ export class QueueController {
     return { success: true };
   }
 
+  /** POST /api/queue/accept/:entryId — merchant accepts a pending entry */
+  @Post('accept/:entryId')
+  @UseGuards(FirebaseAuthGuard)
+  async accept(
+    @Param('entryId') entryId: string,
+    @Body() body: ServedDto,
+  ) {
+    await this.queueService.acceptEntry(entryId, body.outletId);
+    return { success: true };
+  }
+
   /** DELETE /api/queue/leave/:entryId — consumer leaves queue */
   @Delete('leave/:entryId')
   @UseGuards(FirebaseAuthGuard)

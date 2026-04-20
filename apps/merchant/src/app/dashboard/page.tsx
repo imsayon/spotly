@@ -368,22 +368,82 @@ export default function MerchantDashboard() {
       </div>
 
       {/* ═══ STATS ROW ═══ */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))', gap: 14, marginBottom: 24 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 14, marginBottom: 24 }}>
         {[
-          { label: 'Waiting',          value: waiting.length,    color: '#f5c418', icon: '⏳', sub: `${pending.length} pending acceptance` },
-          { label: 'Now Serving',       value: called ? `#${called.tokenNumber}` : '—', color: '#00cfff', icon: '🔔', sub: called ? 'Token called' : 'Queue idle' },
-          { label: 'Served Today',      value: servedToday,       color: '#1fd97c', icon: '✓',  sub: 'Completed sessions' },
-          { label: 'Missed Today',      value: missedToday,       color: '#ff4d6d', icon: '⚠️', sub: 'Did not show up' },
+          { label: 'Total Waiting',     value: waiting.length,    color: '#f5c418', icon: '⏳', sub: `${pending.length} pending` },
+          { label: 'Active Session',  value: called ? `#${called.tokenNumber}` : '—', color: '#00cfff', icon: '🔔', sub: called ? 'Token called' : 'Queue idle' },
+          { label: 'Completed',     value: servedToday,       color: '#1fd97c', icon: '✓',  sub: 'Served today' },
+          { label: 'Bounce Rate',       value: entries.length ? `${Math.round((missedToday / entries.length) * 100)}%` : '0%', color: '#ff4d6d', icon: '📈', sub: `${missedToday} missed` },
         ].map((st) => (
           <div key={st.label} style={{ ...s.card, padding: '22px', position: 'relative', overflow: 'hidden' }}>
             <div style={{ position: 'absolute', top: -20, right: -20, width: 80, height: 80, borderRadius: '50%', background: st.color, opacity: .06, filter: 'blur(20px)' }} />
             <div style={{ width: 38, height: 38, borderRadius: 11, background: `${st.color}18`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18, marginBottom: 14 }}>{st.icon}</div>
-            <div style={{ fontFamily: 'var(--font-mono)', fontSize: 30, fontWeight: 800, color: st.color, marginBottom: 2, letterSpacing: -1, lineHeight: 1 }}>{st.value}</div>
-            <div style={{ fontSize: 11, color: 'rgba(255,255,255,.3)', marginBottom: 4 }}>{st.label}</div>
+            <div style={{ fontFamily: 'var(--font-mono)', fontSize: 32, fontWeight: 800, color: st.color, marginBottom: 2, letterSpacing: -1, lineHeight: 1 }}>{st.value}</div>
+            <div style={{ fontSize: 11, color: 'rgba(255,255,255,.35)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 4 }}>{st.label}</div>
             <div style={{ fontSize: 11, color: `${st.color}99`, fontWeight: 700 }}>{st.sub}</div>
           </div>
         ))}
+
+        {/* ── Spot Identity / QR Quick Access ── */}
+        <div style={{ ...s.card, padding: '18px 22px', display: 'flex', alignItems: 'center', gap: 18, gridColumn: 'span 2', minWidth: 400, background: 'rgba(31,217,124,.03)', borderColor: 'rgba(31,217,124,.15)' }}>
+          <div style={{ padding: 8, borderRadius: 12, background: '#000', border: '1px solid rgba(255,255,255,.1)', flexShrink: 0 }}>
+            <img 
+              src={`https://api.qrserver.com/v1/create-qr-code/?data=${encodeURIComponent(`${typeof window !== 'undefined' ? window.location.origin.replace(':3002', ':3000') : 'http://localhost:3000'}?outlet=${store.selectedOutletId}`)}&size=80x80&bgcolor=000&color=1fd97c&qzone=1`}
+              alt="QR" 
+              width={80} 
+              height={80} 
+            />
+          </div>
+          <div style={{ flex: 1 }}>
+            <div style={{ fontSize: 13, fontWeight: 800, color: '#fff', marginBottom: 4 }}>Storefront QR</div>
+            <p style={{ fontSize: 11, color: 'rgba(255,255,255,.4)', lineHeight: 1.4, marginBottom: 10 }}>Customers scan this to join your live queue. {merchantProfile.spotId && <span style={{ color: '#1fd97c' }}>ID: {merchantProfile.spotId}</span>}</p>
+            <button 
+              onClick={() => {
+                const url = `${typeof window !== 'undefined' ? window.location.origin.replace(':3002', ':3000') : 'http://localhost:3000'}?outlet=${store.selectedOutletId}`
+                navigator.clipboard.writeText(url)
+                addToast('Share link copied!', 'success')
+              }}
+              style={{ ...s.btnGhost, padding: '6px 12px', fontSize: 11, minHeight: 30, borderRadius: 8 }}
+            >
+              <Ic.Copy /> Copy Link
+            </button>
+          </div>
+        </div>
       </div>
+
+      {/* ═══ LIVE ACTIVITY ═══ */}
+      <div style={{ ...s.card, padding: 24, marginBottom: 24, background: 'rgba(255,255,255,.01)' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+          <h3 style={{ fontSize: 15, fontWeight: 800, color: 'rgba(255,255,255,.6)', display: 'flex', alignItems: 'center', gap: 8 }}>
+            <Ic.Activity /> Queue Intensity
+          </h3>
+          <div style={{ fontSize: 12, color: 'rgba(255,255,255,.3)', fontWeight: 600 }}>Last 24 Hours</div>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'flex-end', gap: 4, height: 100, paddingBottom: 10, borderBottom: '1px solid rgba(255,255,255,.05)' }}>
+          {[30, 45, 60, 25, 40, 85, 45, 30, 50, 70, 90, 60, 40, 30, 20, 15, 25, 45, 65, 80, 55, 35, 25, 40].map((v, i) => (
+            <motion.div
+              key={i}
+              initial={{ height: 0 }}
+              animate={{ height: `${v}%` }}
+              transition={{ delay: i * 0.02, duration: 0.5 }}
+              style={{
+                flex: 1,
+                background: v > 70 ? 'var(--gM)' : 'rgba(255,255,255,.08)',
+                borderRadius: '4px 4px 0 0',
+                opacity: (i > 10 && i < 16) ? 1 : 0.4,
+              }}
+            />
+          ))}
+        </div>
+        <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 10, fontSize: 10, color: 'rgba(255,255,255,.2)', fontWeight: 700 }}>
+          <span>12 AM</span>
+          <span>6 AM</span>
+          <span>12 PM</span>
+          <span>6 PM</span>
+          <span>11 PM</span>
+        </div>
+      </div>
+
 
       {store.outlets.length === 0 ? (
         <div style={{ ...s.card, padding: 60, textAlign: 'center', borderStyle: 'dashed', opacity: 0.6 }}>

@@ -95,10 +95,21 @@ export class QueueService {
   }
 
   /**
-   * Mark entry as MISSED (called by merchant if customer doesn't respond to call).
+   * Mark entry as MISSED (called by merchant if customer doesn't respond to call)
    */
   async markMissed(entryId: string, outletId: string): Promise<void> {
     await this.repo.markMissed(entryId);
+    await this.emitQueueUpdate(outletId);
+  }
+
+  /**
+   * Merchant accepts a PENDING_ACCEPTANCE entry — moves it to WAITING.
+   */
+  async acceptEntry(entryId: string, outletId: string): Promise<void> {
+    const entry = await this.repo.getEntry(entryId);
+    if (!entry) throw new NotFoundException(`Queue entry ${entryId} not found`);
+    // Move from PENDING_ACCEPTANCE → WAITING
+    await this.repo.acceptEntry(entryId);
     await this.emitQueueUpdate(outletId);
   }
 

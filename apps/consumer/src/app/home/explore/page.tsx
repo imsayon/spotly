@@ -26,7 +26,7 @@ const s = {
 
 export default function ConsumerExplore() {
   const { add: addToast } = useToasts()
-  const { location, label, loading: locLoading, isDenied, requestLocation } = useLiveLocation()
+  const { location, label, loading: locLoading, isDenied, requestLocation } = useLiveLocation({ prompt: true })
   
   const [merchants, setMerchants] = useState<any[]>([])
   const [loading, setLoading] = useState(true)

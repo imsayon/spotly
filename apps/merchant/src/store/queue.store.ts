@@ -128,7 +128,7 @@ export const useQueueStore = create<QueueStore>((set, get) => ({
 
   rejectEntry: async (entryId: string) => {
     try {
-      await api.delete(`/queue/leave/${entryId}`);
+      await api.post(`/queue/missed/${entryId}`, { outletId: get().selectedOutletId });
       get()._addToast?.('Entry rejected', 'info');
       get().fetchQueue();
     } catch {
@@ -136,22 +136,34 @@ export const useQueueStore = create<QueueStore>((set, get) => ({
     }
   },
 
-  // ⚠️ Accept endpoint not yet in API contract. Wire this once confirmed.
-  acceptEntry: async (_entryId: string) => {
-    get()._addToast?.(
-      'Accept endpoint not yet available — please confirm with server team',
-      'info'
-    );
+  acceptEntry: async (entryId: string) => {
+    try {
+      await api.post(`/queue/accept/${entryId}`, { outletId: get().selectedOutletId });
+      get()._addToast?.('Entry accepted', 'success');
+      get().fetchQueue();
+    } catch {
+      get()._addToast?.('Failed to accept entry', 'error');
+    }
   },
 
-  toggleOpen: () => {
-    set((s) => ({ isOpen: !s.isOpen }));
-    // TODO: Call PATCH /api/outlet/:id { isOpen } once endpoint is added to contract
+  toggleOpen: async () => {
     const { isOpen, selectedOutletId } = get();
+    // Optimistic update
+    set({ isOpen: !isOpen });
     get()._addToast?.(
-      `Outlet ${isOpen ? 'opened' : 'closed'}${selectedOutletId ? '' : ' (API sync pending)'}`,
+      `Outlet ${!isOpen ? 'opened' : 'closed'}`,
       'info'
     );
+    
+    if (selectedOutletId) {
+      try {
+        await api.patch(`/outlet/${selectedOutletId}`, { isActive: !isOpen });
+      } catch {
+        // Rollback on fail
+        set({ isOpen });
+        get()._addToast?.('Failed to update outlet status', 'error');
+      }
+    }
   },
 
   connectSocket: () => {

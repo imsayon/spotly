@@ -61,6 +61,8 @@ model Outlet {
   lat         Float?
   lng         Float?
   isActive    Boolean  @default(true)
+  openTime    String   @default("09:00")
+  closeTime   String   @default("21:00")
   
   queues      QueueEntry[]
   menuCategories MenuCategory[]
@@ -97,7 +99,7 @@ model QueueEntry {
   user      User     @relation(fields: [userId], references: [id])
   outletId  String
   outlet    Outlet   @relation(fields: [outletId], references: [id])
-  token     Int
+  tokenNumber Int
   status    QueueStatus @default(WAITING) // WAITING, CALLED, SERVED, CANCELLED
   createdAt DateTime @default(now())
 }
@@ -119,6 +121,7 @@ enum Role {
 }
 
 enum QueueStatus {
+  PENDING_ACCEPTANCE
   WAITING
   CALLED
   SERVED

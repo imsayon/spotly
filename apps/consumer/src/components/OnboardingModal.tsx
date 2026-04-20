@@ -3,7 +3,13 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { User, Phone, MapPin, Loader2 } from 'lucide-react';
+import dynamic from 'next/dynamic';
 import { useAuthStore } from '@/store/auth.store';
+
+const MapPicker = dynamic(() => import('@/components/MapPicker'), { 
+  ssr: false,
+  loading: () => <div style={{ height: '200px', background: 'rgba(255,255,255,.05)', borderRadius: 12, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>Loading Map...</div>
+})
 
 export function OnboardingModal() {
   const { profile, updateProfile, forceOnboarding } = useAuthStore();
@@ -96,8 +102,13 @@ export function OnboardingModal() {
                   required
                   value={formData.location}
                   onChange={(e) => setFormData({ ...formData, location: e.target.value })}
-                  className="w-full h-16 bg-white/5 border border-white/10 rounded-2xl pl-14 pr-6 text-white font-bold placeholder:text-neutral-700 focus:outline-none focus:border-yellow-500/30 focus:ring-4 focus:ring-yellow-500/5 transition-all"
+                  className="w-full h-16 bg-white/5 border border-white/10 rounded-2xl pl-14 pr-6 text-white font-bold placeholder:text-neutral-700 focus:outline-none focus:border-yellow-500/30 focus:ring-4 focus:ring-yellow-500/5 transition-all mb-4"
                   placeholder="e.g. San Francisco"
+                />
+              </div>
+              <div className="rounded-2xl overflow-hidden border border-white/10">
+                <MapPicker 
+                  onSelect={(lat, lng, label) => setFormData({ ...formData, location: label || "" })} 
                 />
               </div>
             </div>

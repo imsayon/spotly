@@ -53,7 +53,6 @@ const s = {
 
 const TABS = [
   { id: 'info', label: 'General Info', ic: <Ic.Building /> },
-  { id: 'inventory', label: 'Inventory (Digital Menu)', ic: <Ic.Pie /> },
   { id: 'hours', label: 'Business Hours', ic: <Ic.Activity /> },
   { id: 'settings', label: 'Advance Settings', ic: <Ic.Settings /> },
 ];
