@@ -64,10 +64,10 @@ export default function ConsumerProfile() {
     <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
       <div style={{ textAlign: 'center', marginBottom: 28 }}>
         <div style={{ width: 88, height: 88, borderRadius: '50%', margin: '0 auto 14px', ...s.gradC, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 38, fontWeight: 900, color: '#000', boxShadow: '0 0 0 6px rgba(245,196,24,.15)' }}>
-          {profile?.name?.[0]?.toUpperCase() || user?.email?.[0]?.toUpperCase() || "A"}
+          {profile?.name?.[0]?.toUpperCase() || profile?.email?.[0]?.toUpperCase() || user?.email?.[0]?.toUpperCase() || "A"}
         </div>
         <h2 style={{ fontFamily: 'var(--font-sans)', fontSize: 22, fontWeight: 900, marginBottom: 3 }}>
-          {profile?.name || user?.email?.split('@')[0] || "Arjun Sharma"}
+          {profile?.name || profile?.email?.split('@')[0] || user?.email?.split('@')[0] || "Arjun Sharma"}
         </h2>
         <p style={{ color: 'var(--t3)', fontSize: 13 }}>{profile?.phone || 'No phone set'} - {profile?.location || (liveLocationLabel !== 'Location unavailable' ? liveLocationLabel : 'Location unavailable')}</p>
         <div style={{ display: 'flex', justifyContent: 'center', gap: 6, marginTop: 10 }}>
@@ -161,7 +161,7 @@ export default function ConsumerProfile() {
           { l: 'Help & Support', ic: <Ic.Activity /> },
           { l: 'Sign Out', ic: <Ic.LogOut />, d: true },
         ].map(item => (
-          <div key={item.l} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '13px 12px', borderRadius: 11, cursor: 'pointer', color: item.d ? '#ff4d6d' : 'var(--t2)', transition: 'all .2s' }} 
+          <div key={item.l} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '13px 12px', borderRadius: 11, cursor: 'pointer', color: item.d ? '#ff4d6d' : 'var(--t2)', transition: 'all .2s' }}
             className="hover:bg-[#ffffff0a]"
             onClick={() => {
               if (item.l === 'Sign Out') {

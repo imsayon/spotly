@@ -2,6 +2,7 @@ import { Outfit } from "next/font/google"
 import type { Metadata } from "next"
 import "./globals.css"
 import { AuthProvider } from "@/components/AuthProvider"
+import { OnboardingModal } from "@/components/OnboardingModal"
 
 const outfit = Outfit({ subsets: ["latin"], variable: "--font-sans" })
 
@@ -21,7 +22,10 @@ export default function RootLayout({
 			<body
 				className={`${outfit.variable} font-sans bg-background text-white min-h-screen`}
 			>
-				<AuthProvider>{children}</AuthProvider>
+				<AuthProvider>
+					<OnboardingModal />
+					{children}
+				</AuthProvider>
 			</body>
 		</html>
 	)

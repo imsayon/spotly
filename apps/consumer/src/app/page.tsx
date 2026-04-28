@@ -1,21 +1,17 @@
 "use client"
 
-import React, { useState, useEffect } from "react"
-import { motion, AnimatePresence } from "framer-motion"
-import { Ic, AuthModal, THEME, Orb } from "@spotly/ui"
-import { useAuthStore } from "@/store/auth.store"
-import { useRouter } from "next/navigation"
+import React, { useEffect, useState } from "react"
+import { motion } from "framer-motion"
+import { Ic, THEME, Orb } from "@spotly/ui"
+import { ConsumerAuthModal } from "@/components/ConsumerAuthModal"
 
 export default function LandingPage() {
-  const { user, signInWithGoogle, loading: authLoading } = useAuthStore()
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false)
   const [mounted, setMounted] = useState(false)
-  const router = useRouter()
 
   useEffect(() => {
     setMounted(true)
-    if (!authLoading && user) router.push('/home')
-  }, [user, authLoading, router])
+  }, [])
 
   if (!mounted) return (
     <div style={{ height: '100vh', background: '#050509', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -25,7 +21,7 @@ export default function LandingPage() {
 
   const containerVars = {
     hidden: { opacity: 0 },
-    visible: { 
+    visible: {
       opacity: 1,
       transition: { staggerChildren: 0.1, delayChildren: 0.1 }
     }
@@ -37,27 +33,25 @@ export default function LandingPage() {
   }
 
   return (
-    <div style={{ 
-      minHeight: '100vh', 
-      background: '#050509', 
-      color: '#fff', 
-      position: 'relative', 
+    <div style={{
+      minHeight: '100vh',
+      background: '#050509',
+      color: '#fff',
+      position: 'relative',
       overflow: 'hidden',
       display: 'flex',
       flexDirection: 'column'
     }}>
-      {/* BACKGROUND ELEMENTS */}
       <div style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, overflow: 'hidden', pointerEvents: 'none' }}>
         <Orb x="-10%" y="-10%" size="80%" color="rgba(245,196,24,.07)" anim="orb1 20s infinite" />
         <Orb x="70%" y="20%" size="60%" color="rgba(255,99,22,.04)" anim="orb2 25s infinite" />
         <div style={{ position: 'absolute', inset: 0, background: 'radial-gradient(circle at 50% 50%, transparent, #050509 95%)' }} />
       </div>
 
-      {/* TOP NAV */}
-      <nav style={{ 
-        padding: '24px clamp(24px, 5vw, 64px)', 
-        display: 'flex', 
-        justifyContent: 'space-between', 
+      <nav style={{
+        padding: '24px clamp(24px, 5vw, 64px)',
+        display: 'flex',
+        justifyContent: 'space-between',
         alignItems: 'center',
         position: 'relative',
         zIndex: 10
@@ -68,15 +62,15 @@ export default function LandingPage() {
           </div>
           <span style={{ fontWeight: 900, fontSize: 22, letterSpacing: -1 }}>spotly.</span>
         </div>
-        <button 
+        <button
           onClick={() => window.open('http://localhost:3001', '_blank')}
-          style={{ 
-            background: 'rgba(255,255,255,.03)', 
-            border: '1px solid rgba(255,255,255,.08)', 
-            padding: '10px 20px', 
-            borderRadius: 12, 
-            color: 'rgba(255,255,255,.6)', 
-            fontSize: 14, 
+          style={{
+            background: 'rgba(255,255,255,.03)',
+            border: '1px solid rgba(255,255,255,.08)',
+            padding: '10px 20px',
+            borderRadius: 12,
+            color: 'rgba(255,255,255,.6)',
+            fontSize: 14,
             fontWeight: 700,
             cursor: 'pointer'
           }}
@@ -85,16 +79,15 @@ export default function LandingPage() {
         </button>
       </nav>
 
-      {/* MAIN CONTENT */}
-      <motion.main 
+      <motion.main
         variants={containerVars}
         initial="hidden"
         animate="visible"
-        style={{ 
-          flex: 1, 
-          display: 'flex', 
-          flexDirection: 'column', 
-          alignItems: 'center', 
+        style={{
+          flex: 1,
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
           justifyContent: 'center',
           padding: '0 24px',
           textAlign: 'center',
@@ -103,13 +96,13 @@ export default function LandingPage() {
         }}
       >
         <motion.div variants={itemVars} style={{ marginBottom: 24 }}>
-          <div style={{ 
-            display: 'inline-flex', 
-            alignItems: 'center', 
-            gap: 8, 
-            padding: '8px 16px', 
-            borderRadius: 99, 
-            background: 'rgba(245,196,24,.05)', 
+          <div style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: 8,
+            padding: '8px 16px',
+            borderRadius: 99,
+            background: 'rgba(245,196,24,.05)',
             border: '1px solid rgba(245,196,24,.15)',
             color: '#f5c418',
             fontSize: 11,
@@ -121,22 +114,22 @@ export default function LandingPage() {
           </div>
         </motion.div>
 
-        <motion.h2 variants={itemVars} style={{ 
-          fontSize: 'clamp(48px, 9vw, 92px)', 
-          fontWeight: 900, 
-          lineHeight: 0.9, 
+        <motion.h2 variants={itemVars} style={{
+          fontSize: 'clamp(48px, 9vw, 92px)',
+          fontWeight: 900,
+          lineHeight: 0.9,
           letterSpacing: -4,
           marginBottom: 32,
           maxWidth: 900
         }}>
-          Skip the line.<br/>
+          Skip the line.<br />
           <span style={{ background: THEME.gradients.consumer, WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>Reclaim your time.</span>
         </motion.h2>
 
-        <motion.p variants={itemVars} style={{ 
-          fontSize: 'clamp(17px, 2vw, 21px)', 
-          color: 'rgba(255,255,255,.35)', 
-          maxWidth: 640, 
+        <motion.p variants={itemVars} style={{
+          fontSize: 'clamp(17px, 2vw, 21px)',
+          color: 'rgba(255,255,255,.35)',
+          maxWidth: 640,
           lineHeight: 1.6,
           marginBottom: 48,
           fontWeight: 500
@@ -146,18 +139,18 @@ export default function LandingPage() {
         </motion.p>
 
         <motion.div variants={itemVars}>
-          <motion.button 
+          <motion.button
             whileHover={{ scale: 1.05, y: -4, boxShadow: '0 25px 50px rgba(245,196,24,.25)' }}
             whileTap={{ scale: 0.95 }}
             onClick={() => setIsAuthModalOpen(true)}
-            style={{ 
-              background: THEME.gradients.consumer, 
-              color: '#000', 
-              padding: '20px 56px', 
-              borderRadius: 20, 
-              fontSize: 18, 
-              fontWeight: 900, 
-              border: 'none', 
+            style={{
+              background: THEME.gradients.consumer,
+              color: '#000',
+              padding: '20px 56px',
+              borderRadius: 20,
+              fontSize: 18,
+              fontWeight: 900,
+              border: 'none',
               cursor: 'pointer',
               boxShadow: '0 15px 35px rgba(245,196,24,.2)',
             }}
@@ -167,13 +160,12 @@ export default function LandingPage() {
         </motion.div>
       </motion.main>
 
-      {/* FOOTER STATS */}
-      <motion.div 
+      <motion.div
         initial={{ opacity: 0, y: 30 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 1, duration: 0.8 }}
-        style={{ 
-          padding: '40px', 
+        style={{
+          padding: '40px',
           borderTop: '1px solid rgba(255,255,255,.05)',
           display: 'flex',
           justifyContent: 'center',
@@ -193,13 +185,10 @@ export default function LandingPage() {
         ))}
       </motion.div>
 
-      <AuthModal 
-        isOpen={isAuthModalOpen} 
-        onClose={() => setIsAuthModalOpen(false)} 
-        onGoogleAuth={signInWithGoogle}
-        isLoading={authLoading}
+      <ConsumerAuthModal
+        isOpen={isAuthModalOpen}
+        onClose={() => setIsAuthModalOpen(false)}
         title="Elevate your experience"
-        variant="consumer"
       />
     </div>
   )
