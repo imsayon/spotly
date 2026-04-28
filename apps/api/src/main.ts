@@ -21,6 +21,7 @@ async function bootstrap() {
   app.enableCors({
     origin: [
       process.env.CONSUMER_URL ?? 'http://localhost:3000',
+      'http://localhost:3003',
       process.env.MERCHANT_URL ?? 'http://localhost:3002',
     ],
     credentials: true,

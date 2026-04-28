@@ -29,18 +29,18 @@ class ServedDto {
 export class QueueController {
   constructor(private readonly queueService: QueueService) {}
 
-  /** GET /api/queue/:outletId — live queue for an outlet */
-  @Get(':outletId')
-  async getQueue(@Param('outletId') outletId: string) {
-    const data = await this.queueService.getQueue(outletId);
-    return { success: true, data };
-  }
-
   /** GET /api/queue/entry/:entryId — consumer polls their own entry */
   @Get('entry/:entryId')
   @UseGuards(FirebaseAuthGuard)
   async getEntry(@Param('entryId') entryId: string) {
     const data = await this.queueService.getEntry(entryId);
+    return { success: true, data };
+  }
+
+  /** GET /api/queue/:outletId — live queue for an outlet */
+  @Get(':outletId')
+  async getQueue(@Param('outletId') outletId: string) {
+    const data = await this.queueService.getQueue(outletId);
     return { success: true, data };
   }
 

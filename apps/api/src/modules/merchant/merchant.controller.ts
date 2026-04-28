@@ -5,7 +5,7 @@ import { MerchantService } from './merchant.service';
 import { FirebaseAuthGuard } from '../auth/guards/firebase-auth.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { DecodedUser } from '../auth/auth.service';
-import { IsEmail, IsInt, IsNotEmpty, IsNumber, IsOptional, IsString } from 'class-validator';
+import { IsEmail, IsInt, IsNumber, IsOptional, IsString } from 'class-validator';
 
 class CreateMerchantDto {
   @IsString() @IsOptional() name?: string;
@@ -50,12 +50,41 @@ export class MerchantController {
   @Get()
   async findAll(
     @Query('location') location?: string,
+    @Query('lat') lat?: string,
+    @Query('lng') lng?: string,
+    @Query('radius') radius?: string,
     @Query('q') q?: string,
     @Query('category') category?: string,
   ) {
     const safeLocation = location?.trim();
+    const parsedLat = lat ? Number(lat) : undefined;
+    const parsedLng = lng ? Number(lng) : undefined;
+    const parsedRadius = radius ? Number(radius) : 10000;
     const safeQuery = q?.trim();
     const safeCategory = category?.trim();
+
+    if (Number.isFinite(parsedLat) && Number.isFinite(parsedLng)) {
+      const [externalMerchants, internalMerchants] = await Promise.all([
+        this.integrationService.fetchShops(parsedLat!, parsedLng!, parsedRadius, safeCategory),
+        this.merchantService.findAll(undefined, safeQuery, safeCategory, parsedLat, parsedLng, parsedRadius),
+      ]);
+
+      const filteredExternal = safeQuery
+        ? externalMerchants.filter((merchant) =>
+            merchant.name.toLowerCase().includes(safeQuery.toLowerCase()) ||
+            merchant.category.toLowerCase().includes(safeQuery.toLowerCase()),
+          )
+        : externalMerchants;
+
+      return {
+        success: true,
+        data: [...internalMerchants, ...filteredExternal],
+        meta: {
+          coords: { lat: parsedLat, lon: parsedLng },
+          radius: parsedRadius,
+        },
+      };
+    }
 
     if (safeLocation) {
       try {
@@ -63,7 +92,7 @@ export class MerchantController {
         if (coords) {
           const [externalMerchants, internalMerchants] = await Promise.all([
             this.integrationService.fetchShops(coords.lat, coords.lon, 10000, safeCategory),
-            this.merchantService.findAll(safeLocation, safeQuery, safeCategory),
+            this.merchantService.findAll(safeLocation, safeQuery, safeCategory, coords.lat, coords.lon, 10000),
           ]);
 
           const filteredExternal = safeQuery

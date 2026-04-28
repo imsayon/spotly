@@ -30,13 +30,15 @@ export default function ConsumerProfile() {
   const { label: liveLocationLabel } = useLiveLocation()
   const [editing, setEditing] = useState(false)
   const [saving, setSaving] = useState(false)
-  const [form, setForm] = useState({ name: '', phone: '', location: '' })
+  const [form, setForm] = useState<{ name: string; phone: string; location: string; lat?: number; lng?: number }>({ name: '', phone: '', location: '' })
 
   useEffect(() => {
     setForm({
       name: profile?.name || user?.email?.split('@')[0] || '',
       phone: profile?.phone || '',
       location: profile?.location || (liveLocationLabel !== 'Location unavailable' ? liveLocationLabel : ''),
+      lat: profile?.lat,
+      lng: profile?.lng,
     })
   }, [profile, user?.email, liveLocationLabel])
 
@@ -47,6 +49,8 @@ export default function ConsumerProfile() {
         name: form.name.trim(),
         phone: form.phone.trim(),
         location: form.location.trim(),
+        lat: form.lat,
+        lng: form.lng,
       } as any)
       await fetchProfile()
       addToast('Profile updated', 'success')
@@ -115,8 +119,10 @@ export default function ConsumerProfile() {
                   placeholder="Location"
                   style={{ background: 'rgba(255,255,255,.03)', border: '1px solid var(--bdr)', color: '#fff', borderRadius: 10, padding: '10px 12px', fontSize: 13, outline: 'none', width: '100%', marginBottom: 10 }}
                 />
-                <MapPicker 
-                  onSelect={(lat, lng, label) => setForm(prev => ({ ...prev, location: label || "" }))} 
+                <MapPicker
+                  lat={form.lat}
+                  lng={form.lng}
+                  onSelect={(lat, lng, label) => setForm(prev => ({ ...prev, lat, lng, location: label || "" }))}
                 />
               </div>
             </div>

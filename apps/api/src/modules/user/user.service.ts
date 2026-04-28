@@ -41,14 +41,17 @@ export class UserService {
         name: data.name,
         phone: data.phone,
         location: data.location,
+        lat: data.lat,
+        lng: data.lng,
         role: Role.CONSUMER,
       },
       update: {
         name: data.name,
         phone: data.phone,
         location: data.location,
+        lat: data.lat,
+        lng: data.lng,
       },
     });
   }
 }
-

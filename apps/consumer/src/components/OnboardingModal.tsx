@@ -17,6 +17,8 @@ export function OnboardingModal() {
     name: profile?.name || '',
     phone: profile?.phone || '',
     location: profile?.location || '',
+    lat: profile?.lat,
+    lng: profile?.lng,
   });
   const [submitting, setSubmitting] = useState(false);
 
@@ -107,8 +109,10 @@ export function OnboardingModal() {
                 />
               </div>
               <div className="rounded-2xl overflow-hidden border border-white/10">
-                <MapPicker 
-                  onSelect={(lat, lng, label) => setFormData({ ...formData, location: label || "" })} 
+                <MapPicker
+                  lat={formData.lat}
+                  lng={formData.lng}
+                  onSelect={(lat, lng, label) => setFormData({ ...formData, lat, lng, location: label || "" })}
                 />
               </div>
             </div>

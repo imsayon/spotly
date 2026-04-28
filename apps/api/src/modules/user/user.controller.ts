@@ -3,7 +3,7 @@ import { UserService } from './user.service';
 import { FirebaseAuthGuard } from '../auth/guards/firebase-auth.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { DecodedUser } from '../auth/auth.service';
-import { IsEnum, IsOptional, IsString } from 'class-validator';
+import { IsEnum, IsNumber, IsOptional, IsString } from 'class-validator';
 import { UserRole } from '@spotly/types';
 
 class RegisterDto {
@@ -16,6 +16,8 @@ class UpdateProfileDto {
   @IsString() @IsOptional() name?: string;
   @IsString() @IsOptional() phone?: string;
   @IsString() @IsOptional() location?: string;
+  @IsNumber() @IsOptional() lat?: number;
+  @IsNumber() @IsOptional() lng?: number;
 }
 
 @Controller('user')

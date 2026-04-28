@@ -1,100 +1,133 @@
-import { PrismaClient } from '@prisma/client'
-import * as dotenv from 'dotenv'
+import { PrismaClient } from '@prisma/client';
+import * as dotenv from 'dotenv';
 
-dotenv.config({ path: './.env' }) // Point to the local .env in packages/database
+dotenv.config({ path: './.env' });
 
-const prisma = new PrismaClient({ log: ['info'] })
+const prisma = new PrismaClient({ log: ['info'] });
+
+async function createMerchant(owner: { id: string; name: string; email: string }, merchant: {
+  name: string;
+  category: string;
+  description: string;
+  address: string;
+  lat: number;
+  lng: number;
+  outlets: Array<{ name: string; address: string; lat: number; lng: number }>;
+}) {
+  const user = await prisma.user.create({
+    data: {
+      id: owner.id,
+      name: owner.name,
+      email: owner.email,
+      role: 'MERCHANT',
+      location: merchant.address,
+      lat: merchant.lat,
+      lng: merchant.lng,
+    },
+  });
+
+  return prisma.merchant.create({
+    data: {
+      ownerId: user.id,
+      spotId: `SPOT-${owner.id.slice(0, 4).toUpperCase()}`,
+      name: merchant.name,
+      category: merchant.category,
+      description: merchant.description,
+      address: merchant.address,
+      lat: merchant.lat,
+      lng: merchant.lng,
+      verified: true,
+      outlets: {
+        create: merchant.outlets.map((outlet) => ({
+          ...outlet,
+          isActive: true,
+          openTime: '09:00',
+          closeTime: '21:00',
+        })),
+      },
+    },
+  });
+}
 
 async function main() {
-  console.log('🌱 Seeding database...')
+  console.log('Seeding Spotly database...');
 
-  // 1. CLEAR EXISTING DATA
-  await prisma.queueEntry.deleteMany({})
-  await prisma.review.deleteMany({})
-  await prisma.outlet.deleteMany({})
-  await prisma.merchant.deleteMany({})
-  await prisma.user.deleteMany({})
+  await prisma.queueEntry.deleteMany({});
+  await prisma.menuItem.deleteMany({});
+  await prisma.menuCategory.deleteMany({});
+  await prisma.review.deleteMany({});
+  await prisma.outlet.deleteMany({});
+  await prisma.merchant.deleteMany({});
+  await prisma.user.deleteMany({});
 
-  // 2. CREATE USERS
-  const merchantUser = await prisma.user.create({
+  await prisma.user.create({
     data: {
-      id: 'demo-merchant-id',
-      name: 'Owner At Spotly',
-      role: 'MERCHANT',
-    }
-  })
+      id: 'demo-consumer-id',
+      name: 'Demo Consumer',
+      email: 'consumer@spotly.local',
+      phone: '+919876543210',
+      location: 'Indiranagar, Bengaluru',
+      lat: 12.9784,
+      lng: 77.6408,
+      role: 'CONSUMER',
+    },
+  });
 
-  // 3. CREATE MERCHANTS
-  const coffeeLab = await prisma.merchant.create({
-    data: {
-      ownerId: 'demo-merchant-id',
+  await createMerchant(
+    { id: 'merchant-coffee-lab', name: 'Coffee Lab Owner', email: 'coffee@spotly.local' },
+    {
       name: 'The Coffee Lab',
       category: 'Coffee',
       description: 'Artisanal roasters serving the finest beans in Bengaluru.',
-      verified: true,
-      outlets: {
-        create: [
-          { name: 'Indiranagar Branch', address: '12th Main, Indiranagar', isActive: true },
-          { name: 'Koramangala Branch', address: '80ft Road, Koramangala', isActive: true }
-        ]
-      }
-    }
-  })
+      address: 'Indiranagar, Bengaluru',
+      lat: 12.9784,
+      lng: 77.6408,
+      outlets: [
+        { name: 'Indiranagar Branch', address: '12th Main, Indiranagar', lat: 12.9784, lng: 77.6408 },
+        { name: 'Koramangala Branch', address: '80 Feet Road, Koramangala', lat: 12.9352, lng: 77.6245 },
+      ],
+    },
+  );
 
-  const greenClinic = await prisma.merchant.create({
-    data: {
-      ownerId: 'clinic-owner-id',
-      name: 'Green Valley Pharmacy',
+  await createMerchant(
+    { id: 'merchant-green-valley', name: 'Green Valley Owner', email: 'clinic@spotly.local' },
+    {
+      name: 'Green Valley Clinic',
       category: 'Health',
-      description: 'Prescription pickup and clinical consultations.',
-      verified: true,
-      outlets: {
-        create: [
-          { name: 'HSR Layout', address: 'Sector 2, HSR', isActive: true }
-        ]
-      }
-    }
-  })
+      description: 'Fast consultations, prescription pickup, and family health services.',
+      address: 'HSR Layout, Bengaluru',
+      lat: 12.9121,
+      lng: 77.6446,
+      outlets: [
+        { name: 'HSR Layout Clinic', address: 'Sector 2, HSR Layout', lat: 12.9121, lng: 77.6446 },
+      ],
+    },
+  );
 
-  const artisanBake = await prisma.merchant.create({
-    data: {
-      ownerId: 'bakery-owner-id',
+  await createMerchant(
+    { id: 'merchant-artisan-bake', name: 'Artisan Bakehouse Owner', email: 'bakery@spotly.local' },
+    {
       name: 'Artisan Bakehouse',
       category: 'Bakery',
-      description: 'Freshly baked sourdough and French pastries.',
-      verified: true,
-      outlets: {
-        create: [
-          { name: 'Whitefield', address: 'ITPL Main Road', isActive: true },
-          { name: 'Jayanagar', address: '4th Block, Jayanagar', isActive: true }
-        ]
-      }
-    }
-  })
+      description: 'Fresh sourdough, pastries, and cakes baked throughout the day.',
+      address: 'Jayanagar, Bengaluru',
+      lat: 12.9250,
+      lng: 77.5938,
+      outlets: [
+        { name: 'Jayanagar Bakery', address: '4th Block, Jayanagar', lat: 12.9250, lng: 77.5938 },
+        { name: 'Whitefield Counter', address: 'ITPL Main Road, Whitefield', lat: 12.9698, lng: 77.7500 },
+      ],
+    },
+  );
 
-  const freshMarket = await prisma.merchant.create({
-    data: {
-      ownerId: 'grocery-owner-id',
-      name: 'FreshMart Groceries',
-      category: 'Grocery',
-      description: 'Organic produce and daily essentials.',
-      verified: true,
-      outlets: {
-        create: [
-          { name: 'Electronic City', address: 'Phase 1, E-City', isActive: true }
-        ]
-      }
-    }
-  })
-
-  console.log('✅ Seeding complete!')
+  console.log('Seeding complete.');
 }
 
 main()
-  .catch((e) => {
-    console.error(e)
-    process.exit(1)
+  .catch((error) => {
+    console.error(error);
+    process.exit(1);
   })
   .finally(async () => {
-    await prisma.$disconnect()
-  })
+    await prisma.$disconnect();
+  });

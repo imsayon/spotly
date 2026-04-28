@@ -39,6 +39,33 @@ export class FirestoreQueueRepository implements QueueRepository {
     }
   }
 
+  async isOutletOpen(): Promise<boolean> {
+    return true;
+  }
+
+  async findActiveEntryForUser(userId: string): Promise<QueueEntry | null> {
+    try {
+      const snapshot = await this.db
+        .collection(this.collection)
+        .where('userId', '==', userId)
+        .where('status', 'in', ['PENDING_ACCEPTANCE', 'WAITING', 'CALLED'])
+        .limit(1)
+        .get();
+
+      return snapshot.empty ? null : (snapshot.docs[0].data() as QueueEntry);
+    } catch (err) {
+      if (!this.isFirestoreFallbackError(err)) throw err;
+      return Array.from(FirestoreQueueRepository.memoryStore.values())
+        .find((e) => e.userId === userId && ['PENDING_ACCEPTANCE', 'WAITING', 'CALLED'].includes(e.status)) ?? null;
+    }
+  }
+
+  async getNextTokenNumber(outletId: string): Promise<number> {
+    const entries = await this.getQueue(outletId);
+    const maxToken = entries.reduce((max, entry) => Math.max(max, entry.tokenNumber), 0);
+    return maxToken + 1;
+  }
+
   async getQueue(outletId: string): Promise<QueueEntry[]> {
     try {
       const snapshot = await this.db

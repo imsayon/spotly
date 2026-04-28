@@ -1,6 +1,14 @@
 import { create } from 'zustand';
 import { getFirebaseAuth } from '@/lib/firebase';
-import { GoogleAuthProvider, signInWithPopup, signOut as firebaseSignOut, onAuthStateChanged, type User as FirebaseUser } from 'firebase/auth';
+import {
+  GoogleAuthProvider,
+  createUserWithEmailAndPassword,
+  signInWithEmailAndPassword,
+  signInWithPopup,
+  signOut as firebaseSignOut,
+  updateProfile as updateFirebaseProfile,
+  type User as FirebaseUser,
+} from 'firebase/auth';
 import api from '@/lib/api';
 import { User as BackendUser } from '@spotly/types';
 
@@ -13,6 +21,8 @@ interface AuthState {
   setProfile: (profile: BackendUser | null) => void;
   setForceOnboarding: (val: boolean) => void;
   signInWithGoogle: () => Promise<void>;
+  signInWithEmail: (email: string, password: string) => Promise<void>;
+  signUpWithEmail: (email: string, password: string, name?: string) => Promise<void>;
   signOut: () => Promise<void>;
   fetchProfile: () => Promise<BackendUser | null>;
   updateProfile: (data: Partial<BackendUser>) => Promise<void>;
@@ -36,6 +46,27 @@ export const useAuthStore = create<AuthState>()((set, get) => ({
       await signInWithPopup(getFirebaseAuth(), provider);
     } catch (error) {
       console.error('Google Sign-In Error:', error);
+      throw error;
+    }
+  },
+
+  signInWithEmail: async (email, password) => {
+    try {
+      await signInWithEmailAndPassword(getFirebaseAuth(), email, password);
+    } catch (error) {
+      console.error('Email Sign-In Error:', error);
+      throw error;
+    }
+  },
+
+  signUpWithEmail: async (email, password, name) => {
+    try {
+      const credential = await createUserWithEmailAndPassword(getFirebaseAuth(), email, password);
+      if (name?.trim()) {
+        await updateFirebaseProfile(credential.user, { displayName: name.trim() });
+      }
+    } catch (error) {
+      console.error('Email Sign-Up Error:', error);
       throw error;
     }
   },

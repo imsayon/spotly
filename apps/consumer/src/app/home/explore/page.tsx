@@ -1,6 +1,7 @@
 "use client"
 
 import React, { useState, useEffect, useMemo } from "react"
+import { useRouter } from "next/navigation"
 import { Ic, useToasts } from "@spotly/ui"
 import dynamic from 'next/dynamic'
 import api from "@/lib/api"
@@ -25,6 +26,7 @@ const s = {
 }
 
 export default function ConsumerExplore() {
+  const router = useRouter()
   const { add: addToast } = useToasts()
   const { location, label, loading: locLoading, isDenied, requestLocation } = useLiveLocation({ prompt: true })
   
@@ -33,6 +35,22 @@ export default function ConsumerExplore() {
   const [view, setView] = useState('map')
   const [selected, setSelected] = useState<any>(null)
   const [favorites, setFavorites] = useState<Set<string>>(new Set())
+
+  const mapCenter = useMemo<[number, number] | undefined>(() => {
+    return location ? [location.latitude, location.longitude] : undefined
+  }, [location])
+
+  const isConnectableMerchant = (merchant: any) => {
+    return merchant?.id && !String(merchant.id).startsWith('demo-') && !String(merchant.id).startsWith('osm-')
+  }
+
+  const openMerchant = (merchant: any) => {
+    if (isConnectableMerchant(merchant)) {
+      router.push(`/merchant/${merchant.id}`)
+      return
+    }
+    addToast('This nearby place is not yet managed on Spotly', 'info')
+  }
 
   const toggleFav = (id: string, e?: React.MouseEvent) => {
     if (e) e.stopPropagation()
@@ -111,17 +129,23 @@ export default function ConsumerExplore() {
         <div style={{ position: 'relative' }}>
           <MapDiscovery 
             merchants={merchants} 
+            center={mapCenter}
+            userLocation={mapCenter}
             onSelect={(m) => setSelected(m)} 
           />
           {selected && (
             <div style={{ position: 'absolute', bottom: 20, left: 12, right: 12, zIndex: 1000 }}>
-              <div style={{ ...s.glassStrong, borderRadius: 14, padding: '14px 16px', display: 'flex', alignItems: 'center', gap: 12, cursor: 'pointer', animation: 'slideUp .3s ease' }} onClick={() => addToast("Joining queue...", "success")}>
+              <div style={{ ...s.glassStrong, borderRadius: 14, padding: '14px 16px', display: 'flex', alignItems: 'center', gap: 12, cursor: 'pointer', animation: 'slideUp .3s ease' }} onClick={() => openMerchant(selected)}>
                 <div style={{ fontSize: 26 }}>🏪</div>
                 <div style={{ flex: 1 }}>
                   <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 2 }}>{selected.name}</div>
-                  <div style={{ fontSize: 12, color: 'var(--t3)' }}>{selected.outlets?.length || 0} branches · {selected.category}</div>
+                  <div style={{ fontSize: 12, color: 'var(--t3)' }}>
+                    {isConnectableMerchant(selected) ? `${selected.outlets?.length || 0} branches` : 'Discovery result'} · {selected.category}
+                  </div>
                 </div>
-                <button style={{ ...s.btnC, padding: '8px 14px', fontSize: 12, gap: 5 }} onClick={e => { e.stopPropagation(); addToast("Joining queue...", "success") }}>Join <Ic.Arrow /></button>
+                <button style={{ ...s.btnC, padding: '8px 14px', fontSize: 12, gap: 5 }} onClick={e => { e.stopPropagation(); openMerchant(selected) }}>
+                  {isConnectableMerchant(selected) ? 'Open' : 'Info'} <Ic.Arrow />
+                </button>
               </div>
             </div>
           )}
@@ -132,14 +156,16 @@ export default function ConsumerExplore() {
             <div key={m.id} style={{ ...s.card, padding: '14px', display: 'flex', alignItems: 'center', gap: 12, cursor: 'pointer' }}
               onMouseEnter={e => e.currentTarget.style.borderColor = '#f5c41840'}
               onMouseLeave={e => e.currentTarget.style.borderColor = 'var(--bdr)'}
-              onClick={() => setSelected(m)}>
+              onClick={() => openMerchant(m)}>
               <div style={{ width: 50, height: 50, borderRadius: 13, background: `rgba(245,196,24,.1)`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 26, flexShrink: 0 }}>🏪</div>
               <div style={{ flex: 1 }}>
                 <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 2 }}>{m.name}</div>
                 <div style={{ fontSize: 12, color: 'var(--t3)', marginBottom: 6 }}>{m.category} · {m.address || 'Nearby'}</div>
                 <div style={{ display: 'flex', gap: 7 }}>
                   <span style={{ ...s.badge('yellow') as React.CSSProperties, fontSize: 10 }}>⏱ {m.estimatedWaitTime || '15 MIN'}</span>
-                  <span style={{ ...s.badge('gray') as React.CSSProperties, fontSize: 10 }}>{m.outlets?.length || 0} branches</span>
+                  <span style={{ ...s.badge('gray') as React.CSSProperties, fontSize: 10 }}>
+                    {isConnectableMerchant(m) ? `${m.outlets?.length || 0} branches` : 'discovery'}
+                  </span>
                 </div>
               </div>
               <Ic.ChevronRight />

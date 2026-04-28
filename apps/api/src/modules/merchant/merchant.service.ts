@@ -12,7 +12,7 @@ export class MerchantService {
     const existing = await this.findByUser(userId);
     if (existing) {
       console.log(`[MerchantService] Merchant already exists for user: ${userId}`);
-      return existing;
+      return this.updateProfile(userId, data);
     }
 
     try {
@@ -75,8 +75,15 @@ export class MerchantService {
     return merchant;
   }
 
-  async findAll(location?: string, search?: string, category?: string): Promise<Merchant[]> {
-    return this.prisma.merchant.findMany({
+  async findAll(
+    location?: string,
+    search?: string,
+    category?: string,
+    lat?: number,
+    lng?: number,
+    radiusMeters?: number,
+  ): Promise<Array<Merchant & { distanceKm?: number }>> {
+    const merchants = await this.prisma.merchant.findMany({
       where: {
         ...(category && category !== 'All' && { category: { contains: category, mode: 'insensitive' } }),
         ...(search && {
@@ -90,6 +97,31 @@ export class MerchantService {
         outlets: true,
       },
     });
+
+    const hasCoords = Number.isFinite(lat) && Number.isFinite(lng);
+    if (!hasCoords) return merchants;
+
+    const maxDistanceKm = Number.isFinite(radiusMeters) ? (radiusMeters as number) / 1000 : undefined;
+
+    return merchants
+      .map((merchant) => {
+        const candidates = [
+          Number.isFinite(merchant.lat) && Number.isFinite(merchant.lng)
+            ? { lat: merchant.lat as number, lng: merchant.lng as number }
+            : null,
+          ...merchant.outlets
+            .filter((outlet) => Number.isFinite(outlet.lat) && Number.isFinite(outlet.lng))
+            .map((outlet) => ({ lat: outlet.lat as number, lng: outlet.lng as number })),
+        ].filter(Boolean) as Array<{ lat: number; lng: number }>;
+
+        const distanceKm = candidates.length
+          ? Math.min(...candidates.map((point) => this.distanceKm(lat as number, lng as number, point.lat, point.lng)))
+          : undefined;
+
+        return { ...merchant, distanceKm };
+      })
+      .filter((merchant) => merchant.distanceKm === undefined || maxDistanceKm === undefined || merchant.distanceKm <= maxDistanceKm)
+      .sort((a, b) => (a.distanceKm ?? Number.MAX_SAFE_INTEGER) - (b.distanceKm ?? Number.MAX_SAFE_INTEGER));
   }
 
   async findByUser(userId: string): Promise<Merchant | null> {
@@ -139,5 +171,22 @@ export class MerchantService {
       console.error('[MerchantService] Update profile failed:', err);
       throw err;
     }
+  }
+
+  private distanceKm(fromLat: number, fromLng: number, toLat: number, toLng: number): number {
+    const earthRadiusKm = 6371;
+    const dLat = this.toRadians(toLat - fromLat);
+    const dLng = this.toRadians(toLng - fromLng);
+    const a =
+      Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+      Math.cos(this.toRadians(fromLat)) *
+        Math.cos(this.toRadians(toLat)) *
+        Math.sin(dLng / 2) *
+        Math.sin(dLng / 2);
+    return earthRadiusKm * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  }
+
+  private toRadians(value: number): number {
+    return (value * Math.PI) / 180;
   }
 }

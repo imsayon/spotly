@@ -23,21 +23,7 @@ interface MapPickerProps {
   zoom?: number
 }
 
-// Simple reverse geocoding to get a label
-async function reverseGeocode(latitude: number, longitude: number): Promise<string> {
-  try {
-    const url = `https://nominatim.openstreetmap.org/reverse?lat=${latitude}&lon=${longitude}&format=jsonv2&zoom=16`
-    const res = await fetch(url)
-    if (!res.ok) return "Selected Area"
-    const data = await res.json()
-    const address = data.address
-    const locality = address.suburb || address.neighbourhood || address.city_district || address.town || address.village
-    const city = address.city || address.town || address.county
-    return locality ? `${locality}, ${city}` : city || "Selected Area"
-  } catch {
-    return "Selected Area"
-  }
-}
+import { reverseGeocode } from '@/lib/geocoding'
 
 function LocationMarker({ lat, lng, onSelect }: MapPickerProps) {
   const [position, setPosition] = useState<L.LatLng | null>(

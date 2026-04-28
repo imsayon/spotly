@@ -2,10 +2,14 @@
 
 import React, { useEffect, useState } from "react"
 import { motion } from "framer-motion"
+import { useRouter } from "next/navigation"
 import { Ic, THEME, Orb } from "@spotly/ui"
 import { ConsumerAuthModal } from "@/components/ConsumerAuthModal"
+import { useAuthStore } from "@/store/auth.store"
 
 export default function LandingPage() {
+  const router = useRouter()
+  const { user, loading } = useAuthStore()
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false)
   const [mounted, setMounted] = useState(false)
 
@@ -13,7 +17,13 @@ export default function LandingPage() {
     setMounted(true)
   }, [])
 
-  if (!mounted) return (
+  useEffect(() => {
+    if (mounted && !loading && user) {
+      router.replace("/home")
+    }
+  }, [loading, mounted, router, user])
+
+  if (!mounted || loading) return (
     <div style={{ height: '100vh', background: '#050509', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
       <div style={{ width: 40, height: 40, border: '2px solid rgba(255,255,255,.05)', borderTopColor: '#f5c418', borderRadius: '50%', animation: 'spin 1s linear infinite' }} />
     </div>

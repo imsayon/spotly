@@ -48,7 +48,7 @@ export class IntegrationService {
     this.logger.log(`Fetching shops at (${lat}, ${lon}) with radius ${radius}m`);
     try {
       // Use mock data while external APIs are down
-      const mockData = this.generateMockPlaces(lat, lon, category, radius);
+      const mockData = this.generateMockPlaces(lat, lon, category);
       if (mockData.length > 0) {
         this.logger.log(`Returning ${mockData.length} nearby places for area`);
         return mockData;
@@ -97,6 +97,11 @@ export class IntegrationService {
             name: tags.name,
             category: this.formatCategory(category),
             location: tags['addr:city'] || tags['addr:suburb'] || tags['addr:neighbourhood'] || 'Nearby',
+            address: [tags['addr:housenumber'], tags['addr:street'], tags['addr:suburb'], tags['addr:city']]
+              .filter(Boolean)
+              .join(', ') || undefined,
+            lat: el.lat ?? el.center?.lat,
+            lng: el.lon ?? el.center?.lon,
             rating: parseFloat((4 + Math.random()).toFixed(1)), // Simulated rating
             estimatedWaitTime: `${Math.floor(Math.random() * 20) + 10} MIN`, // Simulated wait time
             createdAt: new Date().toISOString(),
@@ -144,7 +149,7 @@ export class IntegrationService {
     return filters[normalized] ?? null;
   }
 
-  private generateMockPlaces(lat: number, lon: number, category?: string, radius = 5000): Merchant[] {
+  private generateMockPlaces(lat: number, lon: number, category?: string): Merchant[] {
     // Generate area-specific seed for consistent results based on coordinates
     const areaSeed = Math.round((lat + lon) * 10000) % 1000;
     const categoryNorm = category?.toLowerCase() || 'all';
@@ -202,15 +207,33 @@ export class IntegrationService {
         const seedVal = areaSeed + idx * 100 + i;
         const suffixIdx = seedVal % group.tmpl.suffix.length;
         const placeName = `${group.tmpl.name} ${group.tmpl.suffix[suffixIdx]} #${seedVal % 100}`;
+        const latOffset = (((seedVal * 37) % 1000) - 500) / 100000;
+        const lngOffset = (((seedVal * 53) % 1000) - 500) / 100000;
+        const placeLat = lat + latOffset;
+        const placeLng = lon + lngOffset;
+        const placeId = `demo-${areaSeed}-${idx}-${i}`;
 
         places.push({
-          id: `demo-${areaSeed}-${idx}-${i}`,
+          id: placeId,
           userId: 'system',
           name: placeName,
           category: group.key === 'coffee shop' ? 'Coffee Shop' : group.key.charAt(0).toUpperCase() + group.key.slice(1),
           location: 'Nearby',
+          address: 'Nearby discovery result',
+          lat: placeLat,
+          lng: placeLng,
           rating: parseFloat((3.8 + (seedVal % 20) * 0.1).toFixed(1)),
           estimatedWaitTime: `${(seedVal % 25) + 5} MIN`,
+          outlets: [{
+            id: `${placeId}-outlet`,
+            merchantId: placeId,
+            name: 'Main Location',
+            address: 'Nearby discovery result',
+            lat: placeLat,
+            lng: placeLng,
+            isActive: false,
+            createdAt: new Date().toISOString(),
+          }],
           createdAt: new Date().toISOString(),
         } as Merchant);
       }

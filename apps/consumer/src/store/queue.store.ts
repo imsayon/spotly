@@ -94,7 +94,9 @@ export const useQueueStore = create<QueueState>()((set, get) => ({
     set({ loading: true });
     try {
       const res = await api.get(`/queue/${outletId}`);
-      set({ entries: res.data.data, loading: false });
+      const entries: QueueEntry[] = res.data.data || [];
+      const called = entries.find((entry) => entry.status === 'CALLED');
+      set({ entries, currentToken: called?.tokenNumber ?? 0, loading: false });
     } catch {
       set({ entries: [], currentToken: 0, loading: false });
     }

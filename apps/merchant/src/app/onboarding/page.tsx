@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import api from '@/lib/api';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuthStore } from '@/store/auth.store';
+import { reverseGeocode, FALLBACK_LABEL } from '@/lib/geocoding';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -124,8 +125,17 @@ function OnboardingFlow() {
     setLocLoading(true);
     setLocError('');
     navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        setLocation({ lat: pos.coords.latitude, lng: pos.coords.longitude });
+      async (pos) => {
+        const { latitude, longitude } = pos.coords;
+        setLocation({ lat: latitude, lng: longitude });
+        
+        // Auto-fill address if empty
+        if (!businessAddress) {
+          const label = await reverseGeocode(latitude, longitude);
+          if (label !== FALLBACK_LABEL) {
+            setBusinessAddress(label);
+          }
+        }
         setLocLoading(false);
       },
       () => {

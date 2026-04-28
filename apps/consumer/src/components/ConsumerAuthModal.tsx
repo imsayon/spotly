@@ -1,10 +1,11 @@
 'use client';
 
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { Ic } from '@spotly/ui';
 import { useAuthStore } from '@/store/auth.store';
 
-type AuthStep = 'options' | 'email' | 'otp';
+type AuthMode = 'sign-in' | 'sign-up';
 
 interface ConsumerAuthModalProps {
   isOpen: boolean;
@@ -13,13 +14,15 @@ interface ConsumerAuthModalProps {
 }
 
 export function ConsumerAuthModal({ isOpen, onClose, title = 'Elevate your experience' }: ConsumerAuthModalProps) {
+  const router = useRouter();
   const signInWithGoogle = useAuthStore((state) => state.signInWithGoogle);
-  const sendEmailOtp = useAuthStore((state) => state.sendEmailOtp);
-  const verifyEmailOtp = useAuthStore((state) => state.verifyEmailOtp);
+  const signInWithEmail = useAuthStore((state) => state.signInWithEmail);
+  const signUpWithEmail = useAuthStore((state) => state.signUpWithEmail);
 
-  const [step, setStep] = useState<AuthStep>('options');
+  const [mode, setMode] = useState<AuthMode>('sign-in');
+  const [name, setName] = useState('');
   const [email, setEmail] = useState('');
-  const [code, setCode] = useState('');
+  const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -32,48 +35,36 @@ export function ConsumerAuthModal({ isOpen, onClose, title = 'Elevate your exper
     try {
       await signInWithGoogle();
       onClose();
+      router.replace('/home');
     } catch (authError: any) {
       setError(authError?.message || 'Google sign-in failed. Please try again.');
       setLoading(false);
     }
   };
 
-  const handleSendCode = async (event: React.FormEvent) => {
+  const handleEmailAuth = async (event: React.FormEvent) => {
     event.preventDefault();
     setLoading(true);
     setError('');
 
     try {
-      await sendEmailOtp(email.trim());
-      setStep('otp');
-    } catch (authError: any) {
-      setError(authError?.message || 'Could not send verification code.');
-      setLoading(false);
-    }
-  };
-
-  const handleVerifyCode = async (event: React.FormEvent) => {
-    event.preventDefault();
-    setLoading(true);
-    setError('');
-
-    try {
-      await verifyEmailOtp(email.trim(), code.trim());
+      const normalizedEmail = email.trim();
+      if (mode === 'sign-up') {
+        await signUpWithEmail(normalizedEmail, password, name);
+      } else {
+        await signInWithEmail(normalizedEmail, password);
+      }
       onClose();
+      router.replace('/home');
     } catch (authError: any) {
-      setError(authError?.message || 'Invalid verification code.');
+      setError(authError?.message || 'Email authentication failed. Please try again.');
       setLoading(false);
     }
   };
 
-  const goBack = () => {
+  const switchMode = () => {
+    setMode((current) => (current === 'sign-in' ? 'sign-up' : 'sign-in'));
     setError('');
-    setLoading(false);
-    if (step === 'otp') {
-      setStep('email');
-      return;
-    }
-    setStep('options');
   };
 
   return (
@@ -91,7 +82,7 @@ export function ConsumerAuthModal({ isOpen, onClose, title = 'Elevate your exper
           </div>
           <h2 style={{ fontFamily: 'var(--font-sans)', fontSize: 32, fontWeight: 900, color: '#fff', margin: '0 0 10px', letterSpacing: -1.2, lineHeight: 1 }}>{title}</h2>
           <p style={{ color: 'rgba(255,255,255,.5)', fontSize: 15, lineHeight: 1.5 }}>
-            Choose Google or verify your email with a one-time code to continue.
+            Sign in with Google or use your email to continue to Spotly.
           </p>
         </div>
 
@@ -101,87 +92,68 @@ export function ConsumerAuthModal({ isOpen, onClose, title = 'Elevate your exper
           </div>
         )}
 
-        {step === 'options' && (
-          <div style={{ display: 'grid', gap: 12 }}>
-            <button
-              onClick={handleGoogleAuth}
-              disabled={loading}
-              style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 12, padding: '16px', borderRadius: 16, border: '1px solid rgba(255,255,255,.1)', background: 'rgba(255,255,255,.03)', color: '#fff', fontWeight: 700, fontSize: 16, cursor: loading ? 'not-allowed' : 'pointer', transition: 'all .2s', fontFamily: 'var(--font-sans)', outline: 'none' }}
-              className="hover:bg-[rgba(255,255,255,.07)] active:scale-[0.98]"
-            >
-              {loading ? <div style={{ width: 20, height: 20, border: '2px solid rgba(255,255,255,.2)', borderTopColor: '#fff', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} /> : <><Ic.Google /> Continue with Google</>}
-            </button>
+        <button
+          onClick={handleGoogleAuth}
+          disabled={loading}
+          style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 12, padding: '16px', borderRadius: 16, border: '1px solid rgba(255,255,255,.1)', background: 'rgba(255,255,255,.03)', color: '#fff', fontWeight: 700, fontSize: 16, cursor: loading ? 'not-allowed' : 'pointer', transition: 'all .2s', fontFamily: 'var(--font-sans)', outline: 'none' }}
+          className="hover:bg-[rgba(255,255,255,.07)] active:scale-[0.98]"
+        >
+          {loading ? <div style={{ width: 20, height: 20, border: '2px solid rgba(255,255,255,.2)', borderTopColor: '#fff', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} /> : <><Ic.Google /> Continue with Google</>}
+        </button>
 
-            <button
-              onClick={() => {
-                setError('');
-                setStep('email');
-              }}
-              disabled={loading}
-              style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 12, padding: '16px', borderRadius: 16, border: '1px solid rgba(255,255,255,.1)', background: 'rgba(245,196,24,.09)', color: '#f5c418', fontWeight: 800, fontSize: 15, cursor: loading ? 'not-allowed' : 'pointer', transition: 'all .2s', fontFamily: 'var(--font-sans)' }}
-            >
-              Continue with Email OTP
-            </button>
-          </div>
-        )}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, margin: '22px 0' }}>
+          <div style={{ flex: 1, height: 1, background: 'rgba(255,255,255,.08)' }} />
+          <span style={{ color: 'rgba(255,255,255,.28)', fontSize: 11, fontWeight: 800, textTransform: 'uppercase', letterSpacing: 1 }}>or</span>
+          <div style={{ flex: 1, height: 1, background: 'rgba(255,255,255,.08)' }} />
+        </div>
 
-        {step === 'email' && (
-          <form onSubmit={handleSendCode} style={{ display: 'grid', gap: 14 }}>
-            <div>
-              <label style={{ display: 'block', marginBottom: 8, color: 'rgba(255,255,255,.6)', fontSize: 12, fontWeight: 700, letterSpacing: 0.6, textTransform: 'uppercase' }}>Email address</label>
-              <input
-                type="email"
-                required
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="name@example.com"
-                style={{ width: '100%', padding: '15px 16px', borderRadius: 14, border: '1px solid rgba(255,255,255,.1)', background: 'rgba(255,255,255,.04)', color: '#fff', outline: 'none', fontSize: 15 }}
-              />
-            </div>
+        <form onSubmit={handleEmailAuth} style={{ display: 'grid', gap: 12 }}>
+          {mode === 'sign-up' && (
+            <input
+              type="text"
+              value={name}
+              onChange={(event) => setName(event.target.value)}
+              placeholder="Full name"
+              style={{ width: '100%', padding: '14px 15px', borderRadius: 14, border: '1px solid rgba(255,255,255,.1)', background: 'rgba(255,255,255,.04)', color: '#fff', outline: 'none', fontSize: 14 }}
+            />
+          )}
+          <input
+            type="email"
+            required
+            value={email}
+            onChange={(event) => setEmail(event.target.value)}
+            placeholder="Email address"
+            style={{ width: '100%', padding: '14px 15px', borderRadius: 14, border: '1px solid rgba(255,255,255,.1)', background: 'rgba(255,255,255,.04)', color: '#fff', outline: 'none', fontSize: 14 }}
+          />
+          <input
+            type="password"
+            required
+            minLength={6}
+            value={password}
+            onChange={(event) => setPassword(event.target.value)}
+            placeholder="Password"
+            style={{ width: '100%', padding: '14px 15px', borderRadius: 14, border: '1px solid rgba(255,255,255,.1)', background: 'rgba(255,255,255,.04)', color: '#fff', outline: 'none', fontSize: 14 }}
+          />
+          <button
+            type="submit"
+            disabled={loading}
+            style={{ width: '100%', padding: '15px 16px', borderRadius: 15, border: 'none', background: '#f5c418', color: '#000', fontWeight: 900, fontSize: 15, cursor: loading ? 'not-allowed' : 'pointer', fontFamily: 'var(--font-sans)' }}
+          >
+            {loading ? 'Please wait...' : mode === 'sign-up' ? 'Create account' : 'Sign in'}
+          </button>
+        </form>
 
-            <div style={{ display: 'flex', gap: 10 }}>
-              <button type="button" onClick={goBack} style={{ flex: 1, padding: '15px 16px', borderRadius: 14, border: '1px solid rgba(255,255,255,.1)', background: 'rgba(255,255,255,.03)', color: '#fff', fontWeight: 700, cursor: 'pointer' }}>
-                Back
-              </button>
-              <button type="submit" disabled={loading} style={{ flex: 1, padding: '15px 16px', borderRadius: 14, border: 'none', background: '#f5c418', color: '#000', fontWeight: 900, cursor: loading ? 'not-allowed' : 'pointer' }}>
-                {loading ? 'Sending...' : 'Send OTP'}
-              </button>
-            </div>
-          </form>
-        )}
-
-        {step === 'otp' && (
-          <form onSubmit={handleVerifyCode} style={{ display: 'grid', gap: 14 }}>
-            <div>
-              <label style={{ display: 'block', marginBottom: 8, color: 'rgba(255,255,255,.6)', fontSize: 12, fontWeight: 700, letterSpacing: 0.6, textTransform: 'uppercase' }}>Verification code</label>
-              <input
-                type="text"
-                inputMode="numeric"
-                autoComplete="one-time-code"
-                required
-                value={code}
-                onChange={(e) => setCode(e.target.value)}
-                placeholder="Enter the 6-digit code"
-                style={{ width: '100%', padding: '15px 16px', borderRadius: 14, border: '1px solid rgba(255,255,255,.1)', background: 'rgba(255,255,255,.04)', color: '#fff', outline: 'none', fontSize: 15, letterSpacing: 2 }}
-              />
-              <p style={{ marginTop: 8, color: 'rgba(255,255,255,.35)', fontSize: 12, lineHeight: 1.5 }}>
-                We sent a verification code to {email}. Enter it here to continue.
-              </p>
-            </div>
-
-            <div style={{ display: 'flex', gap: 10 }}>
-              <button type="button" onClick={goBack} style={{ flex: 1, padding: '15px 16px', borderRadius: 14, border: '1px solid rgba(255,255,255,.1)', background: 'rgba(255,255,255,.03)', color: '#fff', fontWeight: 700, cursor: 'pointer' }}>
-                Back
-              </button>
-              <button type="submit" disabled={loading} style={{ flex: 1, padding: '15px 16px', borderRadius: 14, border: 'none', background: '#f5c418', color: '#000', fontWeight: 900, cursor: loading ? 'not-allowed' : 'pointer' }}>
-                {loading ? 'Verifying...' : 'Verify'}
-              </button>
-            </div>
-          </form>
-        )}
+        <button
+          type="button"
+          onClick={switchMode}
+          disabled={loading}
+          style={{ width: '100%', marginTop: 14, background: 'transparent', border: 'none', color: 'rgba(255,255,255,.52)', fontSize: 13, fontWeight: 700, cursor: loading ? 'not-allowed' : 'pointer', fontFamily: 'var(--font-sans)' }}
+        >
+          {mode === 'sign-up' ? 'Already have an account? Sign in' : 'New to Spotly? Create an account'}
+        </button>
 
         <p style={{ marginTop: 24, textAlign: 'center', fontSize: 12, color: 'rgba(255,255,255,.3)', lineHeight: 1.6 }}>
-          By continuing, you agree to Spotly's <br />
+          By continuing, you agree to Spotly&apos;s <br />
           <span style={{ textDecoration: 'underline', cursor: 'pointer' }}>Terms of Service</span> and <span style={{ textDecoration: 'underline', cursor: 'pointer' }}>Privacy Policy</span>.
         </p>
       </div>

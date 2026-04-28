@@ -1,4 +1,4 @@
-import { Inject, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { QueueRepository, QUEUE_REPOSITORY } from './interfaces/queue-repository.interface';
 import { QueueEntry, QueueUpdatePayload, TokenCalledPayload } from '@spotly/types';
 import { QueueGateway } from '../websocket/queue.gateway';
@@ -16,8 +16,18 @@ export class QueueService {
    * Token number = current waiting count + 1 (temporary — replace with Redis INCR later).
    */
   async joinQueue(userId: string, outletId: string): Promise<QueueEntry> {
-    const waiting = await this.repo.countWaiting(outletId);
-    const tokenNumber = waiting + 1;
+    const isOpen = await this.repo.isOutletOpen(outletId);
+    if (!isOpen) {
+      throw new BadRequestException('This outlet is not accepting queue entries right now');
+    }
+
+    const existingEntry = await this.repo.findActiveEntryForUser(userId);
+    if (existingEntry) {
+      if (existingEntry.outletId === outletId) return existingEntry;
+      throw new BadRequestException('You already have an active queue entry');
+    }
+
+    const tokenNumber = await this.repo.getNextTokenNumber(outletId);
 
     const entry = await this.repo.joinQueue({
       userId,

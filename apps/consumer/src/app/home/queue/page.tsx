@@ -98,7 +98,7 @@ export default function ConsumerQueue() {
         <div className="animate-in zoom-in-95 duration-300" style={{ ...s.card, background: 'rgba(31,217,124,.08)', borderColor: 'rgba(31,217,124,.28)', marginBottom: 18, padding: '20px', textAlign: 'center' }}>
           <div style={{ fontSize: 40, marginBottom: 8, color: '#1fd97c', display: 'flex', justifyContent: 'center' }}><Ic.Bell /></div>
           <div style={{ fontFamily: 'var(--font-sans)', fontWeight: 900, fontSize: 20, color: '#1fd97c', marginBottom: 4 }}>Proceed to the counter!</div>
-          <p style={{ color: 'var(--t2)', fontSize: 14 }}>Don't keep them waiting</p>
+          <p style={{ color: 'var(--t2)', fontSize: 14 }}>Don&apos;t keep them waiting</p>
           <button style={{ ...s.btnM, marginTop: 16, width: '100%', justifyContent: 'center' }} onClick={() => { addToast('Served! Hope you had a great time.', 'success'); router.push('/home') }}>Mark as Served</button>
         </div>
       ) : (

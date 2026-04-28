@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { QueueRepository } from '../interfaces/queue-repository.interface';
 import { PrismaService } from '../../../prisma/prisma.service';
-import { QueueEntry as PrismaQueueEntry, QueueStatus } from '@spotly/database';
+import { QueueEntry as PrismaQueueEntry } from '@spotly/database';
 
 // A mapping type since `@spotly/types` QueueEntry might differ slightly from Prisma's QueueEntry
 // Let's coerce it to match the interface needed by the Queue Service
@@ -33,6 +33,33 @@ export class PrismaQueueRepository implements QueueRepository {
       },
     });
     return this.mapToDomain(created);
+  }
+
+  async isOutletOpen(outletId: string): Promise<boolean> {
+    const outlet = await this.prisma.outlet.findUnique({
+      where: { id: outletId },
+      select: { isActive: true },
+    });
+    return Boolean(outlet?.isActive);
+  }
+
+  async findActiveEntryForUser(userId: string): Promise<QueueEntry | null> {
+    const entry = await this.prisma.queueEntry.findFirst({
+      where: {
+        userId,
+        status: { in: ['PENDING_ACCEPTANCE', 'WAITING', 'CALLED'] },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+    return entry ? this.mapToDomain(entry) : null;
+  }
+
+  async getNextTokenNumber(outletId: string): Promise<number> {
+    const aggregate = await this.prisma.queueEntry.aggregate({
+      where: { outletId },
+      _max: { tokenNumber: true },
+    });
+    return (aggregate._max.tokenNumber ?? 0) + 1;
   }
 
   async getQueue(outletId: string): Promise<QueueEntry[]> {

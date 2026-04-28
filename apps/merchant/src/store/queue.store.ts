@@ -69,7 +69,7 @@ export const useQueueStore = create<QueueStore>((set, get) => ({
       const data: Outlet[] = res.data.data || [];
       set({ outlets: data });
       if (data.length > 0 && !get().selectedOutletId) {
-        set({ selectedOutletId: data[0].id });
+        set({ selectedOutletId: data[0].id, isOpen: data[0].isActive ?? true });
         await get().fetchQueue();
       }
     } catch {
@@ -85,7 +85,8 @@ export const useQueueStore = create<QueueStore>((set, get) => ({
     if (_socket && selectedOutletId) {
       _socket.emit('leave_outlet', { outletId: selectedOutletId });
     }
-    set({ selectedOutletId: id, entries: [] });
+    const selectedOutlet = get().outlets.find((outlet) => outlet.id === id);
+    set({ selectedOutletId: id, entries: [], isOpen: selectedOutlet?.isActive ?? true });
     get().fetchQueue();
     if (_socket) {
       _socket.emit('join_outlet', { outletId: id });
@@ -118,7 +119,7 @@ export const useQueueStore = create<QueueStore>((set, get) => ({
 
   markServed: async (entryId: string) => {
     try {
-      await api.post(`/queue/served/${entryId}`);
+      await api.post(`/queue/served/${entryId}`, { outletId: get().selectedOutletId });
       get()._addToast?.('Marked as served ✓', 'success');
       get().fetchQueue();
     } catch {

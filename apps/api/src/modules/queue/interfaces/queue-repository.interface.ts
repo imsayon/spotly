@@ -11,6 +11,15 @@ export interface QueueRepository {
   /** Add a new entry to the queue */
   joinQueue(data: Omit<QueueEntry, 'id'>): Promise<QueueEntry>;
 
+  /** Check whether an outlet can currently accept queue entries */
+  isOutletOpen(outletId: string): Promise<boolean>;
+
+  /** Find an active queue entry for this user, if one exists */
+  findActiveEntryForUser(userId: string): Promise<QueueEntry | null>;
+
+  /** Get the next token number for an outlet */
+  getNextTokenNumber(outletId: string): Promise<number>;
+
   /** Get all entries for an outlet (ordered by tokenNumber) */
   getQueue(outletId: string): Promise<QueueEntry[]>;
 

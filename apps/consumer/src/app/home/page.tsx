@@ -13,7 +13,7 @@ export default function ConsumerHome() {
   const { user, profile } = useAuthStore()
   const { add: addToast } = useToasts()
   const router = useRouter()
-  const { label: liveLocationLabel, isDenied, requestLocation } = useLiveLocation({ prompt: true })
+  const { location, label: liveLocationLabel, isDenied, requestLocation } = useLiveLocation({ prompt: true })
 
   const displayName = profile?.name || (user as any)?.user_metadata?.name || user?.email?.split('@')[0] || 'Member'
   const shownLocation = liveLocationLabel !== "Location unavailable" ? liveLocationLabel : (profile?.location || "Location unavailable")
@@ -28,7 +28,8 @@ export default function ConsumerHome() {
   useEffect(() => {
     const fetchMerchants = async () => {
       try {
-        const res = await api.get('/merchant');
+        const params = location ? `?lat=${location.latitude}&lng=${location.longitude}` : '';
+        const res = await api.get(`/merchant${params}`);
         setMerchants(res.data.data);
       } catch (err) {
         addToast('Failed to connect to Spotly network', 'error');
@@ -37,7 +38,7 @@ export default function ConsumerHome() {
       }
     };
     fetchMerchants();
-  }, [addToast]);
+  }, [addToast, location]);
 
   const CATEGORIES = [
     { id: 'all', label: 'Discovery', icon: <Ic.Sparkle /> },

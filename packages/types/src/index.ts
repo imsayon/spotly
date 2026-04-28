@@ -1,6 +1,6 @@
 // ─── Queue Status ────────────────────────────────────────────────────────────
 
-export type QueueStatus = 'WAITING' | 'CALLED' | 'SERVED' | 'MISSED';
+export type QueueStatus = 'PENDING_ACCEPTANCE' | 'WAITING' | 'CALLED' | 'SERVED' | 'MISSED' | 'CANCELLED';
 
 // ─── User Role ────────────────────────────────────────────────────────────────
 
@@ -15,6 +15,8 @@ export interface User {
   role: UserRole;
   phone?: string;
   location?: string;
+  lat?: number;
+  lng?: number;
   createdAt: string;
 }
 
@@ -28,8 +30,12 @@ export interface Merchant {
   contactEmail?: string;
   logoUrl?: string;
   location?: string;
+  address?: string;
+  lat?: number;
+  lng?: number;
   rating?: number;
   estimatedWaitTime?: string;
+  outlets?: Outlet[];
   createdAt: string;
 }
 
@@ -38,6 +44,11 @@ export interface Outlet {
   merchantId: string;
   name: string;
   address?: string;
+  lat?: number;
+  lng?: number;
+  isActive?: boolean;
+  openTime?: string;
+  closeTime?: string;
   phone?: string;
   operatingHours?: string;
   createdAt: string;
@@ -86,4 +97,22 @@ export interface TokenCalledPayload {
   outletId: string;
   tokenNumber: number;
   userId: string;
+}
+
+// ─── Review & Favorite ────────────────────────────────────────────────────────
+
+export interface Review {
+  id: string;
+  userId: string;
+  outletId: string;
+  rating: number;
+  comment?: string | null;
+  createdAt: Date | string;
+}
+
+export interface Favorite {
+  id: string;
+  userId: string;
+  outletId: string;
+  createdAt: Date | string;
 }

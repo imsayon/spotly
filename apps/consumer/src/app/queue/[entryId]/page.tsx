@@ -134,10 +134,11 @@ export default function ConsumerQueuePage() {
 
   const isCalled = entry.status === 'CALLED';
   const isServed = entry.status === 'SERVED';
-  const isMissed = entry.status === 'MISSED';
+  const isMissed = entry.status === 'MISSED' || entry.status === 'CANCELLED';
   const isWaiting = entry.status === 'WAITING';
+  const isPending = entry.status === 'PENDING_ACCEPTANCE';
 
-  const statusColor = isCalled ? '#1fd97c' : isMissed ? '#ff4d6d' : isServed ? '#00cfff' : '#f5c418';
+  const statusColor = isCalled ? '#1fd97c' : isMissed ? '#ff4d6d' : isServed ? '#00cfff' : isPending ? '#a78bfa' : '#f5c418';
 
   return (
     <motion.div 
@@ -192,8 +193,13 @@ export default function ConsumerQueuePage() {
         <AnimatePresence mode="wait">
           {isCalled ? (
             <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} key="called">
-              <h2 style={{ fontSize: 32, fontWeight: 900, marginBottom: 12, color: '#fff', letterSpacing: -1 }}>It's your turn!</h2>
+              <h2 style={{ fontSize: 32, fontWeight: 900, marginBottom: 12, color: '#fff', letterSpacing: -1 }}>It&apos;s your turn!</h2>
               <p style={{ color: 'rgba(255,255,255,0.4)', fontSize: 16, lineHeight: 1.6 }}>Your spot is ready. Please present this token at the counter immediately.</p>
+            </motion.div>
+          ) : isPending ? (
+            <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} key="pending">
+              <h2 style={{ fontSize: 28, fontWeight: 900, marginBottom: 12, letterSpacing: -1 }}>Awaiting confirmation</h2>
+              <p style={{ color: 'rgba(255,255,255,0.4)', fontSize: 16, lineHeight: 1.6 }}>The merchant will accept your request before your token enters the live queue.</p>
             </motion.div>
           ) : isWaiting ? (
             <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} key="waiting">
@@ -217,7 +223,7 @@ export default function ConsumerQueuePage() {
           ) : (
             <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} key="missed">
               <h2 style={{ fontSize: 28, fontWeight: 900, marginBottom: 8, color: '#ff4d6d', letterSpacing: -1 }}>Turn Missed</h2>
-              <p style={{ color: 'rgba(255,255,255,0.4)', fontSize: 16 }}>You weren't available when called. Please rejoin the queue if needed.</p>
+              <p style={{ color: 'rgba(255,255,255,0.4)', fontSize: 16 }}>You weren&apos;t available when called. Please rejoin the queue if needed.</p>
             </motion.div>
           )}
         </AnimatePresence>
@@ -225,7 +231,7 @@ export default function ConsumerQueuePage() {
 
       {/* ACTIONS */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-        {isWaiting && (
+        {(isWaiting || isPending) && (
           <motion.button 
             whileHover={{ y: -2, background: 'rgba(255,77,109,.15)' }}
             whileTap={{ scale: 0.98 }}
