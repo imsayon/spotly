@@ -1,130 +1,121 @@
 generator client {
-  provider = "prisma-client-js"
-  engineType = "library"
+  provider   = "prisma-client-js"
+  engineType = "binary"
 }
-
 
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
-
-
-
 model User {
-  id              String   @id @default(uuid())
-  email           String?  @unique
-  phone           String?  @unique
-  isPhoneVerified Boolean  @default(false)
+  id              String       @id @default(uuid())
+  phone           String?      @unique
   name            String?
+  role            Role         @default(CONSUMER)
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+  email           String?      @unique
+  secondaryPhone  String?
+  isPhoneVerified Boolean      @default(false)
   location        String?
   lat             Float?
   lng             Float?
-  role            Role     @default(CONSUMER)
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
-
-  merchant   Merchant?
-  queues     QueueEntry[]
-  reviews    Review[]
-  favorites  Favorite[]
+  Favorite        Favorite[]
+  queues          QueueEntry[]
+  reviews         Review[]
 }
-
 
 model Merchant {
-  id          String   @id @default(uuid())
-  ownerId     String   @unique
-  user        User     @relation(fields: [ownerId], references: [id])
-  spotId      String?  @unique // User-facing ID (e.g., SPOT-1234)
-  name        String
-  category    String
-  description String?
-  phone       String?
+  id           String   @id @default(uuid())
+  ownerId      String   @unique
+  name         String
+  category     String
+  description  String?
+  verified     Boolean  @default(false)
   contactEmail String?
-  website     String?
-  address     String?
+  logoUrl      String?
+  phone        String?
+  address      String?
   foundingYear Int?
-  logoUrl     String?
-  gstNumber   String?
-  lat         Float?
-  lng         Float?
-  verified    Boolean  @default(false)
-  
-  outlets     Outlet[]
+  gstNumber    String?
+  website      String?
+  lat          Float?
+  lng          Float?
+  spotId       String?
+  outlets      Outlet[]
 }
 
-
 model Outlet {
-  id          String   @id @default(uuid())
-  merchantId  String
-  merchant    Merchant @relation(fields: [merchantId], references: [id])
-  name        String
-  address     String
-  lat         Float?
-  lng         Float?
-  isActive    Boolean  @default(true)
-  openTime    String   @default("09:00")
-  closeTime   String   @default("21:00")
-  
-  queues          QueueEntry[]
-  menuCategories  MenuCategory[]
-  favorites       Favorite[]
+  id             String         @id @default(uuid())
+  merchantId     String
+  name           String
+  address        String
+  lat            Float?
+  lng            Float?
+  isActive       Boolean        @default(true)
+  openTime       String?        @default("09:00")
+  closeTime      String?        @default("21:00")
+  favorites      Favorite[]
+  menuCategories MenuCategory[]
+  merchant       Merchant       @relation(fields: [merchantId], references: [id])
+  queues         QueueEntry[]
 }
 
 model MenuCategory {
-  id        String   @id @default(uuid())
+  id        String     @id @default(uuid())
   outletId  String
-  outlet    Outlet   @relation(fields: [outletId], references: [id])
   name      String
-  order     Int      @default(0)
+  order     Int        @default(0)
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+  outlet    Outlet     @relation(fields: [outletId], references: [id])
   items     MenuItem[]
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
 }
 
 model MenuItem {
-  id          String   @id @default(uuid())
+  id          String       @id @default(uuid())
   categoryId  String
-  category    MenuCategory @relation(fields: [categoryId], references: [id])
   name        String
   description String?
   price       Float
   image       String?
-  isAvailable Boolean  @default(true)
-  order       Int      @default(0)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  isAvailable Boolean      @default(true)
+  order       Int          @default(0)
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+  category    MenuCategory @relation(fields: [categoryId], references: [id])
 }
 
 model QueueEntry {
-  id        String   @id @default(uuid())
-  userId    String
-  user      User     @relation(fields: [userId], references: [id])
-  outletId  String
-  outlet    Outlet   @relation(fields: [outletId], references: [id])
-  tokenNumber Int
-  status    QueueStatus @default(WAITING) // WAITING, CALLED, SERVED, CANCELLED
-  createdAt DateTime @default(now())
+  id          String      @id @default(uuid())
+  userId      String
+  outletId    String
+  status      QueueStatus @default(WAITING)
+  createdAt   DateTime    @default(now())
+  tokenNumber Int?
+  outlet      Outlet      @relation(fields: [outletId], references: [id])
+  user        User        @relation(fields: [userId], references: [id])
 }
 
 model Review {
-  id          String   @id @default(uuid())
-  userId      String
-  user        User     @relation(fields: [userId], references: [id])
-  outletId    String
-  rating      Int
-  comment     String?
-  createdAt   DateTime @default(now())
+  id        String   @id @default(uuid())
+  userId    String
+  outletId  String
+  rating    Int
+  comment   String?
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id])
 }
 
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
 model Favorite {
   id        String   @id @default(uuid())
   userId    String
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   outletId  String
-  outlet    Outlet   @relation(fields: [outletId], references: [id], onDelete: Cascade)
   createdAt DateTime @default(now())
+  outlet    Outlet   @relation(fields: [outletId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId, outletId])
 }
@@ -136,9 +127,9 @@ enum Role {
 }
 
 enum QueueStatus {
-  PENDING_ACCEPTANCE
   WAITING
   CALLED
   SERVED
   CANCELLED
+  PENDING_ACCEPTANCE
 }
