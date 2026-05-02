@@ -58,6 +58,7 @@ export default function MerchantQueuePage() {
 
   useEffect(() => {
     store.setToastFn(addToast as any)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [addToast])
 
   useEffect(() => {
@@ -69,6 +70,7 @@ export default function MerchantQueuePage() {
       store.disconnectSocket()
       if (pollRef.current) clearInterval(pollRef.current)
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [merchantProfile?.id, authLoading])
 
   const entries  = store.entries

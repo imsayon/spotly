@@ -1,5 +1,6 @@
 import {
 	Injectable,
+	Logger,
 	NotFoundException,
 	ForbiddenException,
 } from "@nestjs/common"
@@ -8,6 +9,8 @@ import { Outlet } from "@spotly/database"
 
 @Injectable()
 export class OutletService {
+	private readonly logger = new Logger(OutletService.name)
+
 	constructor(private readonly prisma: PrismaService) {}
 
 	async create(
@@ -19,8 +22,8 @@ export class OutletService {
 		openTime?: string,
 		closeTime?: string,
 	): Promise<Outlet> {
-		console.log(
-			`[OutletService] Creating outlet "${name}" for merchant ${merchantId}`,
+		this.logger.log(
+			`Creating outlet "${name}" for merchant ${merchantId}`,
 		)
 		return this.prisma.outlet.create({
 			data: {

@@ -1,12 +1,11 @@
 "use client"
 
-import React, { useEffect, useState } from "react"
+import React, { useEffect, useState, useCallback } from "react"
 import dynamic from 'next/dynamic'
 import { useAuthStore } from "@/store/auth.store"
 import { Ic, useToasts } from "@spotly/ui"
-import { MERCHANTS } from "@spotly/ui/src/data/mock"
-import { getMerchantIcon } from "@/lib/merchantIcon"
 import { useLiveLocation } from "@/lib/useLiveLocation"
+import api from "@/lib/api"
 
 const MapPicker = dynamic(() => import('@/components/MapPicker'), { 
   ssr: false,
@@ -14,14 +13,25 @@ const MapPicker = dynamic(() => import('@/components/MapPicker'), {
 })
 
 const s = {
-  card: { background: 'var(--s1)', border: '1px solid var(--bdr)', borderRadius: 18, padding: 22, transition: 'all .3s cubic-bezier(.25,.46,.45,.94)' },
-  gradC: { background: 'linear-gradient(135deg,#f5c418,#ff6316)' },
-  gradCText: { background: 'linear-gradient(135deg,#f5c418,#ff6316)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text' },
+  card: { background: 'var(--s1)', border: '1px solid var(--bdr)', borderRadius: 18, padding: 22, transition: 'all .3s cubic-bezier(.25,.46,.45,.94)' } as React.CSSProperties,
+  gradC: { background: 'linear-gradient(135deg,#f5c418,#ff6316)' } as React.CSSProperties,
+  gradCText: { background: 'linear-gradient(135deg,#f5c418,#ff6316)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text' } as React.CSSProperties,
   badge: (c: string) => ({
     display: 'inline-flex', alignItems: 'center', gap: 4, padding: '3px 9px', borderRadius: 999, fontSize: 11, fontWeight: 700, letterSpacing: .3,
     ...(c === 'yellow' && { background: 'rgba(245,196,24,.12)', color: '#f5c418', border: '1px solid rgba(245,196,24,.22)' }),
     ...(c === 'green' && { background: 'rgba(31,217,124,.12)', color: '#1fd97c', border: '1px solid rgba(31,217,124,.22)' }),
+    ...(c === 'red' && { background: 'rgba(255,77,109,.1)', color: '#ff4d6d', border: '1px solid rgba(255,77,109,.22)' }),
   })
+}
+
+interface HistoryEntry {
+  id: string
+  tokenNumber: number
+  status: string
+  joinedAt: string
+  outletName?: string
+  merchantName?: string
+  merchantCategory?: string
 }
 
 export default function ConsumerProfile() {
@@ -31,6 +41,8 @@ export default function ConsumerProfile() {
   const [editing, setEditing] = useState(false)
   const [saving, setSaving] = useState(false)
   const [form, setForm] = useState<{ name: string; phone: string; location: string; lat?: number; lng?: number }>({ name: '', phone: '', location: '' })
+  const [history, setHistory] = useState<HistoryEntry[]>([])
+  const [historyLoading, setHistoryLoading] = useState(true)
 
   useEffect(() => {
     setForm({
@@ -41,6 +53,21 @@ export default function ConsumerProfile() {
       lng: profile?.lng,
     })
   }, [profile, user?.email, liveLocationLabel])
+
+  const fetchHistory = useCallback(async () => {
+    try {
+      const res = await api.get('/queue/history?limit=10')
+      setHistory(res.data.data || [])
+    } catch {
+      // Silently fail — history is optional
+    } finally {
+      setHistoryLoading(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    fetchHistory()
+  }, [fetchHistory])
 
   const saveProfile = async () => {
     setSaving(true)
@@ -61,9 +88,37 @@ export default function ConsumerProfile() {
       setSaving(false)
     }
   }
+
+  // Compute real stats from history
+  const servedCount = history.filter(h => h.status === 'SERVED' || h.status === 'WAITING' || h.status === 'CALLED').length
+  const uniqueMerchants = new Set(history.map(h => h.merchantName).filter(Boolean)).size
   
-  const stats = [{ n: 23, l: 'Queues Joined' }, { n: '4.1h', l: 'Time Saved' }, { n: 18, l: 'Merchants' }]
+  const stats = [
+    { n: servedCount || 0, l: 'Queues Joined' },
+    { n: uniqueMerchants || 0, l: 'Merchants' },
+    { n: history.length || 0, l: 'Total History' },
+  ]
   
+  const getCategoryIcon = (category?: string) => {
+    const cat = category?.toLowerCase() || ''
+    if (cat.includes('coffee')) return <Ic.Clock />
+    if (cat.includes('health') || cat.includes('pharm')) return <Ic.Activity />
+    if (cat.includes('bakery') || cat.includes('food')) return <Ic.Store />
+    return <Ic.Store />
+  }
+
+  const formatDate = (iso: string) => {
+    const d = new Date(iso)
+    const now = new Date()
+    const diff = now.getTime() - d.getTime()
+    const hours = diff / (1000 * 60 * 60)
+    if (hours < 1) return 'Just now'
+    if (hours < 24) return `${Math.floor(hours)}h ago`
+    if (hours < 48) return 'Yesterday'
+    if (hours < 168) return `${Math.floor(hours / 24)} days ago`
+    return d.toLocaleDateString('en-IN', { month: 'short', day: 'numeric' })
+  }
+
   return (
     <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
       <div style={{ textAlign: 'center', marginBottom: 28 }}>
@@ -71,9 +126,9 @@ export default function ConsumerProfile() {
           {profile?.name?.[0]?.toUpperCase() || profile?.email?.[0]?.toUpperCase() || user?.email?.[0]?.toUpperCase() || "A"}
         </div>
         <h2 style={{ fontFamily: 'var(--font-sans)', fontSize: 22, fontWeight: 900, marginBottom: 3 }}>
-          {profile?.name || profile?.email?.split('@')[0] || user?.email?.split('@')[0] || "Arjun Sharma"}
+          {profile?.name || profile?.email?.split('@')[0] || user?.email?.split('@')[0] || "Anonymous"}
         </h2>
-        <p style={{ color: 'var(--t3)', fontSize: 13 }}>{profile?.phone || 'No phone set'} - {profile?.location || (liveLocationLabel !== 'Location unavailable' ? liveLocationLabel : 'Location unavailable')}</p>
+        <p style={{ color: 'var(--t3)', fontSize: 13 }}>{profile?.phone || 'No phone set'} — {profile?.location || (liveLocationLabel !== 'Location unavailable' ? liveLocationLabel : 'Location unavailable')}</p>
         <div style={{ display: 'flex', justifyContent: 'center', gap: 6, marginTop: 10 }}>
           <span style={s.badge('yellow') as React.CSSProperties}>Consumer</span>
           <span style={s.badge('green') as React.CSSProperties}><Ic.Shield /> Verified</span>
@@ -149,16 +204,34 @@ export default function ConsumerProfile() {
       </div>
 
       <h3 style={{ fontWeight: 800, fontFamily: 'var(--font-sans)', fontSize: 16, marginBottom: 12 }}>Recent History</h3>
-      {MERCHANTS.slice(0, 4).map((m, i) => (
-        <div key={m.id} style={{ ...s.card, padding: '12px', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 12 }}>
-          <div style={{ width: 38, height: 38, borderRadius: 10, background: `${m.color}20`, color: m.color, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>{getMerchantIcon(m.cat)}</div>
-          <div style={{ flex: 1 }}>
-            <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 2 }}>{m.name}</div>
-            <div style={{ fontSize: 11, color: 'var(--t3)' }}>{['Yesterday 2:15PM', 'Last week', '3 days ago', 'This morning'][i]} - Token #{40 + i}</div>
-          </div>
-          <span style={s.badge('green') as React.CSSProperties}>Served</span>
+      {historyLoading ? (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          {[1, 2, 3].map(i => (
+            <div key={i} style={{ ...s.card, height: 60, opacity: 0.4, background: 'rgba(255,255,255,.02)', animation: 'pulse 2s infinite' }} />
+          ))}
         </div>
-      ))}
+      ) : history.length === 0 ? (
+        <div style={{ ...s.card, padding: '40px 20px', textAlign: 'center', color: 'var(--t3)' }}>
+          <div style={{ fontSize: 32, marginBottom: 8 }}>📋</div>
+          <p style={{ fontWeight: 700, fontSize: 14, marginBottom: 4 }}>No queue history yet</p>
+          <p style={{ fontSize: 12 }}>Your past queue visits will appear here</p>
+        </div>
+      ) : (
+        history.map(h => (
+          <div key={h.id} style={{ ...s.card, padding: '12px', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 12 }}>
+            <div style={{ width: 38, height: 38, borderRadius: 10, background: 'rgba(245,196,24,.08)', color: '#f5c418', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+              {getCategoryIcon(h.merchantCategory)}
+            </div>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 2 }}>{h.merchantName || h.outletName || 'Outlet'}</div>
+              <div style={{ fontSize: 11, color: 'var(--t3)' }}>{formatDate(h.joinedAt)} — Token #{h.tokenNumber}</div>
+            </div>
+            <span style={s.badge(h.status === 'SERVED' ? 'green' : 'red') as React.CSSProperties}>
+              {h.status === 'SERVED' ? 'Served' : 'Cancelled'}
+            </span>
+          </div>
+        ))
+      )}
 
       <div style={{ ...s.card, marginTop: 18, padding: '6px' }}>
         {[

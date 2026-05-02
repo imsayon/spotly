@@ -79,9 +79,9 @@ export default function MerchantOutlets() {
       if (merchantProfile?.id) {
         loadOutlets()
       } else {
-        setLoading(false)
       }
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [merchantProfile, authLoading])
 
   const loadOutlets = async () => {
@@ -89,15 +89,27 @@ export default function MerchantOutlets() {
       setLoading(true)
       const res = await api.get(`/outlet/merchant/${merchantProfile?.id}`)
       if (res.data.success) {
-        // Map backend fields to UI fields
-        const mapped = res.data.data.map((o: any) => ({
-          ...o,
-          addr: o.address,
-          open: o.isActive,
-          queue: 0, // TODO: Fetch real queue count
-          hours: '9:00 AM – 9:00 PM' // TODO: Add hours to database model
-        }))
-        setOutlets(mapped)
+        const raw = res.data.data || []
+        // Fetch queue counts in parallel for each outlet
+        const withCounts = await Promise.all(
+          raw.map(async (o: any) => {
+            let queueCount = 0
+            try {
+              const qRes = await api.get(`/queue/${o.id}`)
+              queueCount = (qRes.data.data || []).filter(
+                (e: any) => e.status === 'WAITING' || e.status === 'PENDING_ACCEPTANCE'
+              ).length
+            } catch { /* silently skip */ }
+            return {
+              ...o,
+              addr: o.address,
+              open: o.isActive,
+              queue: queueCount,
+              hours: `${o.openTime || '09:00'} – ${o.closeTime || '21:00'}`
+            }
+          })
+        )
+        setOutlets(withCounts)
       }
     } catch (err) {
       console.error('Failed to load outlets:', err)

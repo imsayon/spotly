@@ -2,43 +2,6 @@ import { create } from 'zustand';
 import { QueueEntry, QueueUpdatePayload } from '@spotly/types';
 import api from '@/lib/api';
 
-const seedFromString = (value: string): number => {
-  let hash = 0;
-  for (let i = 0; i < value.length; i += 1) {
-    hash = (hash * 31 + value.charCodeAt(i)) % 100000;
-  }
-  return Math.abs(hash);
-};
-
-const buildDemoQueue = (outletId: string) => {
-  const seed = seedFromString(outletId);
-  const waitingCount = 4 + (seed % 6);
-  const currentToken = 40 + (seed % 20);
-  const waitingEntries: QueueEntry[] = Array.from({ length: waitingCount }).map((_, index) => ({
-    id: `demo-entry-${outletId}-${index + 1}`,
-    userId: `demo-user-${index + 1}`,
-    outletId,
-    tokenNumber: currentToken + index + 1,
-    status: 'WAITING',
-    joinedAt: new Date(Date.now() - (waitingCount - index) * 2 * 60 * 1000).toISOString(),
-  }));
-
-  const calledEntry: QueueEntry = {
-    id: `demo-called-${outletId}`,
-    userId: 'demo-called-user',
-    outletId,
-    tokenNumber: currentToken,
-    status: 'CALLED',
-    joinedAt: new Date(Date.now() - 15 * 60 * 1000).toISOString(),
-    calledAt: new Date(Date.now() - 30 * 1000).toISOString(),
-  };
-
-  return {
-    entries: [calledEntry, ...waitingEntries],
-    currentToken,
-  };
-};
-
 // Play a notification sound using Web Audio API
 const playNotificationSound = () => {
   try {
@@ -60,7 +23,7 @@ const playNotificationSound = () => {
     // Second beep
     const osc2 = audioContext.createOscillator();
     osc2.connect(gainNode);
-    oscillator.frequency.value = 1000;
+    osc2.frequency.value = 1000;
     gainNode.gain.setValueAtTime(0.3, audioContext.currentTime + 0.15);
     gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.25);
     
@@ -80,6 +43,7 @@ interface QueueState {
   fetchQueue: (outletId: string) => Promise<void>;
   joinQueue: (outletId: string) => Promise<QueueEntry>;
   leaveQueue: (entryId: string) => Promise<void>;
+  fetchActiveEntry: () => Promise<QueueEntry | null>;
   handleQueueUpdate: (payload: QueueUpdatePayload) => void;
   handleTokenCalled: (tokenNumber: number) => void;
 }
@@ -114,14 +78,19 @@ export const useQueueStore = create<QueueState>()((set, get) => ({
   },
 
   leaveQueue: async (entryId: string) => {
-    if (entryId.startsWith('mock-')) {
-      const { entries } = get();
-      set({ entries: entries.filter((e) => e.id !== entryId), myEntry: null });
-      return;
-    }
-
     await api.delete(`/queue/leave/${entryId}`);
     set({ myEntry: null });
+  },
+
+  fetchActiveEntry: async () => {
+    try {
+      const res = await api.get('/queue/active');
+      const entry: QueueEntry | null = res.data.data;
+      set({ myEntry: entry });
+      return entry;
+    } catch {
+      return null;
+    }
   },
 
   handleQueueUpdate: (payload: QueueUpdatePayload) => {

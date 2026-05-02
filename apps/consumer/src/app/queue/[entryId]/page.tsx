@@ -105,6 +105,7 @@ export default function ConsumerQueuePage() {
       socket.emit('leave_outlet', { outletId: entry.outletId });
       socket.disconnect();
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [entry?.outletId, entryId, handleQueueUpdate, handleTokenCalled]);
 
   const handleLeave = async () => {
@@ -134,11 +135,13 @@ export default function ConsumerQueuePage() {
 
   const isCalled = entry.status === 'CALLED';
   const isServed = entry.status === 'SERVED';
-  const isMissed = entry.status === 'MISSED' || entry.status === 'CANCELLED';
+  const isMissed = entry.status === 'MISSED';
+  const isCancelled = entry.status === 'CANCELLED';
   const isWaiting = entry.status === 'WAITING';
   const isPending = entry.status === 'PENDING_ACCEPTANCE';
+  const isTerminal = isMissed || isCancelled;
 
-  const statusColor = isCalled ? '#1fd97c' : isMissed ? '#ff4d6d' : isServed ? '#00cfff' : isPending ? '#a78bfa' : '#f5c418';
+  const statusColor = isCalled ? '#1fd97c' : isTerminal ? '#ff4d6d' : isServed ? '#00cfff' : isPending ? '#a78bfa' : '#f5c418';
 
   return (
     <motion.div 
@@ -220,6 +223,11 @@ export default function ConsumerQueuePage() {
               <h2 style={{ fontSize: 28, fontWeight: 900, marginBottom: 8, letterSpacing: -1 }}>Served!</h2>
               <p style={{ color: 'rgba(255,255,255,0.4)', fontSize: 16 }}>Your request was processed successfully. Thank you for choosing us!</p>
             </motion.div>
+          ) : isCancelled ? (
+            <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} key="cancelled">
+              <h2 style={{ fontSize: 28, fontWeight: 900, marginBottom: 8, color: '#ff4d6d', letterSpacing: -1 }}>Cancelled</h2>
+              <p style={{ color: 'rgba(255,255,255,0.4)', fontSize: 16 }}>You cancelled your reservation. You can rejoin the queue anytime.</p>
+            </motion.div>
           ) : (
             <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} key="missed">
               <h2 style={{ fontSize: 28, fontWeight: 900, marginBottom: 8, color: '#ff4d6d', letterSpacing: -1 }}>Turn Missed</h2>
@@ -242,7 +250,7 @@ export default function ConsumerQueuePage() {
           </motion.button>
         )}
 
-        {(isServed || isMissed || isCalled) && (
+        {(isServed || isTerminal || isCalled) && (
           <motion.button 
             whileHover={{ y: -2, boxShadow: '0 12px 30px rgba(245,196,24,.3)' }}
             whileTap={{ scale: 0.98 }}

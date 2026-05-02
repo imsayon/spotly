@@ -43,6 +43,8 @@ model Merchant {
   lat          Float?
   lng          Float?
   spotId       String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
   outlets      Outlet[]
 }
 
@@ -56,6 +58,7 @@ model Outlet {
   isActive       Boolean        @default(true)
   openTime       String?        @default("09:00")
   closeTime      String?        @default("21:00")
+  createdAt      DateTime       @default(now())
   favorites      Favorite[]
   menuCategories MenuCategory[]
   merchant       Merchant       @relation(fields: [merchantId], references: [id])
@@ -130,6 +133,7 @@ enum QueueStatus {
   WAITING
   CALLED
   SERVED
+  MISSED
   CANCELLED
   PENDING_ACCEPTANCE
 }

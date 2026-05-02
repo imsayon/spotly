@@ -251,6 +251,7 @@ export default function MerchantDashboard() {
   // Inject toast function into store
   useEffect(() => {
     store.setToastFn(addToast as any)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [addToast])
 
   // Bootstrap: fetch outlets + connect WebSocket
@@ -267,6 +268,7 @@ export default function MerchantDashboard() {
       store.disconnectSocket()
       if (pollRef.current) clearInterval(pollRef.current)
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [merchantProfile?.id])
 
   // Re-join socket room when outlet changes
@@ -412,37 +414,55 @@ export default function MerchantDashboard() {
       </div>
 
       {/* ═══ LIVE ACTIVITY ═══ */}
-      <div style={{ ...s.card, padding: 24, marginBottom: 24, background: 'rgba(255,255,255,.01)' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-          <h3 style={{ fontSize: 15, fontWeight: 800, color: 'rgba(255,255,255,.6)', display: 'flex', alignItems: 'center', gap: 8 }}>
-            <Ic.Activity /> Queue Intensity
-          </h3>
-          <div style={{ fontSize: 12, color: 'rgba(255,255,255,.3)', fontWeight: 600 }}>Last 24 Hours</div>
-        </div>
-        <div style={{ display: 'flex', alignItems: 'flex-end', gap: 4, height: 100, paddingBottom: 10, borderBottom: '1px solid rgba(255,255,255,.05)' }}>
-          {[30, 45, 60, 25, 40, 85, 45, 30, 50, 70, 90, 60, 40, 30, 20, 15, 25, 45, 65, 80, 55, 35, 25, 40].map((v, i) => (
-            <motion.div
-              key={i}
-              initial={{ height: 0 }}
-              animate={{ height: `${v}%` }}
-              transition={{ delay: i * 0.02, duration: 0.5 }}
-              style={{
-                flex: 1,
-                background: v > 70 ? 'var(--gM)' : 'rgba(255,255,255,.08)',
-                borderRadius: '4px 4px 0 0',
-                opacity: (i > 10 && i < 16) ? 1 : 0.4,
-              }}
-            />
-          ))}
-        </div>
-        <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 10, fontSize: 10, color: 'rgba(255,255,255,.2)', fontWeight: 700 }}>
-          <span>12 AM</span>
-          <span>6 AM</span>
-          <span>12 PM</span>
-          <span>6 PM</span>
-          <span>11 PM</span>
-        </div>
-      </div>
+      {(() => {
+        // Compute hourly distribution from real entries
+        const hourlyMap = new Array(24).fill(0);
+        entries.forEach(e => {
+          if (e.joinedAt) {
+            const hour = new Date(e.joinedAt).getHours();
+            hourlyMap[hour]++;
+          }
+        });
+        const maxH = Math.max(...hourlyMap, 1);
+        return (
+          <div style={{ ...s.card, padding: 24, marginBottom: 24, background: 'rgba(255,255,255,.01)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+              <h3 style={{ fontSize: 15, fontWeight: 800, color: 'rgba(255,255,255,.6)', display: 'flex', alignItems: 'center', gap: 8 }}>
+                <Ic.Activity /> Queue Intensity
+              </h3>
+              <div style={{ fontSize: 12, color: 'rgba(255,255,255,.3)', fontWeight: 600 }}>Today&apos;s Activity</div>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'flex-end', gap: 4, height: 100, paddingBottom: 10, borderBottom: '1px solid rgba(255,255,255,.05)' }}>
+              {hourlyMap.map((v, i) => {
+                const pct = maxH > 0 ? (v / maxH) * 100 : 0;
+                const isPeak = pct > 75;
+                return (
+                  <motion.div
+                    key={i}
+                    initial={{ height: 0 }}
+                    animate={{ height: `${Math.max(pct, v > 0 ? 4 : 0)}%` }}
+                    transition={{ delay: i * 0.02, duration: 0.5 }}
+                    style={{
+                      flex: 1,
+                      background: isPeak ? 'var(--gM)' : 'rgba(255,255,255,.08)',
+                      borderRadius: '4px 4px 0 0',
+                      minHeight: v > 0 ? 4 : 0,
+                      opacity: v > 0 ? 1 : 0.25,
+                    }}
+                  />
+                );
+              })}
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 10, fontSize: 10, color: 'rgba(255,255,255,.2)', fontWeight: 700 }}>
+              <span>12 AM</span>
+              <span>6 AM</span>
+              <span>12 PM</span>
+              <span>6 PM</span>
+              <span>11 PM</span>
+            </div>
+          </div>
+        );
+      })()}
 
 
       {store.outlets.length === 0 ? (

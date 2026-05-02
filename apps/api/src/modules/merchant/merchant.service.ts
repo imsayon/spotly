@@ -1,37 +1,41 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
+import * as crypto from 'crypto';
 import { Merchant } from '@spotly/database';
 
 @Injectable()
 export class MerchantService {
+  private readonly logger = new Logger(MerchantService.name);
+
   constructor(private readonly prisma: PrismaService) {}
 
   async create(userId: string, data: Partial<Merchant>): Promise<Merchant> {
-    console.log(`[MerchantService] Creating merchant for user: ${userId}`);
+    this.logger.log(`Creating merchant for user: ${userId}`);
     
     const existing = await this.findByUser(userId);
+    
+    // Always ensure user is a MERCHANT if they have a merchant record
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: { role: 'MERCHANT' },
+    });
+
     if (existing) {
-      console.log(`[MerchantService] Merchant already exists for user: ${userId}`);
+      this.logger.log(`Merchant already exists for user: ${userId}. Updating profile.`);
       return this.updateProfile(userId, data);
     }
 
     try {
-      // 1. Ensure user exists and promote role
+      // 1. Ensure user exists (role already promoted above)
       const user = await this.prisma.user.findUnique({ where: { id: userId } });
       if (!user) {
-        console.error(`[MerchantService] User record ${userId} not found in database. Sync might have failed.`);
-        throw new NotFoundException('User profile not synchronized with database. Please try logging in again.');
+        this.logger.error(`User record ${userId} not found in database.`);
+        throw new NotFoundException('User profile not found. Please log in again.');
       }
 
-      console.log(`[MerchantService] Promoting user ${userId} to MERCHANT role`);
-      await this.prisma.user.update({
-        where: { id: userId },
-        data: { role: 'MERCHANT' },
-      });
-
       // 2. Generate a user-facing Spot ID (e.g., SPOT-82A1)
-      const spotId = `SPOT-${Math.random().toString(36).substring(2, 6).toUpperCase()}`;
-      console.log(`[MerchantService] Generated SpotID: ${spotId}`);
+      const spotId = `SPOT-${crypto.randomBytes(3).toString('hex').toUpperCase()}`;
+      this.logger.log(`Generated SpotID: ${spotId}`);
 
       // 3. Create Merchant
       const merchant = await this.prisma.merchant.create({
@@ -53,10 +57,10 @@ export class MerchantService {
         },
       });
 
-      console.log(`[MerchantService] Successfully created merchant: ${merchant.id}`);
+      this.logger.log(`Successfully created merchant: ${merchant.id}`);
       return merchant;
     } catch (err) {
-      console.error('[MerchantService] Create operation failed:', err);
+      this.logger.error('Create operation failed:', err);
       throw err;
     }
   }
@@ -96,6 +100,7 @@ export class MerchantService {
       include: {
         outlets: true,
       },
+      take: 50,
     });
 
     const hasCoords = Number.isFinite(lat) && Number.isFinite(lng);
@@ -134,16 +139,25 @@ export class MerchantService {
   }
 
   async updateProfile(userId: string, data: Partial<Merchant>): Promise<Merchant> {
-    console.log(`[MerchantService] Updating profile for user: ${userId}`);
+    this.logger.log(`Updating profile for user: ${userId}`);
     
     try {
       const merchant = await this.findByUser(userId);
       if (!merchant) {
-        console.error(`[MerchantService] Profile update failed: No merchant found for user ${userId}`);
+        this.logger.error(`Profile update failed: No merchant found for user ${userId}`);
         throw new NotFoundException('Merchant profile not found');
       }
 
-      console.log(`[MerchantService] Applying updates to merchant: ${merchant.id}`);
+      // Ensure user role is MERCHANT
+      await this.prisma.user.update({
+        where: { id: userId },
+        data: { role: 'MERCHANT' },
+      });
+
+      // Fix missing spotId for legacy records
+      const spotId = merchant.spotId || `SPOT-${crypto.randomBytes(3).toString('hex').toUpperCase()}`;
+
+      this.logger.log(`Applying updates to merchant: ${merchant.id}`);
       const updated = await this.prisma.merchant.update({
         where: { id: merchant.id },
         data: {
@@ -159,16 +173,17 @@ export class MerchantService {
           foundingYear: data.foundingYear,
           logoUrl: data.logoUrl,
           gstNumber: data.gstNumber,
+          spotId, // Ensure spotId is preserved/generated
         },
         include: {
           outlets: true,
         },
       });
 
-      console.log(`[MerchantService] Successfully updated merchant: ${updated.id}`);
+      this.logger.log(`Successfully updated merchant: ${updated.id}`);
       return updated;
     } catch (err) {
-      console.error('[MerchantService] Update profile failed:', err);
+      this.logger.error('Update profile failed:', err);
       throw err;
     }
   }

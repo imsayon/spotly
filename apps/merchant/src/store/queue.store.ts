@@ -38,7 +38,6 @@ interface QueueStore {
   callNext: () => Promise<void>;
   markServed: (entryId: string) => Promise<void>;
   rejectEntry: (entryId: string) => Promise<void>;
-  // Accept endpoint is not in the API contract — stubbed for now
   acceptEntry: (entryId: string) => Promise<void>;
   toggleOpen: () => void;
   connectSocket: () => void;

@@ -132,7 +132,7 @@ export class OutletController {
 		const data = await this.outletService.update(
 			id,
 			merchant.id,
-			body as any,
+			body as Partial<{ name: string; address: string; lat: number; lng: number; openTime: string; closeTime: string; isActive: boolean }>,
 		)
 		return { success: true, data }
 	}

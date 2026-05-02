@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useRef } from "react"
 import { motion } from "framer-motion"
+import api from "@/lib/api"
 import { useAuthStore } from "@/store/auth.store"
 import { useQueueStore } from "@/store/queue.store"
 import { useToasts, THEME } from "@spotly/ui"
@@ -123,6 +124,7 @@ export default function SettingsPage() {
     if (merchantProfile?.id && store.outlets.length === 0) {
       store.fetchOutlets(merchantProfile.id)
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [merchantProfile?.id])
 
   const copyShareLink = async () => {
@@ -137,9 +139,22 @@ export default function SettingsPage() {
     }
   }
 
-  const handleSave = () => {
-    // No PATCH endpoint in API contract — local display only
-    addToast('Settings saved locally (API sync pending endpoint confirmation)', 'info')
+  const [saving, setSaving] = useState(false)
+
+  const handleSave = async () => {
+    setSaving(true)
+    try {
+      await api.patch('/merchant/me', {
+        name: name || undefined,
+        phone: phone || undefined,
+        address: address || undefined,
+      })
+      addToast('Settings saved successfully', 'success')
+    } catch (err) {
+      addToast('Failed to save settings', 'error')
+    } finally {
+      setSaving(false)
+    }
   }
 
   const s = THEME.styles
@@ -171,7 +186,6 @@ export default function SettingsPage() {
               </div>
               <div style={{ fontSize: 13, color: 'rgba(255,255,255,.35)', lineHeight: 1.5 }}>
                 When open, consumers can join your queue. When closed, new joins are blocked.
-                {' '}<span style={{ color: '#f5c418', fontWeight: 600 }}>API persistence pending endpoint confirmation.</span>
               </div>
             </div>
             <button
@@ -239,14 +253,16 @@ export default function SettingsPage() {
 
           <button
             onClick={handleSave}
+            disabled={saving}
             style={{
               padding: '13px 28px', borderRadius: 12,
               background: THEME.gradients.merchant,
               border: 'none', color: '#fff', fontWeight: 700, fontSize: 14,
-              cursor: 'pointer', alignSelf: 'flex-start',
+              cursor: saving ? 'wait' : 'pointer', alignSelf: 'flex-start',
+              opacity: saving ? 0.6 : 1,
             }}
           >
-            Save Changes
+            {saving ? 'Saving...' : 'Save Changes'}
           </button>
         </Section>
 

@@ -5,9 +5,11 @@ import { PrismaQueueRepository } from './repositories/prisma-queue.repository';
 import { QUEUE_REPOSITORY } from './interfaces/queue-repository.interface';
 import { AuthModule } from '../auth/auth.module';
 import { WebsocketModule } from '../websocket/websocket.module';
+import { MerchantModule } from '../merchant/merchant.module';
+import { OutletModule } from '../outlet/outlet.module';
 
 @Module({
-  imports: [AuthModule, WebsocketModule],
+  imports: [AuthModule, WebsocketModule, MerchantModule, OutletModule],
   controllers: [QueueController],
   providers: [
     QueueService,

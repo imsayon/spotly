@@ -22,7 +22,8 @@ export interface User {
 
 export interface Merchant {
   id: string;
-  userId: string;   // owner Firebase UID
+  ownerId?: string;   // owner Firebase UID (Prisma field)
+  userId?: string;    // alias — for OSM-discovered or external merchants
   name: string;
   category: string;
   description?: string;
@@ -35,8 +36,10 @@ export interface Merchant {
   lng?: number;
   rating?: number;
   estimatedWaitTime?: string;
+  currentQueueDepth?: number;
+  distanceKm?: number;
   outlets?: Outlet[];
-  createdAt: string;
+  createdAt?: string;
 }
 
 export interface Outlet {

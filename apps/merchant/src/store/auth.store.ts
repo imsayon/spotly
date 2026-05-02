@@ -44,7 +44,10 @@ export const useAuthStore = create<AuthState>()((set, get) => ({
       set({ user: null, merchantProfile: null, loading: false });
       return;
     }
-    set({ user, loading: true });
+    // Set loading false immediately to avoid UI flicker on token refresh
+    // Profile fetch runs independently
+    const hadProfile = !!get().merchantProfile;
+    set({ user, loading: !hadProfile });
     await get().fetchMerchantProfile();
     set({ loading: false });
   },

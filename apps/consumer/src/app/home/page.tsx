@@ -214,7 +214,14 @@ export default function ConsumerHome() {
                   </div>
                 </div>
                 <div style={{ textAlign: 'right' }}>
-                  <div style={{ fontWeight: 800, fontSize: 14, color: '#f5c418', marginBottom: 4 }}>~15m</div>
+                  <div style={{ fontWeight: 800, fontSize: 14, color: '#f5c418', marginBottom: 4 }}>
+                    {m.estimatedWaitTime ? `~${m.estimatedWaitTime.replace(/\s*MIN/i, '')}m` : m.currentQueueDepth != null ? `${m.currentQueueDepth} in Q` : '—'}
+                  </div>
+                  {m.distanceKm != null && (
+                    <div style={{ fontSize: 11, color: 'rgba(255,255,255,.25)', fontWeight: 600, marginBottom: 4 }}>
+                      {m.distanceKm < 1 ? `${Math.round(m.distanceKm * 1000)}m` : `${m.distanceKm.toFixed(1)}km`}
+                    </div>
+                  )}
                   <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, ...s.badge('consumer'), fontSize: 10, padding: '4px 10px', background: 'rgba(245,196,24,.1)' } as any}>
                     JOIN <Ic.ChevR />
                   </div>

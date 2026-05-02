@@ -229,7 +229,7 @@ export default function OutletsPage() {
                   <div className="flex flex-wrap gap-4 text-xs font-semibold text-gray-500">
                     {merchant.contactEmail && <span>📧 {merchant.contactEmail}</span>}
                     {merchant.phone && <span>📞 {merchant.phone}</span>}
-                    <span className="text-gray-600">Established {new Date(merchant.createdAt).toLocaleDateString()}</span>
+                    {merchant.createdAt && <span className="text-gray-600">Established {new Date(merchant.createdAt).toLocaleDateString()}</span>}
                   </div>
                 </div>
               </div>

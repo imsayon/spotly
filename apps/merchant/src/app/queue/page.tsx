@@ -48,6 +48,7 @@ function QueueContent() {
     };
 
     loadOutlets();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loading, user, router]);
 
   const fetchQueue = useCallback(async () => {

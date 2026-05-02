@@ -2,10 +2,11 @@ import * as dotenv from 'dotenv';
 dotenv.config();
 
 import { NestFactory } from '@nestjs/core';
-import { ValidationPipe } from '@nestjs/common';
+import { ValidationPipe, Logger } from '@nestjs/common';
 import { AppModule } from './app.module';
 
 async function bootstrap() {
+  const logger = new Logger('Bootstrap');
   const app = await NestFactory.create(AppModule);
 
   // ─── Global Validation Pipe ─────────────────────────────────────────────────
@@ -31,12 +32,13 @@ async function bootstrap() {
   app.setGlobalPrefix('api');
 
   const port = process.env.PORT ?? 3001;
-  console.log(`[Bootstrap] Attempting to listen on port ${port}...`);
+  logger.log(`Attempting to listen on port ${port}...`);
   try {
     await app.listen(port);
-    console.log(`🚀 Spotly API running on http://localhost:${port}/api`);
+    logger.log(`🚀 Spotly API running on http://localhost:${port}/api`);
   } catch (error) {
-    console.error(`[Bootstrap] Error listening on port ${port}:`, error);
+    logger.error(`Error listening on port ${port}:`, error);
+    process.exit(1);
   }
 }
 

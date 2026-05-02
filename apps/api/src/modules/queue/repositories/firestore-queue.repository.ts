@@ -197,4 +197,24 @@ export class FirestoreQueueRepository implements QueueRepository {
         .filter((e) => e.outletId === outletId && e.status === 'WAITING').length;
     }
   }
+
+  async getHistory(userId: string, limit = 20): Promise<QueueEntry[]> {
+    try {
+      const snapshot = await this.db
+        .collection(this.collection)
+        .where('userId', '==', userId)
+        .where('status', 'in', ['SERVED', 'CANCELLED', 'MISSED'])
+        .orderBy('joinedAt', 'desc')
+        .limit(limit)
+        .get();
+
+      return snapshot.docs.map((d) => d.data() as QueueEntry);
+    } catch (err) {
+      if (!this.isFirestoreFallbackError(err)) throw err;
+      return Array.from(FirestoreQueueRepository.memoryStore.values())
+        .filter((e) => e.userId === userId && ['SERVED', 'CANCELLED', 'MISSED'].includes(e.status))
+        .sort((a, b) => new Date(b.joinedAt).getTime() - new Date(a.joinedAt).getTime())
+        .slice(0, limit);
+    }
+  }
 }

@@ -24,6 +24,7 @@ export default function MerchantLayout({ children }: { children: React.ReactNode
   // Wire toast into queue store so it can display messages
   useEffect(() => {
     store.setToastFn(addToast as any)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [addToast])
 
   const nav = [

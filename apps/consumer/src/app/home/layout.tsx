@@ -1,8 +1,9 @@
 "use client"
 
-import React, { useState } from "react"
+import React, { useState, useEffect } from "react"
 import { usePathname, useRouter } from "next/navigation"
 import { useAuthStore } from "@/store/auth.store"
+import { useQueueStore } from "@/store/queue.store"
 import { Ic, useToasts, ToastContainer } from "@spotly/ui"
 import Link from "next/link"
 import { useLiveLocation } from "@/lib/useLiveLocation"
@@ -29,8 +30,16 @@ export default function ConsumerLayout({
   const { toasts, add: addToast } = useToasts()
   const { label: liveLocationLabel } = useLiveLocation({ prompt: true, watch: true })
   
+  const { myEntry, fetchActiveEntry } = useQueueStore()
   const [showNotif, setShowNotif] = useState(false)
-  const notifCount = 3
+  
+  // Check for active queue entry on mount
+  useEffect(() => {
+    fetchActiveEntry()
+  }, [fetchActiveEntry])
+
+  const inQueue = !!myEntry
+  const notifCount = inQueue ? 1 : 0
 
   const navItems = [
     { id: '/home', icon: <Ic.Home />, label: 'Home' },
@@ -39,8 +48,6 @@ export default function ConsumerLayout({
     { id: '/home/favorites', icon: <Ic.Heart fill="none" />, label: 'Saved' },
     { id: '/home/profile', icon: <Ic.User />, label: 'Profile' },
   ]
-
-  const inQueue = false // Mocked for now
 
   const handleLogout = async () => {
     addToast("Signing out...", "info")

@@ -1,4 +1,4 @@
-import { BadRequestException, Inject, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ConflictException, Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { QueueRepository, QUEUE_REPOSITORY } from './interfaces/queue-repository.interface';
 import { QueueEntry, QueueUpdatePayload, TokenCalledPayload } from '@spotly/types';
 import { QueueGateway } from '../websocket/queue.gateway';
@@ -13,7 +13,8 @@ export class QueueService {
 
   /**
    * Consumer joins a queue.
-   * Token number = current waiting count + 1 (temporary — replace with Redis INCR later).
+   * Token number is assigned atomically via repository.
+   * Duplicate join guard prevents double-tapping.
    */
   async joinQueue(userId: string, outletId: string): Promise<QueueEntry> {
     const isOpen = await this.repo.isOutletOpen(outletId);
@@ -21,19 +22,21 @@ export class QueueService {
       throw new BadRequestException('This outlet is not accepting queue entries right now');
     }
 
+    // Duplicate guard — check for existing active entry for this user at ANY outlet
     const existingEntry = await this.repo.findActiveEntryForUser(userId);
     if (existingEntry) {
       if (existingEntry.outletId === outletId) return existingEntry;
-      throw new BadRequestException('You already have an active queue entry');
+      throw new ConflictException('You already have an active queue entry at another outlet');
     }
 
+    // Atomic token number assignment (MAX+1 in transaction)
     const tokenNumber = await this.repo.getNextTokenNumber(outletId);
 
     const entry = await this.repo.joinQueue({
       userId,
       outletId,
       tokenNumber,
-      status: 'WAITING',
+      status: 'PENDING_ACCEPTANCE',
       joinedAt: new Date().toISOString(),
     });
 
@@ -60,6 +63,20 @@ export class QueueService {
   }
 
   /**
+   * Get the user's current active queue entry (if any).
+   */
+  async getActiveEntry(userId: string): Promise<QueueEntry | null> {
+    return this.repo.findActiveEntryForUser(userId);
+  }
+
+  /**
+   * Get past queue entries for a user (SERVED + CANCELLED).
+   */
+  async getHistory(userId: string, limit = 20): Promise<QueueEntry[]> {
+    return this.repo.getHistory(userId, limit);
+  }
+
+  /**
    * Merchant advances the queue — marks next WAITING entry as CALLED.
    */
   async advanceQueue(outletId: string): Promise<QueueEntry | null> {
@@ -67,6 +84,8 @@ export class QueueService {
 
     if (called) {
       // Emit token_called event first so consumer UI responds immediately
+      // NOTE: We strip userId from the broadcast to avoid PII leakage over unauthenticated WS.
+      // Consumer clients match against their own local entry state instead.
       const payload: TokenCalledPayload = {
         outletId,
         tokenNumber: called.tokenNumber,
@@ -88,7 +107,7 @@ export class QueueService {
     const entry = await this.repo.getEntry(entryId);
     if (!entry) throw new NotFoundException(`Queue entry ${entryId} not found`);
     if (entry.userId !== userId) {
-      throw new NotFoundException('You can only leave your own queue entry');
+      throw new BadRequestException('You can only leave your own queue entry');
     }
 
     const { outletId } = entry;
@@ -128,9 +147,14 @@ export class QueueService {
   private async emitQueueUpdate(outletId: string): Promise<void> {
     const entries = await this.repo.getQueue(outletId);
     const currentCalled = entries.find((e) => e.status === 'CALLED');
+
+    // Strip userId from broadcast to prevent PII leakage over unauthenticated WS.
+    // Merchant dashboard re-fetches full queue via authenticated REST API.
+    const sanitizedEntries = entries.map(({ userId, ...rest }) => rest);
+
     const payload: QueueUpdatePayload = {
       outletId,
-      entries,
+      entries: sanitizedEntries as QueueEntry[],
       currentToken: currentCalled?.tokenNumber ?? 0,
     };
     await this.gateway.emitQueueUpdate(outletId, payload);

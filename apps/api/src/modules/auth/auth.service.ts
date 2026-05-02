@@ -1,4 +1,4 @@
-import { Injectable, UnauthorizedException, OnModuleInit } from '@nestjs/common';
+import { Injectable, Logger, UnauthorizedException, OnModuleInit } from '@nestjs/common';
 import * as admin from 'firebase-admin';
 import * as fs from 'fs';
 import * as path from 'path';
@@ -12,6 +12,9 @@ export interface DecodedUser {
 
 @Injectable()
 export class AuthService implements OnModuleInit {
+  private _firebaseInitialized = false;
+  private readonly logger = new Logger(AuthService.name);
+
   constructor(private readonly prisma: PrismaService) {}
 
   onModuleInit() {
@@ -33,11 +36,12 @@ export class AuthService implements OnModuleInit {
         try {
           const serviceAccount = JSON.parse(fs.readFileSync(saPath, 'utf-8'));
           admin.initializeApp({ credential: admin.credential.cert(serviceAccount) });
-          console.log(`[AuthService] Firebase Admin initialized from service account file at: ${saPath}`);
+          this._firebaseInitialized = true;
+          this.logger.log(`Firebase Admin initialized from service account file at: ${saPath}`);
           saPathFound = true;
           break;
         } catch (e) {
-          console.warn(`[AuthService] Failed to load service account file at ${saPath}:`, e);
+          this.logger.warn(`Failed to load service account file at ${saPath}: ${e}`);
         }
       }
     }
@@ -53,21 +57,15 @@ export class AuthService implements OnModuleInit {
           privateKey: process.env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, '\n'),
         }),
       });
-      console.log('[AuthService] Firebase Admin initialized from env vars');
+      this._firebaseInitialized = true;
+      this.logger.log('Firebase Admin initialized from env vars');
       return;
     }
 
-    console.error('[AuthService] ⚠️  Firebase Admin NOT initialized — token verification will fail. Provide a service account file.');
+    this.logger.error('⚠️  Firebase Admin NOT initialized — token verification will fail. Provide a service account file.');
   }
 
   async verifyToken(token: string): Promise<DecodedUser> {
-    if (token === 'no-token-needed') {
-      return {
-        uid: 'dev-user-123',
-        email: 'dev@spotly.com',
-        name: 'Development User',
-      };
-    }
 
     try {
       const decodedToken = await admin.auth().verifyIdToken(token);
@@ -89,12 +87,12 @@ export class AuthService implements OnModuleInit {
         name: user.name || undefined,
       };
     } catch (err) {
-      console.error('Firebase Auth Error:', err);
+      this.logger.error('Firebase Auth Error:', err);
       throw new UnauthorizedException('Invalid or expired Firebase token');
     }
   }
 
   get isFunctional(): boolean {
-    return true;
+    return this._firebaseInitialized;
   }
 }

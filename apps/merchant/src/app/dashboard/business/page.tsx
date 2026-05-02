@@ -146,7 +146,7 @@ export default function MerchantBusiness() {
         <div style={{ position: 'absolute', top: -30, left: -30, width: 120, height: 120, borderRadius: '50%', background: 'rgba(31,217,124,.05)', filter: 'blur(32px)' }} />
         
         <div style={{ width: 84, height: 84, borderRadius: 20, ...s.gradM, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 38, flexShrink: 0, boxShadow: '0 12px 30px rgba(31,217,124,.25)' }}>
-          {profile?.logoUrl ? <img src={profile.logoUrl} style={{ width: '100%', height: '100%', borderRadius: 20, objectFit: 'cover' }} /> : '🏪'}
+          {profile?.logoUrl ? <img src={profile.logoUrl} alt="Brand Logo" style={{ width: '100%', height: '100%', borderRadius: 20, objectFit: 'cover' }} /> : '🏪'}
         </div>
         <div style={{ flex: 1, minWidth: 260 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 6 }}>

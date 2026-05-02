@@ -4,8 +4,7 @@ import { PrismaService } from '../../../prisma/prisma.service';
 import { QueueEntry as PrismaQueueEntry } from '@spotly/database';
 
 // A mapping type since `@spotly/types` QueueEntry might differ slightly from Prisma's QueueEntry
-// Let's coerce it to match the interface needed by the Queue Service
-import { QueueEntry } from '@spotly/types';
+import { QueueEntry, QueueStatus } from '@spotly/types';
 
 @Injectable()
 export class PrismaQueueRepository implements QueueRepository {
@@ -16,9 +15,8 @@ export class PrismaQueueRepository implements QueueRepository {
       id: entry.id,
       userId: entry.userId,
       outletId: entry.outletId,
-      tokenNumber: entry.tokenNumber,
-      // Map Prisma enum to the domain union type string
-      status: entry.status === 'CANCELLED' ? 'MISSED' : (entry.status as any),
+      tokenNumber: entry.tokenNumber ?? 0,
+      status: entry.status as QueueStatus,
       joinedAt: entry.createdAt.toISOString(),
     };
   }
@@ -29,7 +27,7 @@ export class PrismaQueueRepository implements QueueRepository {
         userId: data.userId,
         outletId: data.outletId,
         tokenNumber: data.tokenNumber,
-        status: 'PENDING_ACCEPTANCE',
+        status: data.status,
       },
     });
     return this.mapToDomain(created);
@@ -54,12 +52,23 @@ export class PrismaQueueRepository implements QueueRepository {
     return entry ? this.mapToDomain(entry) : null;
   }
 
+  /**
+   * Atomic token number assignment using Prisma $transaction.
+   * This prevents the race condition where two concurrent joins both read
+   * the same count and assign the same token number.
+   */
   async getNextTokenNumber(outletId: string): Promise<number> {
-    const aggregate = await this.prisma.queueEntry.aggregate({
-      where: { outletId },
-      _max: { tokenNumber: true },
+    return this.prisma.$transaction(async (tx) => {
+      // 1. Lock the outlet row to prevent concurrent transactions from reading the same _max
+      await tx.$executeRaw`SELECT id FROM "Outlet" WHERE id = ${outletId} FOR UPDATE`;
+
+      // 2. Now safe to aggregate
+      const aggregate = await tx.queueEntry.aggregate({
+        where: { outletId },
+        _max: { tokenNumber: true },
+      });
+      return (aggregate._max.tokenNumber ?? 0) + 1;
     });
-    return (aggregate._max.tokenNumber ?? 0) + 1;
   }
 
   async getQueue(outletId: string): Promise<QueueEntry[]> {
@@ -70,7 +79,7 @@ export class PrismaQueueRepository implements QueueRepository {
       },
       orderBy: { tokenNumber: 'asc' },
     });
-    return entries.map(this.mapToDomain);
+    return entries.map((e) => this.mapToDomain(e));
   }
 
   async getEntry(entryId: string): Promise<QueueEntry | null> {
@@ -101,7 +110,7 @@ export class PrismaQueueRepository implements QueueRepository {
   async markMissed(entryId: string): Promise<void> {
     await this.prisma.queueEntry.update({
       where: { id: entryId },
-      data: { status: 'CANCELLED' },
+      data: { status: 'MISSED' },
     });
   }
 
@@ -129,6 +138,42 @@ export class PrismaQueueRepository implements QueueRepository {
     await this.prisma.queueEntry.update({
       where: { id: entryId },
       data: { status: 'WAITING' },
+    });
+  }
+
+  /**
+   * Get past queue entries for a user (SERVED + CANCELLED).
+   * Includes outlet info for display in consumer profile.
+   */
+  async getHistory(userId: string, limit = 20): Promise<QueueEntry[]> {
+    const entries = await this.prisma.queueEntry.findMany({
+      where: {
+        userId,
+        status: { in: ['SERVED', 'CANCELLED', 'MISSED'] },
+      },
+      orderBy: { createdAt: 'desc' },
+      take: limit,
+      include: {
+        outlet: {
+          select: {
+            name: true,
+            merchant: {
+              select: { name: true, category: true },
+            },
+          },
+        },
+      },
+    });
+    return entries.map((e) => {
+      const entry = e as PrismaQueueEntry & {
+        outlet?: { name: string; merchant?: { name: string; category: string } };
+      };
+      return {
+        ...this.mapToDomain(e),
+        outletName: entry.outlet?.name,
+        merchantName: entry.outlet?.merchant?.name,
+        merchantCategory: entry.outlet?.merchant?.category,
+      };
     });
   }
 }

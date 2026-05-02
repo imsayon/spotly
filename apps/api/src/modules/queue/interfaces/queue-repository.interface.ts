@@ -17,7 +17,7 @@ export interface QueueRepository {
   /** Find an active queue entry for this user, if one exists */
   findActiveEntryForUser(userId: string): Promise<QueueEntry | null>;
 
-  /** Get the next token number for an outlet */
+  /** Get the next token number for an outlet (atomic) */
   getNextTokenNumber(outletId: string): Promise<number>;
 
   /** Get all entries for an outlet (ordered by tokenNumber) */
@@ -43,6 +43,9 @@ export interface QueueRepository {
 
   /** Accept a PENDING_ACCEPTANCE entry, moving it to WAITING */
   acceptEntry(entryId: string): Promise<void>;
+
+  /** Get past entries (SERVED + CANCELLED) for a user */
+  getHistory(userId: string, limit?: number): Promise<QueueEntry[]>;
 }
 
 export const QUEUE_REPOSITORY = 'QUEUE_REPOSITORY';

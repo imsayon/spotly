@@ -3,11 +3,15 @@ import {
   ExecutionContext,
   Injectable,
   UnauthorizedException,
+  Logger,
+  InternalServerErrorException,
 } from '@nestjs/common';
 import { AuthService } from '../auth.service';
 
 @Injectable()
 export class FirebaseAuthGuard implements CanActivate {
+  private readonly logger = new Logger(FirebaseAuthGuard.name);
+
   constructor(private readonly authService: AuthService) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
@@ -15,9 +19,8 @@ export class FirebaseAuthGuard implements CanActivate {
     const authHeader: string | undefined = request.headers['authorization'];
 
     if (!this.authService.isFunctional) {
-      // In restricted mode, automatically assign the mock user and allow
-      request.user = await this.authService.verifyToken('no-token-needed');
-      return true;
+      this.logger.error('Authentication bypass attempted but Firebase is not initialized. Failing closed.');
+      throw new InternalServerErrorException('Authentication service is currently unavailable.');
     }
 
     if (!authHeader || !authHeader.startsWith('Bearer ')) {

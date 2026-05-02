@@ -69,6 +69,7 @@ export default function ConsumerExplore() {
 
   useEffect(() => {
     loadMerchants()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [location])
 
   const loadMerchants = async () => {
@@ -162,7 +163,7 @@ export default function ConsumerExplore() {
                 <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 2 }}>{m.name}</div>
                 <div style={{ fontSize: 12, color: 'var(--t3)', marginBottom: 6 }}>{m.category} · {m.address || 'Nearby'}</div>
                 <div style={{ display: 'flex', gap: 7 }}>
-                  <span style={{ ...s.badge('yellow') as React.CSSProperties, fontSize: 10 }}>⏱ {m.estimatedWaitTime || '15 MIN'}</span>
+                  <span style={{ ...s.badge('yellow') as React.CSSProperties, fontSize: 10 }}>⏱ {m.estimatedWaitTime || (m.currentQueueDepth != null ? `${m.currentQueueDepth} in Q` : '—')}</span>
                   <span style={{ ...s.badge('gray') as React.CSSProperties, fontSize: 10 }}>
                     {isConnectableMerchant(m) ? `${m.outlets?.length || 0} branches` : 'discovery'}
                   </span>
