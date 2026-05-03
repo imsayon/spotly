@@ -41,6 +41,23 @@ export default function MerchantLayout({ children }: { children: React.ReactNode
     signOut()
   }
 
+  const { user, loading: authLoading } = useAuthStore()
+
+  useEffect(() => {
+    if (authLoading) return;
+    if (!user) { router.replace('/'); return; }
+    if (!merchantProfile) { router.replace('/onboarding'); return; }
+  }, [user, merchantProfile, authLoading, router]);
+
+  if (authLoading || !user || !merchantProfile) {
+    return (
+      <div style={{ height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#050509' }}>
+        <div style={{ width: 40, height: 40, border: '3px solid rgba(255,255,255,.04)', borderTopColor: '#1fd97c', borderRadius: '50%', animation: 'spin 1s linear infinite' }} />
+        <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+      </div>
+    );
+  }
+
   return (
     <div style={{ height: '100vh', display: 'flex', background: '#050509', overflow: 'hidden' }}>
 

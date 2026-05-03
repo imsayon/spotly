@@ -71,19 +71,33 @@ function QueueContent() {
 
   useEffect(() => {
     if (!selectedOutlet || !user) return;
-    joinOutletRoom(selectedOutlet);
-    const socket = getSocket();
+    
+    let mounted = true;
+    let cleanup: (() => void) | undefined;
 
-    const onQueueUpdate = (payload: QueueUpdatePayload) => {
-      if (payload.outletId === selectedOutlet) {
-        setEntries(payload.entries);
-      }
+    const init = async () => {
+      await joinOutletRoom(selectedOutlet);
+      const socket = await getSocket();
+      if (!mounted) return;
+
+      const onQueueUpdate = (payload: QueueUpdatePayload) => {
+        if (payload.outletId === selectedOutlet) {
+          setEntries(payload.entries);
+        }
+      };
+
+      socket.on('queue_update', onQueueUpdate);
+      cleanup = () => {
+        socket.off('queue_update', onQueueUpdate);
+        leaveOutletRoom(selectedOutlet);
+      };
     };
 
-    socket.on('queue_update', onQueueUpdate);
+    init();
+
     return () => {
-      leaveOutletRoom(selectedOutlet);
-      socket.off('queue_update', onQueueUpdate);
+      mounted = false;
+      if (cleanup) cleanup();
     };
   }, [selectedOutlet, user]);
 

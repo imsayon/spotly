@@ -170,19 +170,13 @@ export const useQueueStore = create<QueueStore>((set, get) => ({
     const { selectedOutletId, _socket } = get();
     if (_socket) return; // already connected
 
-    const { supabase } = await import('@/lib/supabase');
-    const { data: { session } } = await supabase.auth.getSession();
-    const token = session?.access_token;
-
-    const socket = io(
-      process.env.NEXT_PUBLIC_WS_URL ?? 'http://localhost:3001',
-      { transports: ['websocket'], auth: { token } }
-    );
+    const { getSocket } = await import('@/lib/socket');
+    const socket = await getSocket();
 
     socket.on('connect', () => {
       set({ wsConnected: true });
-      if (selectedOutletId) {
-        socket.emit('join_outlet', { outletId: selectedOutletId });
+      if (get().selectedOutletId) {
+        socket.emit('join_outlet', { outletId: get().selectedOutletId });
       }
     });
 
@@ -198,16 +192,24 @@ export const useQueueStore = create<QueueStore>((set, get) => ({
       }
     });
 
-    set({ _socket: socket });
+    if (socket.connected) {
+      set({ wsConnected: true });
+      if (get().selectedOutletId) {
+        socket.emit('join_outlet', { outletId: get().selectedOutletId });
+      }
+    }
+
+    set({ _socket: socket as any });
   },
 
-  disconnectSocket: () => {
+  disconnectSocket: async () => {
     const { _socket, selectedOutletId } = get();
     if (!_socket) return;
     if (selectedOutletId) {
       _socket.emit('leave_outlet', { outletId: selectedOutletId });
     }
-    _socket.disconnect();
+    const { disconnectSocket } = await import('@/lib/socket');
+    await disconnectSocket();
     set({ _socket: null, wsConnected: false });
   },
 }));

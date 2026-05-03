@@ -99,7 +99,7 @@ export interface QueueUpdatePayload {
 export interface TokenCalledPayload {
   outletId: string;
   tokenNumber: number;
-  userId: string;
+  userId?: string;
 }
 
 // ─── Review & Favorite ────────────────────────────────────────────────────────

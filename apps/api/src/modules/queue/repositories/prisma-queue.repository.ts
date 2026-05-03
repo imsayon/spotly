@@ -28,17 +28,19 @@ export class PrismaQueueRepository implements QueueRepository {
 
       // 2. Atomic increment — upsert the daily counter row, increment, return new value
       const today = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
-      const result = await tx.$queryRaw<any[]>`
+      const result = await tx.$queryRaw<Array<{ counter: number }>>`
         INSERT INTO "OutletDailyCounter" ("outletId", date, counter)
         VALUES (${data.outletId}, ${today}::date, 1)
         ON CONFLICT ("outletId", date)
         DO UPDATE SET counter = "OutletDailyCounter".counter + 1
-        RETURNING counter
+        RETURNING counter::int
       `;
       
-      if (!result || !result[0]) throw new Error('Counter increment failed');
-      const tokenNumber = Number(result[0].counter);
-      if (isNaN(tokenNumber) || tokenNumber <= 0) throw new Error('Invalid token number from counter');
+      if (!result?.[0]?.counter) throw new Error('Counter increment failed');
+      const tokenNumber = result[0].counter;
+      if (!Number.isFinite(tokenNumber) || tokenNumber <= 0) {
+        throw new Error(`Invalid token number: ${tokenNumber}`);
+      }
 
       // 3. Insert with the guaranteed unique token number
       const created = await tx.queueEntry.create({
@@ -76,18 +78,14 @@ export class PrismaQueueRepository implements QueueRepository {
 
 
   async getQueue(outletId: string): Promise<QueueEntry[]> {
-    const startOfDay = new Date();
-    startOfDay.setHours(0, 0, 0, 0);
-
     const entries = await this.prisma.queueEntry.findMany({
       where: {
         outletId,
         status: { in: ['PENDING_ACCEPTANCE', 'WAITING', 'CALLED'] }
       },
-      orderBy: { tokenNumber: 'desc' }, // Order by token number descending to show newest first, but the UI expects ascending for Live Queue? Actually, it's better to sort ascending so the earliest token is at the top. Wait, let me check the UI.
+      orderBy: { tokenNumber: 'asc' },
     });
-    // The UI handles pending at the top, then the rest. Sorting ascending is fine. Let's keep 'asc' or change to 'desc' for history. Let's keep 'asc'.
-    return entries.sort((a, b) => (a.tokenNumber ?? 0) - (b.tokenNumber ?? 0)).map((e) => this.mapToDomain(e));
+    return entries.map((e) => this.mapToDomain(e));
   }
 
   async getEntry(entryId: string): Promise<QueueEntry | null> {

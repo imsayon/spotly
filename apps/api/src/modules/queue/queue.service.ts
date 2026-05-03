@@ -77,18 +77,23 @@ export class QueueService {
    * Merchant advances the queue — marks next WAITING entry as CALLED.
    */
   async advanceQueue(outletId: string): Promise<QueueEntry | null> {
+    const queue = await this.repo.getQueue(outletId);
+    if (queue.find(e => e.status === 'CALLED')) {
+      throw new BadRequestException('Mark the current token as served or missed before calling next');
+    }
+
     const called = await this.repo.advanceQueue(outletId);
 
     if (called) {
       // Emit token_called event first so consumer UI responds immediately
       // NOTE: We strip userId from the broadcast to avoid PII leakage over unauthenticated WS.
       // Consumer clients match against their own local entry state instead.
-      const payload: TokenCalledPayload = {
+      const payload: Omit<TokenCalledPayload, 'userId'> & { userId?: string } = {
         outletId,
         tokenNumber: called.tokenNumber,
-        userId: called.userId,
+        // userId intentionally omitted from broadcast
       };
-      await this.gateway.emitTokenCalled(outletId, payload);
+      await this.gateway.emitTokenCalled(outletId, payload as TokenCalledPayload);
 
       // Then emit general queue update
       await this.emitQueueUpdate(outletId);

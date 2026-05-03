@@ -87,15 +87,21 @@ export default function ConsumerQueuePage() {
       const socket = await getSocket();
       if (!mounted) return;
 
-      socket.emit('join_outlet', { outletId: entry.outletId });
+      const join = () => {
+        if (mounted && entry?.outletId) {
+          socket.emit('join_outlet', { outletId: entry.outletId });
+        }
+      };
+
+      if (socket.connected) join();
+      socket.on('connect', join);
 
       socket.on('queue_update', (payload: any) => {
+        if (!mounted) return;
         handleQueueUpdate(payload);
-        // Update local state if this entry is in the update
         const updated = payload.entries.find((e: any) => e.id === entryId);
         if (updated) setEntry(updated);
         
-        // Calculate ahead
         const waitingAhead = payload.entries.filter((e: any) => 
           e.status === 'WAITING' && e.tokenNumber < (updated?.tokenNumber ?? entry.tokenNumber)
         ).length;
@@ -103,6 +109,7 @@ export default function ConsumerQueuePage() {
       });
 
       socket.on('token_called', (payload: any) => {
+        if (!mounted) return;
         if (payload.tokenNumber === entry.tokenNumber) {
           handleTokenCalled(payload.tokenNumber);
           setEntry(prev => prev ? { ...prev, status: 'CALLED' } : null);
@@ -110,16 +117,26 @@ export default function ConsumerQueuePage() {
       });
 
       socket.on('entry_update', (payload: { entryId: string; status: string }) => {
+        if (!mounted) return;
         if (payload.entryId === entryId) {
           setEntry(prev => prev ? { ...prev, status: payload.status as any } : null);
         }
       });
+      
+      return () => {
+        socket.off('connect', join);
+        socket.off('queue_update');
+        socket.off('token_called');
+        socket.off('entry_update');
+      };
     };
 
-    initSocket();
+    let cleanup: (() => void) | undefined;
+    initSocket().then(cb => cleanup = cb);
 
     return () => {
       mounted = false;
+      if (cleanup) cleanup();
       leaveOutletRoom(entry.outletId);
       // We don't disconnect the singleton socket
     };

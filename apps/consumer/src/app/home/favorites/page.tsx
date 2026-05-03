@@ -13,7 +13,9 @@ interface FavoriteOutlet {
     name: string
     address: string
     isActive: boolean
+    merchantId: string
     merchant: {
+      id: string
       name: string
       category: string
       logoUrl?: string
@@ -92,7 +94,7 @@ export default function ConsumerFavorites() {
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
           {favorites.map(f => (
             <div key={f.id} style={{ ...s.card, padding: '16px', display: 'flex', alignItems: 'center', gap: 14, cursor: 'pointer' }}
-              onClick={() => router.push(`/merchant/${f.outletId}`)}>
+              onClick={() => router.push(`/merchant/${f.outlet.merchant?.id ?? f.outlet.merchantId}`)}>
               <div style={{ width: 52, height: 52, borderRadius: 14, background: 'rgba(245,196,24,.08)', color: '#f5c418', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                 {getCategoryIcon(f.outlet.merchant?.category)}
               </div>
