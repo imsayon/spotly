@@ -66,7 +66,7 @@ export default function OutletDetails() {
   // Outlet Info State
   const [outlet, setOutlet] = useState<any>(null)
   const [loadingOutlet, setLoadingOutlet] = useState(true)
-  const [outletForm, setOutletForm] = useState({ name: '', address: '' })
+  const [outletForm, setOutletForm] = useState({ name: '', address: '', openTime: '09:00', closeTime: '21:00' })
 
   // Menu State
   const [categories, setCategories] = useState<any[]>([])
@@ -84,7 +84,9 @@ export default function OutletDetails() {
       setOutlet(res.data.data)
       setOutletForm({
         name: res.data.data.name,
-        address: res.data.data.address
+        address: res.data.data.address,
+        openTime: res.data.data.openTime || '09:00',
+        closeTime: res.data.data.closeTime || '21:00'
       })
     } catch {
       addToast('Failed to load outlet details', 'error')
@@ -352,17 +354,30 @@ export default function OutletDetails() {
         <div className="animate-in zoom-in-95 duration-300" style={{ maxWidth: 540 }}>
           <div style={{ ...s.card, padding: '24px' }}>
             <h3 style={{ fontFamily: 'var(--font-sans)', fontWeight: 800, fontSize: 16, marginBottom: 20 }}>Operating Hours</h3>
-            {['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'].map((day, i) => (
-              <div key={day} style={{ display: 'flex', alignItems: 'center', gap: 16, padding: '14px 0', borderBottom: '1px solid rgba(255,255,255,.05)' }}>
-                <div style={{ width: 100, fontSize: 14, fontWeight: 700 }}>{day}</div>
-                <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 10 }}>
-                  <input type="time" defaultValue="09:00" style={{ ...s.input, padding: '8px 10px', fontSize: 13 }} />
-                  <span style={{ color: 'rgba(255,255,255,.2)', fontSize: 12, fontWeight: 800 }}>-</span>
-                  <input type="time" defaultValue="21:00" style={{ ...s.input, padding: '8px 10px', fontSize: 13 }} />
-                </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 16, padding: '14px 0', borderBottom: '1px solid rgba(255,255,255,.05)' }}>
+              <div style={{ width: 100, fontSize: 14, fontWeight: 700 }}>Daily</div>
+              <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 10 }}>
+                <input 
+                  type="time" 
+                  value={outletForm.openTime}
+                  onChange={(e) => setOutletForm(prev => ({ ...prev, openTime: e.target.value }))}
+                  style={{ ...s.input, padding: '8px 10px', fontSize: 13 }} 
+                />
+                <span style={{ color: 'rgba(255,255,255,.2)', fontSize: 12, fontWeight: 800 }}>-</span>
+                <input 
+                  type="time" 
+                  value={outletForm.closeTime}
+                  onChange={(e) => setOutletForm(prev => ({ ...prev, closeTime: e.target.value }))}
+                  style={{ ...s.input, padding: '8px 10px', fontSize: 13 }} 
+                />
               </div>
-            ))}
-            <button style={{ ...s.btnM, width: '100%', marginTop: 20 }} onClick={() => addToast('Schedule saved', 'success')}>Update Schedule</button>
+            </div>
+            <button 
+              style={{ ...s.btnM, width: '100%', marginTop: 20 }} 
+              onClick={handleUpdateOutlet}
+            >
+              Update Schedule
+            </button>
           </div>
         </div>
       )}

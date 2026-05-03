@@ -63,6 +63,7 @@ model Outlet {
   menuCategories MenuCategory[]
   merchant       Merchant       @relation(fields: [merchantId], references: [id])
   queues         QueueEntry[]
+  dailyCounters  OutletDailyCounter[]
 }
 
 model MenuCategory {
@@ -96,7 +97,8 @@ model QueueEntry {
   outletId    String
   status      QueueStatus @default(WAITING)
   createdAt   DateTime    @default(now())
-  tokenNumber Int?
+  tokenNumber Int
+
   outlet      Outlet      @relation(fields: [outletId], references: [id])
   user        User        @relation(fields: [userId], references: [id])
 }
@@ -109,6 +111,8 @@ model Review {
   comment   String?
   createdAt DateTime @default(now())
   user      User     @relation(fields: [userId], references: [id])
+  
+  @@unique([userId, outletId])
 }
 
 /// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
@@ -136,4 +140,13 @@ enum QueueStatus {
   MISSED
   CANCELLED
   PENDING_ACCEPTANCE
+}
+
+model OutletDailyCounter {
+  outletId String
+  date     DateTime @db.Date
+  counter  Int      @default(0)
+  outlet   Outlet   @relation(fields: [outletId], references: [id], onDelete: Cascade)
+
+  @@id([outletId, date])
 }

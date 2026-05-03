@@ -52,25 +52,55 @@ export default function ConsumerExplore() {
     addToast('This nearby place is not yet managed on Spotly', 'info')
   }
 
-  const toggleFav = (id: string, e?: React.MouseEvent) => {
+  const toggleFav = async (id: string, e?: React.MouseEvent) => {
     if (e) e.stopPropagation()
+    const isFav = favorites.has(id);
+    
+    // Optimistic UI update
     setFavorites(prev => {
       const n = new Set(prev)
-      if (n.has(id)) {
-        n.delete(id)
-        addToast('Removed from favorites', 'info')
-      } else {
-        n.add(id)
-        addToast('Added to favorites', 'success')
-      }
+      if (isFav) n.delete(id)
+      else n.add(id)
       return n
     })
+
+    try {
+      if (isFav) {
+        await api.delete(`/favorite/${id}`);
+        addToast('Removed from favorites', 'info');
+      } else {
+        await api.post(`/favorite/${id}`);
+        addToast('Added to favorites', 'success');
+      }
+    } catch (err) {
+      // Revert on failure
+      setFavorites(prev => {
+        const n = new Set(prev)
+        if (isFav) n.add(id)
+        else n.delete(id)
+        return n
+      })
+      addToast('Failed to update favorite', 'error');
+    }
   }
 
   useEffect(() => {
     loadMerchants()
+    loadFavorites()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [location])
+
+  const loadFavorites = async () => {
+    try {
+      const res = await api.get('/favorite');
+      if (res.data.success && res.data.data) {
+        const favIds = res.data.data.map((f: any) => f.outletId || f.merchantId || f.id);
+        setFavorites(new Set(favIds));
+      }
+    } catch (err) {
+      console.warn('Failed to load favorites');
+    }
+  }
 
   const loadMerchants = async () => {
     try {
@@ -144,6 +174,11 @@ export default function ConsumerExplore() {
                     {isConnectableMerchant(selected) ? `${selected.outlets?.length || 0} branches` : 'Discovery result'} · {selected.category}
                   </div>
                 </div>
+                {isConnectableMerchant(selected) && (
+                  <div onClick={(e) => toggleFav(selected.id, e)} style={{ padding: 4 }}>
+                    <Ic.Heart fill={favorites.has(selected.id) ? '#ff4d6d' : 'none'} color={favorites.has(selected.id) ? '#ff4d6d' : 'currentColor'} />
+                  </div>
+                )}
                 <button style={{ ...s.btnC, padding: '8px 14px', fontSize: 12, gap: 5 }} onClick={e => { e.stopPropagation(); openMerchant(selected) }}>
                   {isConnectableMerchant(selected) ? 'Open' : 'Info'} <Ic.Arrow />
                 </button>
@@ -169,9 +204,23 @@ export default function ConsumerExplore() {
                   </span>
                 </div>
               </div>
+              {isConnectableMerchant(m) && (
+                <div onClick={(e) => toggleFav(m.id, e)} style={{ padding: 4, marginRight: 8 }}>
+                  <Ic.Heart fill={favorites.has(m.id) ? '#ff4d6d' : 'none'} color={favorites.has(m.id) ? '#ff4d6d' : 'var(--t3)'} />
+                </div>
+              )}
               <Ic.ChevronRight />
             </div>
           ))}
+          {merchants.length === 0 && (
+            <div style={{ ...s.card, padding: 60, textAlign: 'center', background: 'rgba(255,255,255,.01)', borderStyle: 'dashed' }}>
+              <div style={{ fontSize: 40, marginBottom: 16, color: 'rgba(255,255,255,0.4)', display: 'flex', justifyContent: 'center' }}>
+                <Ic.Map />
+              </div>
+              <p style={{ color: 'rgba(255,255,255,.6)', fontWeight: 700, fontSize: 16, marginBottom: 4 }}>No places nearby</p>
+              <p style={{ color: 'rgba(255,255,255,.3)', fontSize: 13 }}>We couldn't find any active Spotly merchants in this area.</p>
+            </div>
+          )}
         </div>
       )}
     </div>

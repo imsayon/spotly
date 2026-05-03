@@ -233,7 +233,11 @@ export default function ConsumerMerchantPage() {
           ))}
           {outlets.length === 0 && (
             <div style={{ ...s.card, padding: 60, textAlign: 'center', background: 'rgba(255,255,255,.01)', borderStyle: 'dashed' }}>
-              <p style={{ color: 'rgba(255,255,255,.2)', fontWeight: 600 }}>No active outlets for this merchant yet.</p>
+              <div style={{ fontSize: 40, marginBottom: 16, color: 'rgba(255,255,255,0.4)', display: 'flex', justifyContent: 'center' }}>
+                <Ic.Store />
+              </div>
+              <p style={{ color: 'rgba(255,255,255,.6)', fontWeight: 700, fontSize: 16, marginBottom: 4 }}>No Active Branches</p>
+              <p style={{ color: 'rgba(255,255,255,.3)', fontSize: 13 }}>This merchant currently has no open outlets.</p>
             </div>
           )}
         </div>

@@ -22,7 +22,7 @@ services:
       - key: SUPABASE_URL
         value: https://gfzxlonhtgvxojyosskx.supabase.co
       - key: SUPABASE_ANON_KEY
-        value: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imdmenhsb25odGd2eG9qeW9zc2t4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzYyNjc2NjUsImV4cCI6MjA5MTg0MzY2NX0.QUlY5RZZano0irlZ5bSS5Tqwin_8GufJSZIN9etiHr8
+        sync: false
 
       # Firebase Project Variables
       - key: FIREBASE_PROJECT_ID
@@ -51,7 +51,7 @@ services:
       - key: NEXT_PUBLIC_SUPABASE_URL
         value: https://gfzxlonhtgvxojyosskx.supabase.co
       - key: NEXT_PUBLIC_SUPABASE_ANON_KEY
-        value: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imdmenhsb25odGd2eG9qeW9zc2t4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzYyNjc2NjUsImV4cCI6MjA5MTg0MzY2NX0.QUlY5RZZano0irlZ5bSS5Tqwin_8GufJSZIN9etiHr8
+        sync: false
 
       # Firebase Client Keys
       - key: NEXT_PUBLIC_FIREBASE_API_KEY
@@ -86,7 +86,7 @@ services:
       - key: NEXT_PUBLIC_SUPABASE_URL
         value: https://gfzxlonhtgvxojyosskx.supabase.co
       - key: NEXT_PUBLIC_SUPABASE_ANON_KEY
-        value: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imdmenhsb25odGd2eG9qeW9zc2t4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzYyNjc2NjUsImV4cCI6MjA5MTg0MzY2NX0.QUlY5RZZano0irlZ5bSS5Tqwin_8GufJSZIN9etiHr8
+        sync: false
 
       # Firebase Client Keys
       - key: NEXT_PUBLIC_FIREBASE_API_KEY

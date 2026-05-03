@@ -8,7 +8,7 @@ import { useAuthStore } from "@/store/auth.store"
 import api from "@/lib/api"
 import { QueueEntry } from "@spotly/types"
 import { useQueueStore } from "@/store/queue.store"
-import { io, Socket } from "socket.io-client"
+import { getSocket, leaveOutletRoom } from "@/lib/socket"
 
 const s = {
   ...THEME.styles,
@@ -81,38 +81,41 @@ export default function ConsumerQueuePage() {
   useEffect(() => {
     if (!entry?.outletId) return;
 
-    const socket: Socket = io(
-      process.env.NEXT_PUBLIC_WS_URL ?? 'http://localhost:3001',
-      { transports: ['websocket'] }
-    );
+    let mounted = true;
+    
+    const initSocket = async () => {
+      const socket = await getSocket();
+      if (!mounted) return;
 
-    socket.on('connect', () => {
       socket.emit('join_outlet', { outletId: entry.outletId });
-    });
 
-    socket.on('queue_update', (payload: any) => {
-      handleQueueUpdate(payload);
-      // Update local state if this entry is in the update
-      const updated = payload.entries.find((e: any) => e.id === entryId);
-      if (updated) setEntry(updated);
-      
-      // Calculate ahead
-      const waitingAhead = payload.entries.filter((e: any) => 
-        e.status === 'WAITING' && e.tokenNumber < (updated?.tokenNumber ?? entry.tokenNumber)
-      ).length;
-      setAhead(waitingAhead);
-    });
+      socket.on('queue_update', (payload: any) => {
+        handleQueueUpdate(payload);
+        // Update local state if this entry is in the update
+        const updated = payload.entries.find((e: any) => e.id === entryId);
+        if (updated) setEntry(updated);
+        
+        // Calculate ahead
+        const waitingAhead = payload.entries.filter((e: any) => 
+          e.status === 'WAITING' && e.tokenNumber < (updated?.tokenNumber ?? entry.tokenNumber)
+        ).length;
+        setAhead(waitingAhead);
+      });
 
-    socket.on('token_called', (payload: any) => {
-      if (payload.tokenNumber === entry.tokenNumber) {
-        handleTokenCalled(payload.tokenNumber);
-        setEntry(prev => prev ? { ...prev, status: 'CALLED' } : null);
-      }
-    });
+      socket.on('token_called', (payload: any) => {
+        if (payload.tokenNumber === entry.tokenNumber) {
+          handleTokenCalled(payload.tokenNumber);
+          setEntry(prev => prev ? { ...prev, status: 'CALLED' } : null);
+        }
+      });
+    };
+
+    initSocket();
 
     return () => {
-      socket.emit('leave_outlet', { outletId: entry.outletId });
-      socket.disconnect();
+      mounted = false;
+      leaveOutletRoom(entry.outletId);
+      // We don't disconnect the singleton socket
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [entry?.outletId, entryId, handleQueueUpdate, handleTokenCalled]);

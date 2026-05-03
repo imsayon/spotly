@@ -40,7 +40,7 @@ interface QueueStore {
   rejectEntry: (entryId: string) => Promise<void>;
   acceptEntry: (entryId: string) => Promise<void>;
   toggleOpen: () => void;
-  connectSocket: () => void;
+  connectSocket: () => Promise<void>;
   disconnectSocket: () => void;
 
   // ─── Internal ─────────────────────────────────────────────────────────
@@ -166,13 +166,17 @@ export const useQueueStore = create<QueueStore>((set, get) => ({
     }
   },
 
-  connectSocket: () => {
+  connectSocket: async () => {
     const { selectedOutletId, _socket } = get();
     if (_socket) return; // already connected
 
+    const { supabase } = await import('@/lib/supabase');
+    const { data: { session } } = await supabase.auth.getSession();
+    const token = session?.access_token;
+
     const socket = io(
       process.env.NEXT_PUBLIC_WS_URL ?? 'http://localhost:3001',
-      { transports: ['websocket'] }
+      { transports: ['websocket'], auth: { token } }
     );
 
     socket.on('connect', () => {

@@ -92,16 +92,31 @@ export class AuthService implements OnModuleInit {
         }
 
         if (!dbUser) {
-          // Truly new user — create
-          dbUser = await this.prisma.user.create({
-            data: {
-              id: userId,
-              name: userName,
-              email: userEmail,
-              phone: userPhone,
-            },
-          });
-          this.logger.log(`New user created: ${dbUser.id}`);
+          try {
+            // Truly new user — create
+            dbUser = await this.prisma.user.create({
+              data: {
+                id: userId,
+                name: userName,
+                email: userEmail,
+                phone: userPhone,
+              },
+            });
+            this.logger.log(`New user created: ${dbUser.id}`);
+          } catch (createErr: any) {
+            // If another concurrent request just created the user, we will hit a unique constraint error (P2002)
+            if (createErr.code === 'P2002') {
+              dbUser = await this.prisma.user.findUnique({ where: { id: userId } });
+              if (!dbUser && userEmail) {
+                dbUser = await this.prisma.user.findUnique({ where: { email: userEmail } });
+              }
+              if (!dbUser) {
+                throw new Error('User creation failed due to unique constraint, but could not retrieve the created user.');
+              }
+            } else {
+              throw createErr;
+            }
+          }
         } else {
           // Existing user with same email but different ID (provider migration)
           // Update the user's ID to the new auth provider's ID

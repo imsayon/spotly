@@ -219,16 +219,12 @@ function OnboardingFlow() {
 
       const merchant = merchantRes.data.data;
 
-      // 2. Persist inventory to localStorage for the Inventory page
+      // 2. Prepare inventory items
       const inventoryItems = Array.from(selectedItems);
-      localStorage.setItem(
-        `spotly_inventory_${merchant.id}`,
-        JSON.stringify(inventoryItems.map((name) => ({ name, available: true })))
-      );
 
       // 3. Create outlet with location + hours
       try {
-        await api.post('/outlet', {
+        const outletRes = await api.post('/outlet', {
           name: outletName,
           address: outletAddress,
           lat: location?.lat,
@@ -236,12 +232,33 @@ function OnboardingFlow() {
           openTime,
           closeTime,
         });
+
+        // 4. Persist inventory to the real API
+        if (outletRes.data.success && inventoryItems.length > 0) {
+          const outlet = outletRes.data.data;
+          // Create General category
+          const catRes = await api.post(`/menu/${outlet.id}/category`, {
+            name: 'General'
+          });
+          
+          if (catRes.data.success) {
+            const categoryId = catRes.data.data.id;
+            // Create items in parallel
+            await Promise.all(inventoryItems.map(name => 
+              api.post(`/menu/category/${categoryId}/item`, {
+                name,
+                price: 0,
+                isAvailable: true
+              })
+            ));
+          }
+        }
       } catch (outletErr: any) {
         // Outlet creation failure is non-fatal — merchant is created, redirect anyway
-        console.warn('[Onboarding] Outlet creation failed (non-fatal):', outletErr?.message);
+        console.warn('[Onboarding] Outlet or inventory creation failed (non-fatal):', outletErr?.message);
       }
 
-      // 4. Update auth store so RouteGuard won't redirect back to onboarding
+      // 5. Update auth store so RouteGuard won't redirect back to onboarding
       setMerchantProfile(merchant);
 
       router.replace('/dashboard');

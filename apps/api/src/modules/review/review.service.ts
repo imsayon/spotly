@@ -6,6 +6,7 @@ import {
 } from "@nestjs/common"
 import { PrismaService } from "../../prisma/prisma.service"
 import { Review } from "@spotly/types"
+import { Prisma } from "@prisma/client"
 
 @Injectable()
 export class ReviewService {
@@ -43,16 +44,25 @@ export class ReviewService {
 			)
 		}
 
-		const review = await this.prisma.review.create({
-			data: {
-				userId,
-				outletId,
-				rating,
-				comment,
-			},
-		})
+		try {
+			const review = await this.prisma.review.create({
+				data: {
+					userId,
+					outletId,
+					rating,
+					comment,
+				},
+			})
 
-		return review
+			return review
+		} catch (error) {
+			if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
+				throw new BadRequestException(
+					"You have already reviewed this outlet. Use update to modify your review.",
+				)
+			}
+			throw error
+		}
 	}
 
 	async updateReview(

@@ -15,7 +15,7 @@ export class PrismaQueueRepository implements QueueRepository {
       id: entry.id,
       userId: entry.userId,
       outletId: entry.outletId,
-      tokenNumber: entry.tokenNumber ?? 0,
+      tokenNumber: entry.tokenNumber,
       status: entry.status as QueueStatus,
       joinedAt: entry.createdAt.toISOString(),
     };
@@ -26,18 +26,16 @@ export class PrismaQueueRepository implements QueueRepository {
       // 1. Lock the outlet row to prevent concurrent joins from reading the same max token
       // Removed raw SQL FOR UPDATE lock to prevent hanging in transaction mode
 
-      // 2. Safely read the max token for TODAY to reset daily
-      const startOfDay = new Date();
-      startOfDay.setHours(0, 0, 0, 0);
-
-      const aggregate = await tx.queueEntry.aggregate({
-        where: { 
-          outletId: data.outletId,
-          createdAt: { gte: startOfDay }
-        },
-        _max: { tokenNumber: true },
-      });
-      const tokenNumber = (aggregate._max.tokenNumber ?? 0) + 1;
+      // 2. Atomic increment — upsert the daily counter row, increment, return new value
+      const today = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
+      const result = await tx.$queryRaw<[{ counter: number }]>`
+        INSERT INTO "OutletDailyCounter" ("outletId", date, counter)
+        VALUES (${data.outletId}, ${today}::date, 1)
+        ON CONFLICT ("outletId", date)
+        DO UPDATE SET counter = "OutletDailyCounter".counter + 1
+        RETURNING counter
+      `;
+      const tokenNumber = Number(result[0].counter);
 
       // 3. Insert with the guaranteed unique token number
       const created = await tx.queueEntry.create({

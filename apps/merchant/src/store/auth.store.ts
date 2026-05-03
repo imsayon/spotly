@@ -34,22 +34,40 @@ interface AuthState {
   setMerchantProfile: (profile: MerchantProfile) => void;
 }
 
+let setUserPromise: Promise<void> | null = null;
+
 export const useAuthStore = create<AuthState>()((set, get) => ({
   user: null,
   merchantProfile: null,
   loading: true,
 
   setUser: async (user) => {
-    if (!user) {
-      set({ user: null, merchantProfile: null, loading: false });
-      return;
+    if (setUserPromise) {
+      await setUserPromise;
     }
-    const hadProfile = !!get().merchantProfile;
-    set({ user, loading: !hadProfile });
-    // Ensure user record exists on backend before fetching merchant profile
-    await get().registerOnBackend();
-    await get().fetchMerchantProfile();
-    set({ loading: false });
+    
+    setUserPromise = (async () => {
+      if (!user) {
+        set({ user: null, merchantProfile: null, loading: false });
+        return;
+      }
+      
+      // If the same user is already loaded, skip
+      if (get().user?.id === user.id && get().merchantProfile !== null) {
+        set({ user, loading: false });
+        return;
+      }
+
+      const hadProfile = !!get().merchantProfile;
+      set({ user, loading: !hadProfile });
+      // Ensure user record exists on backend before fetching merchant profile
+      await get().registerOnBackend();
+      await get().fetchMerchantProfile();
+      set({ loading: false });
+    })();
+
+    await setUserPromise;
+    setUserPromise = null;
   },
 
   registerOnBackend: async () => {
