@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation"
 import api from "@/lib/api"
 import { useAuthStore } from "@/store/auth.store"
 import dynamic from 'next/dynamic'
+import { reverseGeocode, FALLBACK_LABEL } from '@/lib/geocoding'
 
 const MapPicker = dynamic(() => import('@/components/MapPicker'), { 
   ssr: false,
@@ -176,7 +177,7 @@ export default function MerchantOutlets() {
   if (!merchantProfile && !authLoading) {
     return (
       <div style={{ padding: 100, textAlign: 'center' }}>
-        <div style={{ fontSize: 40, marginBottom: 20 }}>🏪</div>
+        <div style={{ fontSize: 40, marginBottom: 20 }}><Ic.Store /></div>
         <h2 style={{ fontWeight: 900, fontSize: 24, marginBottom: 12 }}>Finish Business Setup</h2>
         <p style={{ color: 'var(--t3)', maxWidth: 400, margin: '0 auto 32px' }}>
           You need to complete your business registration before managing outlets.
@@ -213,16 +214,31 @@ export default function MerchantOutlets() {
                 onChange={e => setNewName(e.target.value)}
               />
             </div>
+            <div>
+              <label style={{ fontSize: 11, fontWeight: 700, color: 'var(--t3)', textTransform: 'uppercase', letterSpacing: .8, display: 'block', marginBottom: 8 }}>Outlet Address</label>
+              <input 
+                style={s.input} 
+                placeholder="e.g. 123 Main St, Bengaluru" 
+                value={newAddr} 
+                onChange={e => setNewAddr(e.target.value)}
+              />
+            </div>
             <div style={{ marginBottom: 16 }}>
               <label style={{ fontSize: 11, fontWeight: 700, color: 'var(--t3)', textTransform: 'uppercase', letterSpacing: .8, display: 'block', marginBottom: 8 }}>Pin exact location</label>
               <MapPicker 
                 lat={newLat} 
                 lng={newLng} 
-                onSelect={(lat, lng) => { setNewLat(lat); setNewLng(lng) }} 
+                onSelect={async (lat, lng, address) => { 
+                  setNewLat(lat); 
+                  setNewLng(lng);
+                  if (address && address !== FALLBACK_LABEL) {
+                    setNewAddr(address);
+                  }
+                }} 
               />
               {newLat && (
-                <div style={{ fontSize: 10, color: 'rgba(31,217,124,.6)', marginTop: 8, fontFamily: 'var(--font-mono)' }}>
-                  📍 {newLat.toFixed(6)}, {newLng?.toFixed(6)}
+              <div style={{ fontSize: 10, color: 'rgba(31,217,124,.6)', marginTop: 8, fontFamily: 'var(--font-mono)', display: 'flex', alignItems: 'center', gap: 4 }}>
+                  <Ic.MapPin /> {newLat.toFixed(6)}, {newLng?.toFixed(6)}
                 </div>
               )}
             </div>
@@ -236,7 +252,7 @@ export default function MerchantOutlets() {
 
       {outlets.length === 0 && !loading && (
         <div style={{ ...s.card, padding: 60, textAlign: 'center', background: 'rgba(255,255,255,.01)' }}>
-          <div style={{ fontSize: 40, marginBottom: 16 }}>🗺️</div>
+          <div style={{ fontSize: 40, marginBottom: 16, color: 'rgba(255,255,255,0.4)' }}><Ic.Map /></div>
           <h3 style={{ fontWeight: 800, fontSize: 18, marginBottom: 8 }}>No Outlets Yet</h3>
           <p style={{ color: 'var(--t3)', fontSize: 14, maxWidth: 300, margin: '0 auto 24px' }}>
             Register your first business location to start managing queues.
@@ -254,7 +270,7 @@ export default function MerchantOutlets() {
             
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', marginBottom: 14 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                <div style={{ width: 44, height: 44, borderRadius: 12, background: 'rgba(31,217,124,.12)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20 }}>🏪</div>
+                <div style={{ width: 44, height: 44, borderRadius: 12, background: 'rgba(31,217,124,.12)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20 }}><Ic.Store /></div>
                 <div>
                   <div style={{ fontWeight: 700, fontSize: 16, marginBottom: 2 }}>{o.name}</div>
                   <div style={{ fontSize: 12, color: 'rgba(255,255,255,.35)', display: 'flex', alignItems: 'center', gap: 4 }}><Ic.MapPin />{o.addr}</div>

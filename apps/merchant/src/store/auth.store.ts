@@ -27,6 +27,7 @@ interface AuthState {
   merchantProfile: MerchantProfile | null;
   loading: boolean;
   setUser: (user: SupabaseUser | null) => Promise<void>;
+  registerOnBackend: () => Promise<void>;
   signInWithGoogle: () => Promise<void>;
   signOut: () => Promise<void>;
   fetchMerchantProfile: () => Promise<MerchantProfile | null>;
@@ -45,8 +46,21 @@ export const useAuthStore = create<AuthState>()((set, get) => ({
     }
     const hadProfile = !!get().merchantProfile;
     set({ user, loading: !hadProfile });
+    // Ensure user record exists on backend before fetching merchant profile
+    await get().registerOnBackend();
     await get().fetchMerchantProfile();
     set({ loading: false });
+  },
+
+  registerOnBackend: async () => {
+    try {
+      await api.post('/user/register', { role: 'MERCHANT' });
+    } catch (err: any) {
+      // 409 / duplicate is fine — user already exists
+      if (err?.response?.status !== 409) {
+        console.warn('[AuthStore] registerOnBackend:', err?.message);
+      }
+    }
   },
 
   fetchMerchantProfile: async () => {

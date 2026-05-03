@@ -6,6 +6,7 @@ import api from '@/lib/api';
 import Link from 'next/link';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Store, MapPin, Plus, ArrowRight, Building } from 'lucide-react';
+import { Ic } from '@spotly/ui';
 
 export default function OutletsPage() {
   const [merchant, setMerchant] = useState<Merchant | null>(null);
@@ -227,8 +228,8 @@ export default function OutletsPage() {
                   {merchant.description && <p className="text-gray-400 text-sm max-w-lg mb-4">{merchant.description}</p>}
                   
                   <div className="flex flex-wrap gap-4 text-xs font-semibold text-gray-500">
-                    {merchant.contactEmail && <span>📧 {merchant.contactEmail}</span>}
-                    {merchant.phone && <span>📞 {merchant.phone}</span>}
+                    {merchant.contactEmail && <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}><Ic.Mail size={12} /> {merchant.contactEmail}</span>}
+                    {merchant.phone && <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}><Ic.Smartphone size={12} /> {merchant.phone}</span>}
                     {merchant.createdAt && <span className="text-gray-600">Established {new Date(merchant.createdAt).toLocaleDateString()}</span>}
                   </div>
                 </div>

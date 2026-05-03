@@ -5,6 +5,7 @@ import { Ic, useToasts, THEME } from "@spotly/ui"
 import { useAuthStore } from "@/store/auth.store"
 import api from "@/lib/api"
 import dynamic from 'next/dynamic'
+import { reverseGeocode, FALLBACK_LABEL } from '@/lib/geocoding'
 
 const MapPicker = dynamic(() => import('@/components/MapPicker'), { 
   ssr: false,
@@ -103,9 +104,14 @@ export default function MerchantBusiness() {
   const handleUpdate = async () => {
     try {
       setLoading(true)
+      const fy = form.foundingYear ? parseInt(form.foundingYear) : undefined;
       const data = {
         ...form,
-        foundingYear: form.foundingYear ? parseInt(form.foundingYear) : undefined,
+        foundingYear: isNaN(fy as number) ? undefined : fy,
+        contactEmail: form.contactEmail || undefined,
+        phone: form.phone || undefined,
+        website: form.website || undefined,
+        description: form.description || undefined,
         lat: form.lat,
         lng: form.lng
       }
@@ -146,12 +152,12 @@ export default function MerchantBusiness() {
         <div style={{ position: 'absolute', top: -30, left: -30, width: 120, height: 120, borderRadius: '50%', background: 'rgba(31,217,124,.05)', filter: 'blur(32px)' }} />
         
         <div style={{ width: 84, height: 84, borderRadius: 20, ...s.gradM, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 38, flexShrink: 0, boxShadow: '0 12px 30px rgba(31,217,124,.25)' }}>
-          {profile?.logoUrl ? <img src={profile.logoUrl} alt="Brand Logo" style={{ width: '100%', height: '100%', borderRadius: 20, objectFit: 'cover' }} /> : '🏪'}
+          {profile?.logoUrl ? <img src={profile.logoUrl} alt="Brand Logo" style={{ width: '100%', height: '100%', borderRadius: 20, objectFit: 'cover' }} /> : <Ic.Store />}
         </div>
         <div style={{ flex: 1, minWidth: 260 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 6 }}>
             <h2 style={{ fontFamily: 'var(--font-sans)', fontSize: 24, fontWeight: 900 }}>{profile?.name || "Register Your Business"}</h2>
-            <span style={{ ...s.badge('merchant'), fontSize: 10, background: 'rgba(31,217,124,.15)' } as React.CSSProperties}>✓ Active</span>
+            <span style={{ ...s.badge('merchant'), fontSize: 10, background: 'rgba(31,217,124,.15)' } as React.CSSProperties}><Ic.Check /> Active</span>
           </div>
           <p style={{ color: 'rgba(255,255,255,.4)', fontSize: 14, marginBottom: 14 }}>
             {profile?.description || (profile ? "Tell us more about your business..." : "Complete your profile to start managing outlets.")}
@@ -273,17 +279,25 @@ export default function MerchantBusiness() {
                 <MapPicker 
                   lat={form.lat} 
                   lng={form.lng} 
-                  onSelect={(lat, lng) => setForm({...form, lat, lng})} 
+                  onSelect={(lat, lng, address) => {
+                    setForm(prev => ({ ...prev, lat, lng, address: address || prev.address }))
+                  }} 
                 />
               </div>
               <button 
                 type="button"
-                onClick={() => {
+                onClick={async () => {
                   if (navigator.geolocation) {
                     navigator.geolocation.getCurrentPosition(
-                      (pos) => {
-                        setForm(prev => ({ ...prev, lat: pos.coords.latitude, lng: pos.coords.longitude }));
+                      async (pos) => {
+                        const { latitude, longitude } = pos.coords;
+                        setForm(prev => ({ ...prev, lat: latitude, lng: longitude }));
                         addToast('Location detected!', 'success');
+                        // Auto-fill address from GPS coordinates
+                        const label = await reverseGeocode(latitude, longitude);
+                        if (label !== FALLBACK_LABEL) {
+                          setForm(prev => ({ ...prev, address: prev.address || label }));
+                        }
                       },
                       () => addToast('Failed to detect location', 'error')
                     );
@@ -296,8 +310,8 @@ export default function MerchantBusiness() {
               </button>
             </div>
             {form.lat && (
-              <div style={{ fontSize: 10, color: 'rgba(31,217,124,.6)', marginTop: 8, fontFamily: 'var(--font-mono)' }}>
-                📍 {form.lat.toFixed(6)}, {form.lng?.toFixed(6)}
+              <div style={{ fontSize: 10, color: 'rgba(31,217,124,.6)', marginTop: 8, fontFamily: 'var(--font-mono)', display: 'flex', alignItems: 'center', gap: 4 }}>
+                <Ic.MapPin /> {form.lat.toFixed(6)}, {form.lng?.toFixed(6)}
               </div>
             )}
           </div>
@@ -310,7 +324,7 @@ export default function MerchantBusiness() {
           onClick={handleUpdate}
           disabled={loading}
         >
-          {loading ? <span className="animate-spin">⌛</span> : <Ic.Check />}
+          {loading ? <span className="animate-spin"><Ic.Clock /></span> : <Ic.Check />}
           {loading ? 'Updating...' : 'Update Profile'}
         </button>
       </div>

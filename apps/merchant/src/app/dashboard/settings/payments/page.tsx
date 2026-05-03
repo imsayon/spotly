@@ -90,8 +90,8 @@ export default function PayoutsPage() {
       <h3 style={{ fontSize: 16, fontWeight: 800, marginBottom: 16, color: 'var(--t2)' }}>Saved Settlement Methods</h3>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 32 }}>
         {[
-          { l: 'HDFC Bank Settlement', v: '**** 8842', tag: 'PRIMARY', ic: '🏦' },
-          { l: 'Business UPI ID', v: 'spotly.merchant@hdfcbank', tag: 'BACKUP', ic: '📱' },
+          { l: 'HDFC Bank Settlement', v: '**** 8842', tag: 'PRIMARY', ic: <Ic.CreditCard /> },
+          { l: 'Business UPI ID', v: 'spotly.merchant@hdfcbank', tag: 'BACKUP', ic: <Ic.Smartphone /> },
         ].map(m => (
           <div key={m.l} style={{ ...s.card, padding: '18px 20px', display: 'flex', alignItems: 'center', gap: 16 }}>
              <div style={{ width: 44, height: 44, borderRadius: 12, background: 'rgba(255,255,255,.05)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20 }}>{m.ic}</div>

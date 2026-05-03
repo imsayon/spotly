@@ -212,7 +212,7 @@ export default function ConsumerProfile() {
         </div>
       ) : history.length === 0 ? (
         <div style={{ ...s.card, padding: '40px 20px', textAlign: 'center', color: 'var(--t3)' }}>
-          <div style={{ fontSize: 32, marginBottom: 8 }}>📋</div>
+          <div style={{ fontSize: 32, marginBottom: 8, color: 'rgba(255,255,255,0.4)' }}><Ic.List /></div>
           <p style={{ fontWeight: 700, fontSize: 14, marginBottom: 4 }}>No queue history yet</p>
           <p style={{ fontSize: 12 }}>Your past queue visits will appear here</p>
         </div>

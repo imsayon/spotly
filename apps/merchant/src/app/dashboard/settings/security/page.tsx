@@ -66,8 +66,8 @@ export default function SecurityPage() {
       <div style={s.card}>
         <h3 style={{ fontSize: 15, fontWeight: 800, marginBottom: 16 }}>Device Sessions</h3>
         {[
-          { icon: '💻', dev: 'MacBook Pro · Chrome', loc: 'Bengaluru, India', current: true },
-          { icon: '📱', dev: 'iPhone 14 Pro · Safari', loc: 'Bengaluru, India', current: false },
+          { icon: <Ic.Monitor />, dev: 'MacBook Pro · Chrome', loc: 'Bengaluru, India', current: true },
+          { icon: <Ic.Smartphone />, dev: 'iPhone 14 Pro · Safari', loc: 'Bengaluru, India', current: false },
         ].map((session, i) => (
           <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '12px 0', borderBottom: i === 0 ? '1px solid rgba(255,255,255,.05)' : 'none' }}>
              <div style={{ width: 40, height: 40, borderRadius: 10, background: 'rgba(255,255,255,.03)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18 }}>{session.icon}</div>

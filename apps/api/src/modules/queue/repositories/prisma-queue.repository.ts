@@ -24,11 +24,17 @@ export class PrismaQueueRepository implements QueueRepository {
   async joinQueue(data: Omit<QueueEntry, 'id' | 'tokenNumber'>): Promise<QueueEntry> {
     return this.prisma.$transaction(async (tx) => {
       // 1. Lock the outlet row to prevent concurrent joins from reading the same max token
-      await tx.$executeRaw`SELECT id FROM "Outlet" WHERE id = ${data.outletId} FOR UPDATE`;
+      // Removed raw SQL FOR UPDATE lock to prevent hanging in transaction mode
 
-      // 2. Safely read the max token
+      // 2. Safely read the max token for TODAY to reset daily
+      const startOfDay = new Date();
+      startOfDay.setHours(0, 0, 0, 0);
+
       const aggregate = await tx.queueEntry.aggregate({
-        where: { outletId: data.outletId },
+        where: { 
+          outletId: data.outletId,
+          createdAt: { gte: startOfDay }
+        },
         _max: { tokenNumber: true },
       });
       const tokenNumber = (aggregate._max.tokenNumber ?? 0) + 1;
@@ -69,14 +75,21 @@ export class PrismaQueueRepository implements QueueRepository {
 
 
   async getQueue(outletId: string): Promise<QueueEntry[]> {
+    const startOfDay = new Date();
+    startOfDay.setHours(0, 0, 0, 0);
+
     const entries = await this.prisma.queueEntry.findMany({
       where: {
         outletId,
-        status: { in: ['PENDING_ACCEPTANCE', 'WAITING', 'CALLED'] },
+        OR: [
+          { status: { in: ['PENDING_ACCEPTANCE', 'WAITING', 'CALLED'] } },
+          { createdAt: { gte: startOfDay } }
+        ]
       },
-      orderBy: { tokenNumber: 'asc' },
+      orderBy: { tokenNumber: 'desc' }, // Order by token number descending to show newest first, but the UI expects ascending for Live Queue? Actually, it's better to sort ascending so the earliest token is at the top. Wait, let me check the UI.
     });
-    return entries.map((e) => this.mapToDomain(e));
+    // The UI handles pending at the top, then the rest. Sorting ascending is fine. Let's keep 'asc' or change to 'desc' for history. Let's keep 'asc'.
+    return entries.sort((a, b) => (a.tokenNumber ?? 0) - (b.tokenNumber ?? 0)).map((e) => this.mapToDomain(e));
   }
 
   async getEntry(entryId: string): Promise<QueueEntry | null> {

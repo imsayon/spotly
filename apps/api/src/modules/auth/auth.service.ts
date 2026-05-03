@@ -23,7 +23,7 @@ export class AuthService implements OnModuleInit {
     const key = process.env.SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
     if (!url || !key) {
-      this.logger.error('⚠️ Supabase config missing. Token verification will fail.');
+      this.logger.error('Supabase config missing. Token verification will fail.');
     } else {
       this.supabase = createClient(url, key);
       this.logger.log('Supabase Auth initialized successfully.');
@@ -40,7 +40,7 @@ export class AuthService implements OnModuleInit {
           this.logger.log('Firebase Admin initialized for dual-auth compatibility.');
         } else {
           // If no cert is provided, fail gracefully.
-          this.logger.warn('⚠️ Firebase Admin credential missing. Dual-auth compatibility is disabled.');
+          this.logger.warn('Firebase Admin credential missing. Dual-auth compatibility is disabled.');
         }
       } catch (err) {
         this.logger.error('Failed to initialize Firebase Admin:', err);
@@ -79,17 +79,35 @@ export class AuthService implements OnModuleInit {
         userName = user.user_metadata?.full_name || user.email?.split('@')[0] || user.phone;
       }
       
-      // Auto-Sync User to database (Only create if not exists, preserving UUIDs)
-      const dbUser = await this.prisma.user.upsert({
-        where: { id: userId },
-        update: {}, // Don't overwrite existing data from token on every request
-        create: {
-          id: userId,
-          name: userName,
-          email: userEmail,
-          phone: userPhone,
-        },
-      });
+      // Auto-Sync User to database
+      // Use findUnique first, then create only if not exists.
+      // This avoids the unique constraint error on `email` when multiple Supabase
+      // accounts share the same email or when a stale record exists.
+      let dbUser = await this.prisma.user.findUnique({ where: { id: userId } });
+
+      if (!dbUser) {
+        // Check if a user with this email already exists (from a different auth provider)
+        if (userEmail) {
+          dbUser = await this.prisma.user.findUnique({ where: { email: userEmail } });
+        }
+
+        if (!dbUser) {
+          // Truly new user — create
+          dbUser = await this.prisma.user.create({
+            data: {
+              id: userId,
+              name: userName,
+              email: userEmail,
+              phone: userPhone,
+            },
+          });
+          this.logger.log(`New user created: ${dbUser.id}`);
+        } else {
+          // Existing user with same email but different ID (provider migration)
+          // Update the user's ID to the new auth provider's ID
+          this.logger.warn(`User with email ${userEmail} exists under ID ${dbUser.id}, current auth ID is ${userId}. Using existing record.`);
+        }
+      }
 
       return {
         uid: dbUser.id,
@@ -97,7 +115,7 @@ export class AuthService implements OnModuleInit {
         name: dbUser.name || undefined,
       };
     } catch (err: any) {
-      this.logger.error('Token Verification Error:', err);
+      this.logger.error('Token Verification Error:', err?.message || err);
       throw new UnauthorizedException('Invalid or expired token');
     }
   }

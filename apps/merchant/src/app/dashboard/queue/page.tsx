@@ -32,10 +32,10 @@ const s = {
 }
 
 function StatusBadge({ status }: { status: string }) {
-  const cfg: Record<string, { color: string; bg: string; border: string; label: string }> = {
+  const cfg: Record<string, { color: string; bg: string; border: string; label: React.ReactNode }> = {
     WAITING:            { color: '#f5c418', bg: 'rgba(245,196,24,.12)',  border: 'rgba(245,196,24,.25)',  label: 'Waiting' },
     CALLED:             { color: '#00cfff', bg: 'rgba(0,207,255,.12)',   border: 'rgba(0,207,255,.25)',   label: 'Called' },
-    SERVED:             { color: '#1fd97c', bg: 'rgba(31,217,124,.12)',  border: 'rgba(31,217,124,.25)',  label: 'Served ✓' },
+    SERVED:             { color: '#1fd97c', bg: 'rgba(31,217,124,.12)',  border: 'rgba(31,217,124,.25)',  label: <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>Served <Ic.Check size={12} /></span> },
     MISSED:             { color: '#ff4d6d', bg: 'rgba(255,77,109,.12)',  border: 'rgba(255,77,109,.25)',  label: 'Missed' },
     PENDING_ACCEPTANCE: { color: '#a78bfa', bg: 'rgba(167,139,250,.12)', border: 'rgba(167,139,250,.25)', label: 'Awaiting Confirmation' },
   }
@@ -93,7 +93,7 @@ export default function MerchantQueuePage() {
   if (!merchantProfile) {
     return (
       <div style={{ padding: '60px 20px', textAlign: 'center', maxWidth: 400, margin: '0 auto' }}>
-        <div style={{ fontSize: 48, marginBottom: 20 }}>📊</div>
+        <div style={{ fontSize: 48, marginBottom: 20, color: 'rgba(255,255,255,0.4)' }}><Ic.BarChart /></div>
         <h2 style={{ fontFamily: 'var(--font-sans)', fontWeight: 800, fontSize: 22, marginBottom: 8 }}>Merchant Profile Required</h2>
         <button style={s.btnM} onClick={() => window.location.href = '/dashboard/business'}>
           Setup Business Profile
@@ -166,7 +166,7 @@ export default function MerchantQueuePage() {
 
       {store.outlets.length === 0 ? (
         <div style={{ ...s.card, padding: 60, textAlign: 'center', borderStyle: 'dashed', opacity: 0.6 }}>
-          <div style={{ fontSize: 48, marginBottom: 12 }}>🏪</div>
+          <div style={{ fontSize: 48, marginBottom: 12, color: 'rgba(255,255,255,0.4)' }}><Ic.Store /></div>
           <div style={{ fontWeight: 800, fontSize: 18, marginBottom: 6 }}>No outlets registered</div>
           <p style={{ color: 'rgba(255,255,255,.3)', fontSize: 14 }}>Add an outlet from Outlet Control to start managing queues.</p>
         </div>
@@ -236,7 +236,7 @@ export default function MerchantQueuePage() {
                         style={s.btnAccept}
                         onClick={() => store.acceptEntry(entry.id)}
                       >
-                        ✓ Accept
+                        <Ic.Check size={16} /> Accept
                       </motion.button>
                       <motion.button
                         whileTap={{ scale: 0.95 }}
@@ -244,7 +244,7 @@ export default function MerchantQueuePage() {
                         style={s.btnDanger}
                         onClick={() => store.rejectEntry(entry.id)}
                       >
-                        ✕ Reject
+                        <Ic.X size={16} /> Reject
                       </motion.button>
                     </div>
                   </motion.div>
@@ -350,7 +350,7 @@ export default function MerchantQueuePage() {
 
             {entries.length === 0 ? (
               <div style={{ textAlign: 'center', padding: '52px 20px', color: 'rgba(255,255,255,.15)' }}>
-                <div style={{ fontSize: 40, marginBottom: 10 }}>🍃</div>
+                <div style={{ fontSize: 40, marginBottom: 10, color: 'rgba(255,255,255,0.4)' }}><Ic.Leaf /></div>
                 <div style={{ fontWeight: 700, fontSize: 15 }}>The queue is empty</div>
                 <div style={{ fontSize: 13, marginTop: 4 }}>Customers who join will appear here</div>
               </div>
@@ -408,10 +408,10 @@ export default function MerchantQueuePage() {
                           {isPending && (
                             <>
                               <motion.button whileHover={{ background: 'rgba(31,217,124,.2)' }} style={{ ...s.btnAccept, padding: '5px 12px', fontSize: 11, borderRadius: 8, minHeight: 30 }} onClick={() => store.acceptEntry(entry.id)}>
-                                ✓ Accept
+                                <Ic.Check size={14} /> Accept
                               </motion.button>
                               <motion.button whileHover={{ background: 'rgba(255,77,109,.2)' }} style={{ ...s.btnDanger, padding: '5px 12px', fontSize: 11, borderRadius: 8, minHeight: 30 }} onClick={() => store.rejectEntry(entry.id)}>
-                                ✕ Reject
+                                <Ic.X size={14} /> Reject
                               </motion.button>
                             </>
                           )}

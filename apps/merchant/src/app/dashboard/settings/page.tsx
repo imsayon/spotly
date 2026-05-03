@@ -5,7 +5,7 @@ import { motion } from "framer-motion"
 import api from "@/lib/api"
 import { useAuthStore } from "@/store/auth.store"
 import { useQueueStore } from "@/store/queue.store"
-import { useToasts, THEME } from "@spotly/ui"
+import { Ic, useToasts, THEME } from "@spotly/ui"
 
 // ─── Minimal QR encoder (no extra deps) ──────────────────────────────────────
 // We use a free public QR API (image tag, no JS lib needed)
@@ -296,7 +296,7 @@ export default function SettingsPage() {
                     fontWeight: 700, fontSize: 13, cursor: 'pointer', transition: 'all .2s',
                   }}
                 >
-                  {copied ? '✓ Copied!' : 'Copy'}
+                  {copied ? <><Ic.Check size={14} /> Copied!</> : 'Copy'}
                 </button>
               </div>
 
@@ -316,7 +316,7 @@ export default function SettingsPage() {
                   </div>
                   {outlet.address && (
                     <div style={{ fontSize: 13, color: 'rgba(255,255,255,.35)', marginBottom: 12 }}>
-                      📍 {outlet.address}
+                      <Ic.MapPin size={12} /> {outlet.address}
                     </div>
                   )}
                   <div style={{ fontSize: 12, color: 'rgba(255,255,255,.2)', lineHeight: 1.6 }}>
@@ -327,7 +327,7 @@ export default function SettingsPage() {
             </>
           ) : (
             <div style={{ textAlign: 'center', padding: '32px 20px', color: 'rgba(255,255,255,.25)' }}>
-              <div style={{ fontSize: 32, marginBottom: 8 }}>🏪</div>
+              <div style={{ fontSize: 32, marginBottom: 8, color: 'rgba(255,255,255,0.4)' }}><Ic.Store /></div>
               <div style={{ fontWeight: 700, fontSize: 14 }}>No outlet found</div>
               <div style={{ fontSize: 13, marginTop: 4 }}>Complete onboarding to get your share link.</div>
             </div>

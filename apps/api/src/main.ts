@@ -35,7 +35,7 @@ async function bootstrap() {
   logger.log(`Attempting to listen on port ${port}...`);
   try {
     await app.listen(port);
-    logger.log(`🚀 Spotly API running on http://localhost:${port}/api`);
+    logger.log(`Spotly API running on http://localhost:${port}/api`);
   } catch (error) {
     logger.error(`Error listening on port ${port}:`, error);
     process.exit(1);

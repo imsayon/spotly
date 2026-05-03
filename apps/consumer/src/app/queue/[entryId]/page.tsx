@@ -59,6 +59,15 @@ export default function ConsumerQueuePage() {
         const res = await api.get(`/queue/entry/${entryId}`);
         const currentEntry: QueueEntry = res.data.data;
         setEntry(currentEntry);
+
+        // Fetch full queue to calculate initial ahead
+        const queueRes = await api.get(`/queue/${currentEntry.outletId}`);
+        const queueEntries = queueRes.data.data;
+        const waitingAhead = queueEntries.filter((e: any) => 
+          e.status === 'WAITING' && e.tokenNumber < currentEntry.tokenNumber
+        ).length;
+        setAhead(waitingAhead);
+        
       } catch (err) {
         addToast('Failed to load reservation', 'error');
       } finally {

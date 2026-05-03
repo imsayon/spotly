@@ -4,108 +4,120 @@ import React, { useState, useEffect } from "react"
 import { motion, AnimatePresence } from "framer-motion"
 import { useAuthStore } from "@/store/auth.store"
 import { Ic, useToasts, THEME } from "@spotly/ui"
+import api from "@/lib/api"
 
-// ─── Types ────────────────────────────────────────────────────────────────────
-
-interface InventoryItem {
-  name: string
-  available: boolean
-  tag?: string
-}
-
-// ─── Storage helpers ──────────────────────────────────────────────────────────
-
-const storageKey = (merchantId: string) => `spotly_inventory_${merchantId}`
-
-function loadInventory(merchantId: string): InventoryItem[] {
-  if (typeof window === 'undefined') return []
-  try {
-    const raw = localStorage.getItem(storageKey(merchantId))
-    return raw ? JSON.parse(raw) : []
-  } catch {
-    return []
-  }
-}
-
-function saveInventory(merchantId: string, items: InventoryItem[]) {
-  if (typeof window === 'undefined') return
-  localStorage.setItem(storageKey(merchantId), JSON.stringify(items))
-}
-
-// ─── Main Component ────────────────────────────────────────────────────────────
+const s = THEME.styles
 
 export default function InventoryPage() {
   const { merchantProfile } = useAuthStore()
   const { add: addToast } = useToasts()
 
-  const [items, setItems] = useState<InventoryItem[]>([])
-  const [mounted, setMounted] = useState(false)
+  const [outlets, setOutlets] = useState<any[]>([])
+  const [selectedOutlet, setSelectedOutlet] = useState<string>('')
+  const [categories, setCategories] = useState<any[]>([])
+  
   const [showAddForm, setShowAddForm] = useState(false)
   const [newName, setNewName] = useState('')
-  const [newTag, setNewTag] = useState('')
+  const [newPrice, setNewPrice] = useState('')
   const [filter, setFilter] = useState<'all' | 'available' | 'unavailable'>('all')
 
-  const merchantId = merchantProfile?.id ?? ''
-
+  // Fetch outlets
   useEffect(() => {
-    setMounted(true)
-    if (merchantId) {
-      setItems(loadInventory(merchantId))
+    const fetchOutlets = async () => {
+      if (!merchantProfile?.id) return
+      try {
+        const res = await api.get(`/outlet/merchant/${merchantProfile.id}`)
+        setOutlets(res.data.data)
+        if (res.data.data.length > 0) {
+          setSelectedOutlet(res.data.data[0].id)
+        }
+      } catch (err) {
+        addToast('Failed to load outlets', 'error')
+      }
     }
-  }, [merchantId])
+    fetchOutlets()
+  }, [merchantProfile?.id, addToast])
 
-  if (!mounted) return null
+  // Fetch menu for selected outlet
+  useEffect(() => {
+    const fetchMenu = async () => {
+      if (!selectedOutlet) return
+      try {
+        const res = await api.get(`/menu/${selectedOutlet}`)
+        setCategories(res.data.data)
+      } catch (err) {
+        addToast('Failed to load inventory', 'error')
+      }
+    }
+    fetchMenu()
+  }, [selectedOutlet, addToast])
 
-  const persist = (next: InventoryItem[]) => {
-    setItems(next)
-    saveInventory(merchantId, next)
+  const fetchMenu = async () => {
+    if (!selectedOutlet) return
+    const res = await api.get(`/menu/${selectedOutlet}`)
+    setCategories(res.data.data)
   }
 
-  const toggleAvailability = (idx: number) => {
-    const next = items.map((item, i) =>
-      i === idx ? { ...item, available: !item.available } : item
-    )
-    persist(next)
-    addToast(
-      `${items[idx].name} marked as ${items[idx].available ? 'unavailable' : 'available'}`,
-      'info'
-    )
+  const getOrCreateGeneralCategory = async () => {
+    let general = categories.find((c: any) => c.name === 'General')
+    if (general) return general.id
+
+    const res = await api.post(`/menu/${selectedOutlet}/category`, { name: 'General' })
+    return res.data.data.id
   }
 
-  const deleteItem = (idx: number) => {
-    const name = items[idx].name
-    persist(items.filter((_, i) => i !== idx))
-    addToast(`${name} removed`, 'info')
-  }
-
-  const addItem = () => {
-    const trimmed = newName.trim()
-    if (!trimmed) return
-    if (items.some(i => i.name.toLowerCase() === trimmed.toLowerCase())) {
-      addToast('Item already exists', 'error')
+  const addItem = async () => {
+    if (!newName.trim() || !newPrice.trim()) {
+      addToast('Name and price are required', 'error')
       return
     }
-    const next: InventoryItem[] = [
-      ...items,
-      { name: trimmed, available: true, tag: newTag.trim() || undefined },
-    ]
-    persist(next)
-    addToast(`${trimmed} added ✓`, 'success')
-    setNewName('')
-    setNewTag('')
-    setShowAddForm(false)
+    try {
+      const catId = await getOrCreateGeneralCategory()
+      await api.post(`/menu/category/${catId}/item`, {
+        name: newName.trim(),
+        price: parseFloat(newPrice),
+        description: ''
+      })
+      addToast('Item added', 'success')
+      setNewName('')
+      setNewPrice('')
+      setShowAddForm(false)
+      fetchMenu()
+    } catch {
+      addToast('Failed to add item', 'error')
+    }
   }
 
-  const filtered = items.filter(item => {
-    if (filter === 'available') return item.available
-    if (filter === 'unavailable') return !item.available
+  const toggleAvailability = async (item: any) => {
+    try {
+      await api.patch(`/menu/item/${item.id}`, { isAvailable: !item.isAvailable })
+      fetchMenu()
+      addToast(`${item.name} marked as ${item.isAvailable ? 'unavailable' : 'available'}`, 'info')
+    } catch {
+      addToast('Update failed', 'error')
+    }
+  }
+
+  const deleteItem = async (item: any) => {
+    if (!confirm('Delete this item?')) return
+    try {
+      await api.delete(`/menu/item/${item.id}`)
+      fetchMenu()
+      addToast('Item removed', 'info')
+    } catch {
+      addToast('Delete failed', 'error')
+    }
+  }
+
+  const allItems = categories.flatMap(c => c.items)
+  const filtered = allItems.filter(item => {
+    if (filter === 'available') return item.isAvailable
+    if (filter === 'unavailable') return !item.isAvailable
     return true
   })
 
-  const availableCount = items.filter(i => i.available).length
-  const unavailableCount = items.length - availableCount
-
-  const s = THEME.styles
+  const availableCount = allItems.filter(i => i.isAvailable).length
+  const unavailableCount = allItems.length - availableCount
 
   return (
     <motion.div
@@ -127,18 +139,38 @@ export default function InventoryPage() {
             )}
           </p>
         </div>
-        <button
-          onClick={() => setShowAddForm(!showAddForm)}
-          style={{
-            display: 'inline-flex', alignItems: 'center', gap: 8,
-            padding: '12px 22px', borderRadius: 12,
-            background: showAddForm ? 'rgba(255,255,255,.06)' : THEME.gradients.merchant,
-            border: showAddForm ? '1px solid rgba(255,255,255,.12)' : 'none',
-            color: '#fff', fontWeight: 700, fontSize: 14, cursor: 'pointer', transition: 'all .2s',
-          }}
-        >
-          {showAddForm ? '✕ Cancel' : '+ Add Item'}
-        </button>
+        
+        <div style={{ display: 'flex', gap: 12 }}>
+          {outlets.length > 0 && (
+            <select
+              value={selectedOutlet}
+              onChange={(e) => setSelectedOutlet(e.target.value)}
+              style={{
+                padding: '12px 16px', borderRadius: 12,
+                background: 'rgba(255,255,255,.05)',
+                border: '1px solid rgba(255,255,255,.1)',
+                color: '#fff', fontSize: 14, outline: 'none', cursor: 'pointer'
+              }}
+            >
+              {outlets.map(o => (
+                <option key={o.id} value={o.id} style={{ background: '#1a1a1a' }}>{o.name}</option>
+              ))}
+            </select>
+          )}
+
+          <button
+            onClick={() => setShowAddForm(!showAddForm)}
+            style={{
+              display: 'inline-flex', alignItems: 'center', gap: 8,
+              padding: '12px 22px', borderRadius: 12,
+              background: showAddForm ? 'rgba(255,255,255,.06)' : THEME.gradients.merchant,
+              border: showAddForm ? '1px solid rgba(255,255,255,.12)' : 'none',
+              color: '#fff', fontWeight: 700, fontSize: 14, cursor: 'pointer', transition: 'all .2s',
+            }}
+          >
+            {showAddForm ? <><Ic.X size={14} /> Cancel</> : '+ Add Item'}
+          </button>
+        </div>
       </div>
 
       {/* ADD ITEM FORM */}
@@ -174,10 +206,11 @@ export default function InventoryPage() {
                   }}
                 />
                 <input
-                  value={newTag}
-                  onChange={e => setNewTag(e.target.value)}
+                  type="number"
+                  value={newPrice}
+                  onChange={e => setNewPrice(e.target.value)}
                   onKeyDown={e => e.key === 'Enter' && addItem()}
-                  placeholder="Tag (optional)"
+                  placeholder="Price ₹"
                   style={{
                     flex: '1 1 120px',
                     padding: '12px 16px', borderRadius: 12,
@@ -204,7 +237,7 @@ export default function InventoryPage() {
       </AnimatePresence>
 
       {/* FILTER TABS */}
-      {items.length > 0 && (
+      {allItems.length > 0 && (
         <div style={{ display: 'flex', gap: 8, marginBottom: 20 }}>
           {(['all', 'available', 'unavailable'] as const).map(f => (
             <button
@@ -219,22 +252,22 @@ export default function InventoryPage() {
                 textTransform: 'capitalize',
               }}
             >
-              {f === 'all' ? `All (${items.length})` : f === 'available' ? `Available (${availableCount})` : `Unavailable (${unavailableCount})`}
+              {f === 'all' ? `All (${allItems.length})` : f === 'available' ? `Available (${availableCount})` : `Unavailable (${unavailableCount})`}
             </button>
           ))}
         </div>
       )}
 
       {/* EMPTY STATE */}
-      {items.length === 0 && (
+      {allItems.length === 0 && (
         <div style={{
           ...s.card as any, padding: '60px 20px', textAlign: 'center',
           borderStyle: 'dashed', borderColor: 'rgba(255,255,255,.06)',
         }}>
-          <div style={{ fontSize: 48, marginBottom: 12 }}>📦</div>
+          <div style={{ fontSize: 48, marginBottom: 12, color: 'rgba(255,255,255,0.4)' }}><Ic.Package /></div>
           <div style={{ fontWeight: 800, fontSize: 18, marginBottom: 6 }}>No inventory yet</div>
           <p style={{ color: 'rgba(255,255,255,.3)', fontSize: 14, maxWidth: 340, margin: '0 auto 24px' }}>
-            Add items that your store offers. You can also do this during onboarding.
+            Add items that your store offers. Make sure to select the correct outlet first!
           </p>
           <button
             onClick={() => setShowAddForm(true)}
@@ -253,92 +286,84 @@ export default function InventoryPage() {
       {filtered.length > 0 && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
           <AnimatePresence>
-            {filtered.map((item, rawIdx) => {
-              // Find real index in items array
-              const realIdx = items.indexOf(item)
-              return (
-                <motion.div
-                  key={item.name}
-                  layout
-                  initial={{ opacity: 0, y: 8 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, x: -20 }}
+            {filtered.map((item) => (
+              <motion.div
+                key={item.id}
+                layout
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, x: -20 }}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 16,
+                  padding: '16px 20px', borderRadius: 16,
+                  background: item.isAvailable ? 'rgba(255,255,255,.025)' : 'rgba(255,255,255,.01)',
+                  border: `1px solid ${item.isAvailable ? 'rgba(255,255,255,.07)' : 'rgba(255,255,255,.04)'}`,
+                  transition: 'all .2s',
+                }}
+              >
+                {/* Status dot */}
+                <div style={{
+                  width: 10, height: 10, borderRadius: '50%', flexShrink: 0,
+                  background: item.isAvailable ? '#1fd97c' : '#374151',
+                  boxShadow: item.isAvailable ? '0 0 8px rgba(31,217,124,.4)' : 'none',
+                  transition: 'all .3s',
+                }} />
+
+                {/* Name */}
+                <div style={{ flex: 1 }}>
+                  <div style={{
+                    fontWeight: 700, fontSize: 15, color: item.isAvailable ? '#fff' : 'rgba(255,255,255,.35)',
+                    textDecoration: item.isAvailable ? 'none' : 'line-through',
+                  }}>
+                    {item.name}
+                  </div>
+                  <div style={{
+                    fontSize: 12, color: 'rgba(255,255,255,.3)', fontWeight: 600, marginTop: 2,
+                  }}>
+                    ₹{item.price}
+                  </div>
+                </div>
+
+                {/* Toggle */}
+                <button
+                  onClick={() => toggleAvailability(item)}
                   style={{
-                    display: 'flex', alignItems: 'center', gap: 16,
-                    padding: '16px 20px', borderRadius: 16,
-                    background: item.available ? 'rgba(255,255,255,.025)' : 'rgba(255,255,255,.01)',
-                    border: `1px solid ${item.available ? 'rgba(255,255,255,.07)' : 'rgba(255,255,255,.04)'}`,
-                    transition: 'all .2s',
+                    padding: '8px 16px', borderRadius: 99,
+                    background: item.isAvailable ? 'rgba(31,217,124,.1)' : 'rgba(255,255,255,.04)',
+                    border: `1px solid ${item.isAvailable ? 'rgba(31,217,124,.25)' : 'rgba(255,255,255,.08)'}`,
+                    color: item.isAvailable ? '#1fd97c' : 'rgba(255,255,255,.3)',
+                    fontSize: 12, fontWeight: 700, cursor: 'pointer', transition: 'all .25s',
+                    minWidth: 110,
                   }}
                 >
-                  {/* Status dot */}
-                  <div style={{
-                    width: 10, height: 10, borderRadius: '50%', flexShrink: 0,
-                    background: item.available ? '#1fd97c' : '#374151',
-                    boxShadow: item.available ? '0 0 8px rgba(31,217,124,.4)' : 'none',
-                    transition: 'all .3s',
-                  }} />
+                  {item.isAvailable ? <><Ic.Check size={12} /> Available</> : 'Unavailable'}
+                </button>
 
-                  {/* Name */}
-                  <div style={{ flex: 1 }}>
-                    <div style={{
-                      fontWeight: 700, fontSize: 15, color: item.available ? '#fff' : 'rgba(255,255,255,.35)',
-                      textDecoration: item.available ? 'none' : 'line-through',
-                    }}>
-                      {item.name}
-                    </div>
-                    {item.tag && (
-                      <div style={{
-                        fontSize: 11, color: 'rgba(255,255,255,.3)', fontWeight: 600, marginTop: 2,
-                        background: 'rgba(255,255,255,.06)', borderRadius: 6, padding: '2px 8px',
-                        display: 'inline-block',
-                      }}>
-                        {item.tag}
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Toggle */}
-                  <button
-                    onClick={() => toggleAvailability(realIdx)}
-                    style={{
-                      padding: '8px 16px', borderRadius: 99,
-                      background: item.available ? 'rgba(31,217,124,.1)' : 'rgba(255,255,255,.04)',
-                      border: `1px solid ${item.available ? 'rgba(31,217,124,.25)' : 'rgba(255,255,255,.08)'}`,
-                      color: item.available ? '#1fd97c' : 'rgba(255,255,255,.3)',
-                      fontSize: 12, fontWeight: 700, cursor: 'pointer', transition: 'all .25s',
-                      minWidth: 110,
-                    }}
-                  >
-                    {item.available ? '✓ Available' : 'Unavailable'}
-                  </button>
-
-                  {/* Delete */}
-                  <motion.button
-                    whileHover={{ background: 'rgba(255,77,109,.15)', color: '#ff4d6d' }}
-                    onClick={() => deleteItem(realIdx)}
-                    style={{
-                      width: 36, height: 36, borderRadius: 10, flexShrink: 0,
-                      background: 'rgba(255,255,255,.04)',
-                      border: '1px solid rgba(255,255,255,.08)',
-                      color: 'rgba(255,255,255,.3)',
-                      display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      fontSize: 16, cursor: 'pointer', transition: 'all .2s',
-                    }}
-                  >
-                    ×
-                  </motion.button>
-                </motion.div>
-              )
-            })}
+                {/* Delete */}
+                <motion.button
+                  whileHover={{ background: 'rgba(255,77,109,.15)', color: '#ff4d6d' }}
+                  onClick={() => deleteItem(item)}
+                  style={{
+                    width: 36, height: 36, borderRadius: 10, flexShrink: 0,
+                    background: 'rgba(255,255,255,.04)',
+                    border: '1px solid rgba(255,255,255,.08)',
+                    color: 'rgba(255,255,255,.3)',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    fontSize: 16, cursor: 'pointer', transition: 'all .2s',
+                  }}
+                >
+                  ×
+                </motion.button>
+              </motion.div>
+            ))}
           </AnimatePresence>
         </div>
       )}
 
       {/* No results for filter */}
-      {items.length > 0 && filtered.length === 0 && (
+      {allItems.length > 0 && filtered.length === 0 && (
         <div style={{ textAlign: 'center', padding: '48px 20px', color: 'rgba(255,255,255,.2)' }}>
-          <div style={{ fontSize: 32, marginBottom: 8 }}>🔍</div>
+          <div style={{ fontSize: 32, marginBottom: 8, color: 'rgba(255,255,255,0.4)' }}><Ic.Search /></div>
           <div style={{ fontWeight: 700 }}>No {filter} items</div>
         </div>
       )}

@@ -4,6 +4,7 @@ import React, { useEffect, useState } from 'react'
 import { MapContainer, TileLayer, Marker, useMapEvents } from 'react-leaflet'
 import 'leaflet/dist/leaflet.css'
 import L from 'leaflet'
+import { reverseGeocode } from '@/lib/geocoding'
 
 // Fix for default Leaflet marker icons in Next.js
 const fixLeafletIcons = () => {
@@ -19,7 +20,7 @@ const fixLeafletIcons = () => {
 interface MapPickerProps {
   lat?: number
   lng?: number
-  onSelect: (lat: number, lng: number) => void
+  onSelect: (lat: number, lng: number, address?: string) => void
   zoom?: number
 }
 
@@ -29,9 +30,11 @@ function LocationMarker({ lat, lng, onSelect }: MapPickerProps) {
   )
 
   useMapEvents({
-    click(e) {
+    async click(e) {
       setPosition(e.latlng)
-      onSelect(e.latlng.lat, e.latlng.lng)
+      // Reverse-geocode the clicked location and pass address to parent
+      const label = await reverseGeocode(e.latlng.lat, e.latlng.lng)
+      onSelect(e.latlng.lat, e.latlng.lng, label)
     },
   })
 
@@ -57,7 +60,7 @@ export default function MapPicker({ lat, lng, onSelect, zoom = 13 }: MapPickerPr
       <MapContainer 
         center={center} 
         zoom={zoom} 
-        scrollWheelZoom={false} 
+        scrollWheelZoom={true} 
         style={{ height: '100%', width: '100%' }}
       >
         <TileLayer

@@ -119,7 +119,7 @@ export const useQueueStore = create<QueueStore>((set, get) => ({
   markServed: async (entryId: string) => {
     try {
       await api.post(`/queue/served/${entryId}`, { outletId: get().selectedOutletId });
-      get()._addToast?.('Marked as served ✓', 'success');
+      get()._addToast?.('Marked as served', 'success');
       get().fetchQueue();
     } catch {
       get()._addToast?.('Failed to mark served', 'error');
@@ -190,7 +190,7 @@ export const useQueueStore = create<QueueStore>((set, get) => ({
 
     socket.on('token_called', (payload: { outletId: string; tokenNumber: number }) => {
       if (payload.outletId === get().selectedOutletId) {
-        get()._addToast?.(`🔔 Token #${payload.tokenNumber} is being called`, 'info');
+        get()._addToast?.(`Token #${payload.tokenNumber} is being called`, 'info');
       }
     });
 

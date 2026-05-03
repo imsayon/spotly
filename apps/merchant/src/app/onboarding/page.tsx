@@ -6,6 +6,7 @@ import api from '@/lib/api';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuthStore } from '@/store/auth.store';
 import { reverseGeocode, FALLBACK_LABEL } from '@/lib/geocoding';
+import { Ic } from '@spotly/ui';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -289,7 +290,7 @@ function OnboardingFlow() {
             fontSize: 18,
           }}
         >
-          ⚡
+          <Ic.Zap />
         </div>
         <div>
           <div style={{ fontWeight: 900, fontSize: 18, letterSpacing: -0.5 }}>spotly.</div>
@@ -333,7 +334,7 @@ function OnboardingFlow() {
                       transition: 'all .3s',
                     }}
                   >
-                    {done ? '✓' : stepNum}
+                    {done ? <Ic.Check size={14} /> : stepNum}
                   </div>
                   <div
                     style={{
@@ -477,7 +478,7 @@ function OnboardingFlow() {
                           gap: 8,
                         }}
                       >
-                        📍 {location.lat.toFixed(5)}, {location.lng.toFixed(5)}
+                        <Ic.MapPin size={14} /> {location.lat.toFixed(5)}, {location.lng.toFixed(5)}
                         <button
                           onClick={() => setLocation(null)}
                           style={{
@@ -518,11 +519,11 @@ function OnboardingFlow() {
                         >
                           {locLoading ? (
                             <>
-                              <span style={{ animation: 'spin 1s linear infinite', display: 'inline-block' }}>⏳</span>
+                              <span style={{ animation: 'spin 1s linear infinite', display: 'inline-block' }}><Ic.Clock size={14} /></span>
                               Detecting location...
                             </>
                           ) : (
-                            <>📍 Get My Location</>
+                            <><Ic.MapPin size={16} /> Get My Location</>
                           )}
                         </button>
                         {locError && (
@@ -617,7 +618,7 @@ function OnboardingFlow() {
                               transition: 'all .18s',
                             }}
                           >
-                            {on ? '✓ ' : ''}{item}
+                            {on ? <><Ic.Check size={14} /> </> : null}{item}
                           </button>
                         );
                       })}
@@ -653,7 +654,7 @@ function OnboardingFlow() {
                                 transition: 'all .18s',
                               }}
                             >
-                              {on ? '✓ ' : ''}{item}
+                              {on ? <><Ic.Check size={14} /> </> : null}{item}
                             </button>
                           );
                         })}
@@ -793,7 +794,7 @@ function OnboardingFlow() {
                       margin: '0 auto 16px',
                     }}
                   >
-                    🏪
+                    <div style={{ color: 'rgba(255,255,255,0.4)' }}><Ic.Store size={30} /></div>
                   </div>
                   <h2 style={{ fontSize: 22, fontWeight: 900, marginBottom: 4 }}>
                     You're almost ready!
@@ -895,11 +896,11 @@ function OnboardingFlow() {
                   >
                     {isLoading ? (
                       <>
-                        <span style={{ animation: 'spin 1s linear infinite', display: 'inline-block' }}>⏳</span>
+                        <span style={{ animation: 'spin 1s linear infinite', display: 'inline-block' }}><Ic.Clock size={14} /></span>
                         Launching...
                       </>
                     ) : (
-                      'Go to Dashboard 🚀'
+                      <>Go to Dashboard <Ic.Arrow size={16} /></>
                     )}
                   </button>
                 </div>

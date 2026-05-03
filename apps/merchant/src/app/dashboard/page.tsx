@@ -215,14 +215,14 @@ function QueueRow({ entry, onCallNext, onServed, onAccept, onReject }: {
               style={s.btnAccept}
               onClick={onAccept}
             >
-              ✓ Accept
+              <Ic.Check size={16} /> Accept
             </motion.button>
             <motion.button
               whileTap={{ scale: 0.95 }}
               style={s.btnDanger}
               onClick={onReject}
             >
-              ✕ Reject
+              <Ic.X size={16} /> Reject
             </motion.button>
           </>
         )}
@@ -301,7 +301,7 @@ export default function MerchantDashboard() {
   if (!merchantProfile) {
     return (
       <div style={{ padding: '60px 20px', textAlign: 'center', maxWidth: 400, margin: '0 auto' }}>
-        <div style={{ fontSize: 48, marginBottom: 20 }}>📊</div>
+        <div style={{ fontSize: 48, marginBottom: 20, color: 'rgba(255,255,255,0.4)' }}><Ic.BarChart /></div>
         <h2 style={{ fontFamily: 'var(--font-sans)', fontWeight: 800, fontSize: 22, marginBottom: 8 }}>
           Complete Onboarding First
         </h2>
@@ -372,14 +372,14 @@ export default function MerchantDashboard() {
       {/* ═══ STATS ROW ═══ */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 14, marginBottom: 24 }}>
         {[
-          { label: 'Total Waiting',     value: waiting.length,    color: '#f5c418', icon: '⏳', sub: `${pending.length} pending` },
-          { label: 'Active Session',  value: called ? `#${called.tokenNumber}` : '—', color: '#00cfff', icon: '🔔', sub: called ? 'Token called' : 'Queue idle' },
-          { label: 'Completed',     value: servedToday,       color: '#1fd97c', icon: '✓',  sub: 'Served today' },
-          { label: 'Bounce Rate',       value: entries.length ? `${Math.round((missedToday / entries.length) * 100)}%` : '0%', color: '#ff4d6d', icon: '📈', sub: `${missedToday} missed` },
+          { label: 'Total Waiting',     value: waiting.length,    color: '#f5c418', icon: <Ic.Clock size={18} />, sub: `${pending.length} pending` },
+          { label: 'Active Session',  value: called ? `#${called.tokenNumber}` : '—', color: '#00cfff', icon: <Ic.Bell size={18} />, sub: called ? 'Token called' : 'Queue idle' },
+          { label: 'Completed',     value: servedToday,       color: '#1fd97c', icon: <Ic.Check size={18} />,  sub: 'Served today' },
+          { label: 'Bounce Rate',       value: entries.length ? `${Math.round((missedToday / entries.length) * 100)}%` : '0%', color: '#ff4d6d', icon: <Ic.TrendUp size={18} />, sub: `${missedToday} missed` },
         ].map((st) => (
           <div key={st.label} style={{ ...s.card, padding: '22px', position: 'relative', overflow: 'hidden' }}>
             <div style={{ position: 'absolute', top: -20, right: -20, width: 80, height: 80, borderRadius: '50%', background: st.color, opacity: .06, filter: 'blur(20px)' }} />
-            <div style={{ width: 38, height: 38, borderRadius: 11, background: `${st.color}18`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18, marginBottom: 14 }}>{st.icon}</div>
+            <div style={{ width: 38, height: 38, borderRadius: 11, background: `${st.color}18`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18, marginBottom: 14, color: st.color }}>{st.icon}</div>
             <div style={{ fontFamily: 'var(--font-mono)', fontSize: 32, fontWeight: 800, color: st.color, marginBottom: 2, letterSpacing: -1, lineHeight: 1 }}>{st.value}</div>
             <div style={{ fontSize: 11, color: 'rgba(255,255,255,.35)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 4 }}>{st.label}</div>
             <div style={{ fontSize: 11, color: `${st.color}99`, fontWeight: 700 }}>{st.sub}</div>
@@ -467,7 +467,7 @@ export default function MerchantDashboard() {
 
       {store.outlets.length === 0 ? (
         <div style={{ ...s.card, padding: 60, textAlign: 'center', borderStyle: 'dashed', opacity: 0.6 }}>
-          <div style={{ fontSize: 48, marginBottom: 12 }}>🏪</div>
+          <div style={{ fontSize: 48, marginBottom: 12, color: 'rgba(255,255,255,0.4)' }}><Ic.Store /></div>
           <div style={{ fontWeight: 800, fontSize: 18, marginBottom: 6 }}>No outlets yet</div>
           <p style={{ color: 'rgba(255,255,255,.3)', fontSize: 14 }}>Complete onboarding to create your first outlet.</p>
         </div>
@@ -485,7 +485,7 @@ export default function MerchantDashboard() {
             }}>
               <div style={{ position: 'absolute', top: -30, right: -30, width: 120, height: 120, borderRadius: '50%', background: called ? 'rgba(0,207,255,.1)' : 'rgba(255,255,255,.02)', filter: 'blur(30px)' }} />
               <div style={{ fontSize: 11, fontWeight: 700, color: '#00cfff', textTransform: 'uppercase', letterSpacing: 1.5, marginBottom: 10, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
-                🔔 Now Serving
+                <Ic.Bell size={14} /> Now Serving
               </div>
               <AnimatePresence mode="wait">
                 <motion.div
@@ -506,7 +506,7 @@ export default function MerchantDashboard() {
               {called ? (
                 <div style={{ display: 'flex', gap: 10, justifyContent: 'center' }}>
                   <motion.button whileHover={{ scale: 1.04, y: -1 }} whileTap={{ scale: 0.96 }} style={s.btnM} onClick={() => store.markServed(called.id)}>
-                    ✓ Mark Served
+                    <Ic.Check size={16} /> Mark Served
                   </motion.button>
                 </div>
               ) : (
@@ -573,15 +573,21 @@ export default function MerchantDashboard() {
 
             {entries.length === 0 ? (
               <div style={{ textAlign: 'center', padding: '52px 20px', color: 'rgba(255,255,255,.15)' }}>
-                <div style={{ fontSize: 40, marginBottom: 10 }}>🍃</div>
+                <div style={{ fontSize: 40, marginBottom: 10, color: 'rgba(255,255,255,0.4)' }}><Ic.Leaf /></div>
                 <div style={{ fontWeight: 700, fontSize: 15 }}>The queue is empty</div>
                 <div style={{ fontSize: 13, marginTop: 4 }}>Customers who join will appear here in real-time</div>
               </div>
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 8, maxHeight: '50vh', overflowY: 'auto' }}>
                 <AnimatePresence>
-                  {/* PENDING first */}
-                  {[...pending, ...entries.filter(e => e.status !== 'PENDING_ACCEPTANCE')].map(entry => (
+                  {/* PENDING first, then active (CALLED/WAITING), then inactive (SERVED/MISSED) */}
+                  {[
+                    ...pending, 
+                    ...entries.filter(e => e.status === 'CALLED'),
+                    ...entries.filter(e => e.status === 'WAITING'),
+                    ...entries.filter(e => !['PENDING_ACCEPTANCE', 'CALLED', 'WAITING'].includes(e.status))
+                      .sort((a, b) => (b.tokenNumber ?? 0) - (a.tokenNumber ?? 0))
+                  ].map(entry => (
                     <QueueRow
                       key={entry.id}
                       entry={entry}

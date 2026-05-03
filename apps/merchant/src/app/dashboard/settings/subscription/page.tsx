@@ -142,10 +142,10 @@ export default function SubscriptionPage() {
               {[
                 { f: 'Active Outlets', s: '1', g: 'Up to 5', e: 'Unlimited' },
                 { f: 'Monthly Tokens', s: '1,500', g: 'Unlimited', e: 'Unlimited' },
-                { f: 'SMS Notifications', s: '❌', g: '✅', e: '✅' },
-                { f: 'Custom Branding', s: '❌', g: '❌', e: '✅' },
+                { f: 'SMS Notifications', s: <Ic.X size={16} color="#ff4d6d" />, g: <Ic.Check size={16} color="#1fd97c" />, e: <Ic.Check size={16} color="#1fd97c" /> },
+                { f: 'Custom Branding', s: <Ic.X size={16} color="#ff4d6d" />, g: <Ic.X size={16} color="#ff4d6d" />, e: <Ic.Check size={16} color="#1fd97c" /> },
                 { f: 'Advanced Analytics', s: 'Basic', g: 'Full Suite', e: 'Custom Reports' },
-                { f: 'API Access', s: '❌', g: 'Read-only', e: 'Full Access' },
+                { f: 'API Access', s: <Ic.X size={16} color="#ff4d6d" />, g: 'Read-only', e: 'Full Access' },
               ].map((row, i) => (
                 <tr key={row.f} style={{ borderBottom: i === 5 ? 'none' : '1px solid rgba(255,255,255,.03)' }}>
                   <td style={{ padding: '16px 20px', fontSize: 13, fontWeight: 700 }}>{row.f}</td>

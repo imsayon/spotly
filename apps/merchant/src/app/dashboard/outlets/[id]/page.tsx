@@ -123,6 +123,17 @@ export default function OutletDetails() {
     }
   }
 
+  const deleteOutlet = async () => {
+    if (!confirm("Are you sure you want to delete this outlet? This action cannot be undone.")) return;
+    try {
+      await api.delete(`/outlet/${id}`)
+      addToast('Outlet deleted successfully', 'success')
+      router.push('/dashboard/outlets')
+    } catch {
+      addToast('Failed to delete outlet', 'error')
+    }
+  }
+
   const addCategory = async () => {
     if (!newCatName) return
     try {
@@ -264,7 +275,7 @@ export default function OutletDetails() {
             <div style={{ textAlign: 'center', padding: 60, opacity: 0.5 }}>Loading menu catalog...</div>
           ) : categories.length === 0 ? (
             <div style={{ ...s.card, padding: 60, textAlign: 'center', borderStyle: 'dashed', opacity: 0.6 }}>
-               <div style={{ fontSize: 40, marginBottom: 16 }}>🥡</div>
+               <div style={{ fontSize: 40, marginBottom: 16, color: 'rgba(255,255,255,0.4)' }}><Ic.List /></div>
                <div style={{ fontWeight: 800, fontSize: 17, marginBottom: 4 }}>Empty Catalog</div>
                <p style={{ color: 'var(--t4)', fontSize: 13 }}>Add your first category above to begin.</p>
             </div>
@@ -375,6 +386,19 @@ export default function OutletDetails() {
                 </div>
               </div>
             ))}
+
+            <div style={{ ...s.card, padding: '22px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', border: '1px solid rgba(255,77,109,.2)' }}>
+              <div style={{ flex: 1, paddingRight: 20 }}>
+                <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 4, color: '#ff4d6d' }}>Danger Zone</div>
+                <div style={{ fontSize: 12, color: 'rgba(255,255,255,.35)', lineHeight: 1.4 }}>Permanently delete this outlet and all its data. This cannot be undone.</div>
+              </div>
+              <button 
+                onClick={deleteOutlet}
+                style={{ background: 'rgba(255,77,109,.1)', color: '#ff4d6d', border: '1px solid rgba(255,77,109,.3)', padding: '10px 16px', borderRadius: 10, fontWeight: 700, cursor: 'pointer', transition: 'all .2s' }}
+              >
+                Delete Outlet
+              </button>
+            </div>
           </div>
         </div>
       )}
