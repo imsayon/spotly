@@ -16,7 +16,7 @@ export class OutletService {
 	async create(
 		merchantId: string,
 		name: string,
-		address: string = "",
+		address?: string,
 		lat?: number,
 		lng?: number,
 		openTime?: string,

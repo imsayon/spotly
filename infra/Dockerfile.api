@@ -1,0 +1,27 @@
+FROM node:20-alpine
+WORKDIR /app
+
+# Install pnpm
+RUN npm install -g pnpm
+
+# Copy workspace configuration
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml turbo.json ./
+
+# Copy local dependencies
+COPY packages ./packages
+
+# Copy the API app
+COPY apps/api ./apps/api
+
+# Install dependencies for the workspace
+ENV SUPABASE_SKIP_POSTINSTALL=true
+RUN pnpm install
+
+# Build the API (including database generation if needed)
+RUN pnpm build --filter=@spotly/api...
+
+# Expose port
+EXPOSE 3001
+
+# Start the application
+CMD ["pnpm", "--filter", "@spotly/api", "start:prod"]

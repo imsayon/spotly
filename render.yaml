@@ -1,103 +1,61 @@
 services:
-  # APPLICATION BACKEND (NEST)
+  # ─── API BACKEND (NestJS) ─────────────────────────────────────────────────
   - type: web
     name: spotly-api
     plan: free
-    env: node
-    buildCommand: pnpm install && pnpm turbo run build --filter=@spotly/api
-    startCommand: pnpm --filter @spotly/api start
+    runtime: node
+    buildCommand: pnpm install && pnpm turbo run build --filter=@spotly/api...
+    startCommand: node apps/api/dist/apps/api/src/main.js
     envVars:
       - key: NODE_VERSION
-        value: 20
+        value: "20"
       - key: PORT
-        value: 3001
+        value: "3001"
       - key: CONSUMER_URL
         value: https://spotly-consumer.onrender.com
       - key: MERCHANT_URL
         value: https://spotly-merchant.onrender.com
-
-      # API Secrets (Set in Render Dashboard)
       - key: DATABASE_URL
         sync: false
       - key: SUPABASE_URL
-        value: https://gfzxlonhtgvxojyosskx.supabase.co
+        sync: false
       - key: SUPABASE_ANON_KEY
         sync: false
 
-      # Firebase Project Variables
-      - key: FIREBASE_PROJECT_ID
-        sync: false
-      - key: FIREBASE_CLIENT_EMAIL
-        sync: false
-      - key: FIREBASE_PRIVATE_KEY
-        sync: false
-
-  # CONSUMER FRONTEND (NEXT)
+  # ─── CONSUMER FRONTEND (Next.js) ──────────────────────────────────────────
   - type: web
     name: spotly-consumer
     plan: free
-    env: node
-    buildCommand: pnpm install && pnpm turbo run build --filter=@spotly/consumer
+    runtime: node
+    buildCommand: pnpm install && pnpm turbo run build --filter=@spotly/consumer...
     startCommand: pnpm --filter @spotly/consumer start -p $PORT
     envVars:
       - key: NODE_VERSION
-        value: 20
+        value: "20"
       - key: NEXT_PUBLIC_API_URL
         value: https://spotly-api.onrender.com/api
       - key: NEXT_PUBLIC_WS_URL
         value: https://spotly-api.onrender.com
-      
-      # Supabase (Public)
       - key: NEXT_PUBLIC_SUPABASE_URL
-        value: https://gfzxlonhtgvxojyosskx.supabase.co
+        sync: false
       - key: NEXT_PUBLIC_SUPABASE_ANON_KEY
         sync: false
 
-      # Firebase Client Keys
-      - key: NEXT_PUBLIC_FIREBASE_API_KEY
-        sync: false
-      - key: NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN
-        value: spotly-d321e.firebaseapp.com
-      - key: NEXT_PUBLIC_FIREBASE_PROJECT_ID
-        value: spotly-d321e
-      - key: NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET
-        value: spotly-d321e.firebasestorage.app
-      - key: NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID
-        value: 787801999813
-      - key: NEXT_PUBLIC_FIREBASE_APP_ID
-        value: 1:787801999813:web:b158230a580e9a159563ac
-
-  # MERCHANT FRONTEND (NEXT)
+  # ─── MERCHANT FRONTEND (Next.js) ──────────────────────────────────────────
   - type: web
     name: spotly-merchant
     plan: free
-    env: node
-    buildCommand: pnpm install && pnpm turbo run build --filter=@spotly/merchant
+    runtime: node
+    buildCommand: pnpm install && pnpm turbo run build --filter=@spotly/merchant...
     startCommand: pnpm --filter @spotly/merchant start -p $PORT
     envVars:
       - key: NODE_VERSION
-        value: 20
+        value: "20"
       - key: NEXT_PUBLIC_API_URL
         value: https://spotly-api.onrender.com/api
       - key: NEXT_PUBLIC_WS_URL
         value: https://spotly-api.onrender.com
-        
-      # Supabase (Public)
       - key: NEXT_PUBLIC_SUPABASE_URL
-        value: https://gfzxlonhtgvxojyosskx.supabase.co
+        sync: false
       - key: NEXT_PUBLIC_SUPABASE_ANON_KEY
         sync: false
-
-      # Firebase Client Keys
-      - key: NEXT_PUBLIC_FIREBASE_API_KEY
-        sync: false
-      - key: NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN
-        value: spotly-d321e.firebaseapp.com
-      - key: NEXT_PUBLIC_FIREBASE_PROJECT_ID
-        value: spotly-d321e
-      - key: NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET
-        value: spotly-d321e.firebasestorage.app
-      - key: NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID
-        value: 787801999813
-      - key: NEXT_PUBLIC_FIREBASE_APP_ID
-        value: 1:787801999813:web:b158230a580e9a159563ac

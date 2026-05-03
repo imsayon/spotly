@@ -52,17 +52,19 @@ model Outlet {
   id             String         @id @default(uuid())
   merchantId     String
   name           String
-  address        String
+  address        String?
   lat            Float?
   lng            Float?
   isActive       Boolean        @default(true)
   openTime       String?        @default("09:00")
   closeTime      String?        @default("21:00")
   createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @default(now()) @updatedAt
   favorites      Favorite[]
   menuCategories MenuCategory[]
   merchant       Merchant       @relation(fields: [merchantId], references: [id])
   queues         QueueEntry[]
+  reviews        Review[]
   dailyCounters  OutletDailyCounter[]
 }
 
@@ -97,6 +99,7 @@ model QueueEntry {
   outletId    String
   status      QueueStatus @default(WAITING)
   createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @default(now()) @updatedAt
   tokenNumber Int
 
   outlet      Outlet      @relation(fields: [outletId], references: [id], onDelete: Cascade)
@@ -111,6 +114,7 @@ model Review {
   comment   String?
   createdAt DateTime @default(now())
   user      User     @relation(fields: [userId], references: [id])
+  outlet    Outlet   @relation(fields: [outletId], references: [id], onDelete: Cascade)
   
   @@unique([userId, outletId])
 }

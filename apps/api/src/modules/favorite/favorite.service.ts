@@ -57,6 +57,7 @@ export class FavoriteService {
 					include: {
 						merchant: {
 							select: {
+								id: true,
 								name: true,
 								category: true,
 								logoUrl: true,

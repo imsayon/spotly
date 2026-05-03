@@ -33,13 +33,27 @@ export class AuthService implements OnModuleInit {
     if (!admin.apps.length) {
       try {
         const saPath = process.env.FIREBASE_SERVICE_ACCOUNT_PATH;
+        const projectId = process.env.FIREBASE_PROJECT_ID;
+        const clientEmail = process.env.FIREBASE_CLIENT_EMAIL;
+        const privateKey = process.env.FIREBASE_PRIVATE_KEY;
+
         if (saPath) {
+          // Option A: Service account JSON file (local dev)
           admin.initializeApp({
             credential: admin.credential.cert(saPath),
           });
-          this.logger.log('Firebase Admin initialized for dual-auth compatibility.');
+          this.logger.log('Firebase Admin initialized via service account file.');
+        } else if (projectId && clientEmail && privateKey) {
+          // Option B: Inline env vars (Render / production)
+          admin.initializeApp({
+            credential: admin.credential.cert({
+              projectId,
+              clientEmail,
+              privateKey: privateKey.replace(/\\n/g, '\n'),
+            }),
+          });
+          this.logger.log('Firebase Admin initialized via env vars.');
         } else {
-          // If no cert is provided, fail gracefully.
           this.logger.warn('Firebase Admin credential missing. Dual-auth compatibility is disabled.');
         }
       } catch (err) {

@@ -108,6 +108,12 @@ export default function ConsumerQueuePage() {
           setEntry(prev => prev ? { ...prev, status: 'CALLED' } : null);
         }
       });
+
+      socket.on('entry_update', (payload: { entryId: string; status: string }) => {
+        if (payload.entryId === entryId) {
+          setEntry(prev => prev ? { ...prev, status: payload.status as any } : null);
+        }
+      });
     };
 
     initSocket();

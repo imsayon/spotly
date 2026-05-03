@@ -69,7 +69,7 @@ export default function ConsumerExplore() {
         await api.delete(`/favorite/${id}`);
         addToast('Removed from favorites', 'info');
       } else {
-        await api.post(`/favorite/${id}`);
+        await api.post('/favorite', { outletId: id });
         addToast('Added to favorites', 'success');
       }
     } catch (err) {

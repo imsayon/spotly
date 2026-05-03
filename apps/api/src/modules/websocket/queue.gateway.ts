@@ -102,4 +102,11 @@ export class QueueGateway implements OnGatewayConnection, OnGatewayDisconnect, O
   async emitTokenCalled(outletId: string, payload: TokenCalledPayload): Promise<void> {
     this.server.to(`outlet:${outletId}`).emit('token_called', payload);
   }
+
+  /**
+   * Emit `entry_update` to inform consumers of their entry status.
+   */
+  async emitEntryUpdate(outletId: string, payload: { entryId: string; status: string }): Promise<void> {
+    this.server.to(`outlet:${outletId}`).emit('entry_update', payload);
+  }
 }

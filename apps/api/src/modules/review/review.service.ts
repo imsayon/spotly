@@ -30,20 +30,6 @@ export class ReviewService {
 			throw new NotFoundException(`Outlet ${outletId} not found`)
 		}
 
-		// Check if user has already reviewed this outlet
-		const existingReview = await this.prisma.review.findFirst({
-			where: {
-				userId,
-				outletId,
-			},
-		})
-
-		if (existingReview) {
-			throw new BadRequestException(
-				"You have already reviewed this outlet. Use update to modify your review.",
-			)
-		}
-
 		try {
 			const review = await this.prisma.review.create({
 				data: {

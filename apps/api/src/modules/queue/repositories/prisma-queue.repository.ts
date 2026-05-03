@@ -28,14 +28,17 @@ export class PrismaQueueRepository implements QueueRepository {
 
       // 2. Atomic increment — upsert the daily counter row, increment, return new value
       const today = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
-      const result = await tx.$queryRaw<[{ counter: number }]>`
+      const result = await tx.$queryRaw<any[]>`
         INSERT INTO "OutletDailyCounter" ("outletId", date, counter)
         VALUES (${data.outletId}, ${today}::date, 1)
         ON CONFLICT ("outletId", date)
         DO UPDATE SET counter = "OutletDailyCounter".counter + 1
         RETURNING counter
       `;
+      
+      if (!result || !result[0]) throw new Error('Counter increment failed');
       const tokenNumber = Number(result[0].counter);
+      if (isNaN(tokenNumber) || tokenNumber <= 0) throw new Error('Invalid token number from counter');
 
       // 3. Insert with the guaranteed unique token number
       const created = await tx.queueEntry.create({
@@ -79,10 +82,7 @@ export class PrismaQueueRepository implements QueueRepository {
     const entries = await this.prisma.queueEntry.findMany({
       where: {
         outletId,
-        OR: [
-          { status: { in: ['PENDING_ACCEPTANCE', 'WAITING', 'CALLED'] } },
-          { createdAt: { gte: startOfDay } }
-        ]
+        status: { in: ['PENDING_ACCEPTANCE', 'WAITING', 'CALLED'] }
       },
       orderBy: { tokenNumber: 'desc' }, // Order by token number descending to show newest first, but the UI expects ascending for Live Queue? Actually, it's better to sort ascending so the earliest token is at the top. Wait, let me check the UI.
     });
@@ -98,6 +98,11 @@ export class PrismaQueueRepository implements QueueRepository {
   }
 
   async advanceQueue(outletId: string): Promise<QueueEntry | null> {
+    const alreadyCalled = await this.prisma.queueEntry.findFirst({
+      where: { outletId, status: 'CALLED' },
+    });
+    if (alreadyCalled) return this.mapToDomain(alreadyCalled);
+
     // 1. Find the first WAITING entry
     const nextWaiting = await this.prisma.queueEntry.findFirst({
       where: { outletId, status: 'WAITING' },

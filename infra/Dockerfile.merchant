@@ -1,0 +1,27 @@
+FROM node:20-alpine
+WORKDIR /app
+
+# Install pnpm
+RUN npm install -g pnpm
+
+# Copy workspace configuration
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml turbo.json ./
+
+# Copy local dependencies
+COPY packages ./packages
+
+# Copy the Merchant app
+COPY apps/merchant ./apps/merchant
+
+# Install dependencies for the workspace
+ENV SUPABASE_SKIP_POSTINSTALL=true
+RUN pnpm install
+
+# Build the Merchant app
+RUN pnpm build --filter=@spotly/merchant...
+
+# Expose port
+EXPOSE 3000
+
+# Start the application
+CMD ["pnpm", "--filter", "@spotly/merchant", "start"]

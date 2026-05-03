@@ -109,6 +109,7 @@ export class QueueService {
 
     const { outletId } = entry;
     await this.repo.leaveQueue(entryId);
+    await this.gateway.emitEntryUpdate(outletId, { entryId, status: 'CANCELLED' });
     await this.emitQueueUpdate(outletId);
   }
 
@@ -117,6 +118,7 @@ export class QueueService {
    */
   async markServed(entryId: string, outletId: string): Promise<void> {
     await this.repo.markServed(entryId);
+    await this.gateway.emitEntryUpdate(outletId, { entryId, status: 'SERVED' });
     await this.emitQueueUpdate(outletId);
   }
 
@@ -125,6 +127,7 @@ export class QueueService {
    */
   async markMissed(entryId: string, outletId: string): Promise<void> {
     await this.repo.markMissed(entryId);
+    await this.gateway.emitEntryUpdate(outletId, { entryId, status: 'MISSED' });
     await this.emitQueueUpdate(outletId);
   }
 
