@@ -1,6 +1,6 @@
 import { create } from 'zustand';
-import { getFirebaseAuth } from '@/lib/firebase';
-import { GoogleAuthProvider, signInWithPopup, signOut as firebaseSignOut, type User as FirebaseUser } from 'firebase/auth';
+import { supabase } from '@/lib/supabase';
+import type { User as SupabaseUser } from '@supabase/supabase-js';
 import api from '@/lib/api';
 
 export interface MerchantProfile {
@@ -22,12 +22,11 @@ export interface MerchantProfile {
   outlets?: any[];
 }
 
-
 interface AuthState {
-  user: FirebaseUser | null;
+  user: SupabaseUser | null;
   merchantProfile: MerchantProfile | null;
   loading: boolean;
-  setUser: (user: FirebaseUser | null) => Promise<void>;
+  setUser: (user: SupabaseUser | null) => Promise<void>;
   signInWithGoogle: () => Promise<void>;
   signOut: () => Promise<void>;
   fetchMerchantProfile: () => Promise<MerchantProfile | null>;
@@ -44,8 +43,6 @@ export const useAuthStore = create<AuthState>()((set, get) => ({
       set({ user: null, merchantProfile: null, loading: false });
       return;
     }
-    // Set loading false immediately to avoid UI flicker on token refresh
-    // Profile fetch runs independently
     const hadProfile = !!get().merchantProfile;
     set({ user, loading: !hadProfile });
     await get().fetchMerchantProfile();
@@ -64,7 +61,6 @@ export const useAuthStore = create<AuthState>()((set, get) => ({
         return null;
       }
       console.error('[AuthStore] fetchMerchantProfile Error:', err);
-      // Let the caller handle or see the error if they check the console, otherwise return null
       return null;
     }
   },
@@ -72,9 +68,9 @@ export const useAuthStore = create<AuthState>()((set, get) => ({
   setMerchantProfile: (profile) => set({ merchantProfile: profile }),
 
   signInWithGoogle: async () => {
-    const provider = new GoogleAuthProvider();
     try {
-      await signInWithPopup(getFirebaseAuth(), provider);
+      const { error } = await supabase.auth.signInWithOAuth({ provider: 'google' });
+      if (error) throw error;
     } catch (error) {
       console.error('Merchant Google Sign-In Error:', error);
       throw error;
@@ -83,7 +79,7 @@ export const useAuthStore = create<AuthState>()((set, get) => ({
 
   signOut: async () => {
     try {
-      await firebaseSignOut(getFirebaseAuth());
+      await supabase.auth.signOut();
       set({ user: null, merchantProfile: null, loading: false });
       if (typeof window !== 'undefined') {
         window.location.href = '/';

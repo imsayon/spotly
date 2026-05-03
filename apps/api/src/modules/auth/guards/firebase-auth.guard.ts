@@ -19,7 +19,7 @@ export class FirebaseAuthGuard implements CanActivate {
     const authHeader: string | undefined = request.headers['authorization'];
 
     if (!this.authService.isFunctional) {
-      this.logger.error('Authentication bypass attempted but Firebase is not initialized. Failing closed.');
+      this.logger.error('Authentication bypass attempted but Supabase is not initialized. Failing closed.');
       throw new InternalServerErrorException('Authentication service is currently unavailable.');
     }
 

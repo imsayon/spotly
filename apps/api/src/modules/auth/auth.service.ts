@@ -1,8 +1,8 @@
 import { Injectable, Logger, UnauthorizedException, OnModuleInit } from '@nestjs/common';
+import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import * as admin from 'firebase-admin';
-import * as fs from 'fs';
-import * as path from 'path';
 import { PrismaService } from '../../prisma/prisma.service';
+import * as jwt from 'jsonwebtoken';
 
 export interface DecodedUser {
   uid: string;
@@ -12,87 +12,98 @@ export interface DecodedUser {
 
 @Injectable()
 export class AuthService implements OnModuleInit {
-  private _firebaseInitialized = false;
+  private supabase!: SupabaseClient;
   private readonly logger = new Logger(AuthService.name);
 
   constructor(private readonly prisma: PrismaService) {}
 
   onModuleInit() {
-    if (admin.apps.length > 0) return;
+    // 1. Initialize Supabase
+    const url = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const key = process.env.SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
-    // Strategy 1: Load from service account JSON file (preferred - always present)
-    const possiblePaths = [
-      process.env.FIREBASE_SERVICE_ACCOUNT_PATH,
-      path.resolve(process.cwd(), 'spotly-d321e-firebase-adminsdk-fbsvc-27948a752a.json'),
-      path.resolve(process.cwd(), 'apps/api/spotly-d321e-firebase-adminsdk-fbsvc-27948a752a.json'),
-      path.resolve(__dirname, '../../../../apps/api/spotly-d321e-firebase-adminsdk-fbsvc-27948a752a.json'),
-      path.resolve(__dirname, '../../../../../apps/api/spotly-d321e-firebase-adminsdk-fbsvc-27948a752a.json')
-    ].filter(Boolean) as string[];
+    if (!url || !key) {
+      this.logger.error('⚠️ Supabase config missing. Token verification will fail.');
+    } else {
+      this.supabase = createClient(url, key);
+      this.logger.log('Supabase Auth initialized successfully.');
+    }
 
-    let saPathFound = false;
-
-    for (const saPath of possiblePaths) {
-      if (fs.existsSync(saPath)) {
-        try {
-          const serviceAccount = JSON.parse(fs.readFileSync(saPath, 'utf-8'));
-          admin.initializeApp({ credential: admin.credential.cert(serviceAccount) });
-          this._firebaseInitialized = true;
-          this.logger.log(`Firebase Admin initialized from service account file at: ${saPath}`);
-          saPathFound = true;
-          break;
-        } catch (e) {
-          this.logger.warn(`Failed to load service account file at ${saPath}: ${e}`);
+    // 2. Initialize Firebase Admin (for legacy dual-auth compatibility)
+    if (!admin.apps.length) {
+      try {
+        const saPath = process.env.FIREBASE_SERVICE_ACCOUNT_PATH;
+        if (saPath) {
+          admin.initializeApp({
+            credential: admin.credential.cert(saPath),
+          });
+          this.logger.log('Firebase Admin initialized for dual-auth compatibility.');
+        } else {
+          // If no cert is provided, fail gracefully.
+          this.logger.warn('⚠️ Firebase Admin credential missing. Dual-auth compatibility is disabled.');
         }
+      } catch (err) {
+        this.logger.error('Failed to initialize Firebase Admin:', err);
       }
     }
-
-    if (saPathFound) return;
-
-    // Strategy 2: Inline env vars
-    if (process.env.FIREBASE_PROJECT_ID && process.env.FIREBASE_CLIENT_EMAIL && process.env.FIREBASE_PRIVATE_KEY) {
-      admin.initializeApp({
-        credential: admin.credential.cert({
-          projectId: process.env.FIREBASE_PROJECT_ID,
-          clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
-          privateKey: process.env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, '\n'),
-        }),
-      });
-      this._firebaseInitialized = true;
-      this.logger.log('Firebase Admin initialized from env vars');
-      return;
-    }
-
-    this.logger.error('⚠️  Firebase Admin NOT initialized — token verification will fail. Provide a service account file.');
   }
 
   async verifyToken(token: string): Promise<DecodedUser> {
-
     try {
-      const decodedToken = await admin.auth().verifyIdToken(token);
+      const decoded: any = jwt.decode(token);
+      let userId: string;
+      let userEmail: string | undefined;
+      let userPhone: string | undefined;
+      let userName: string | undefined;
+
+      // Detect if token is from Firebase by checking the issuer
+      if (decoded?.iss?.includes('securetoken.google.com')) {
+        // LEGACY FIREBASE FLOW
+        if (!admin.apps.length) {
+          throw new UnauthorizedException('Firebase Admin is not configured on the backend.');
+        }
+        const decodedToken = await admin.auth().verifyIdToken(token);
+        userId = decodedToken.uid;
+        userEmail = decodedToken.email;
+        userPhone = decodedToken.phone_number;
+        userName = decodedToken.name;
+      } else {
+        // SUPABASE FLOW
+        const { data: { user }, error } = await this.supabase.auth.getUser(token);
+        if (error || !user) {
+          throw new Error(error?.message || 'No user found');
+        }
+        userId = user.id;
+        userEmail = user.email;
+        userPhone = user.phone;
+        userName = user.user_metadata?.full_name || user.email?.split('@')[0] || user.phone;
+      }
       
-      // Auto-Sync User to database (Only create if not exists)
-      const user = await this.prisma.user.upsert({
-        where: { id: decodedToken.uid },
+      // Auto-Sync User to database (Only create if not exists, preserving UUIDs)
+      const dbUser = await this.prisma.user.upsert({
+        where: { id: userId },
         update: {}, // Don't overwrite existing data from token on every request
         create: {
-          id: decodedToken.uid,
-          name: decodedToken.name || decodedToken.email?.split('@')[0],
-          email: decodedToken.email,
+          id: userId,
+          name: userName,
+          email: userEmail,
+          phone: userPhone,
         },
       });
 
       return {
-        uid: user.id,
-        email: user.email || undefined,
-        name: user.name || undefined,
+        uid: dbUser.id,
+        email: dbUser.email || undefined,
+        name: dbUser.name || undefined,
       };
-    } catch (err) {
-      this.logger.error('Firebase Auth Error:', err);
-      throw new UnauthorizedException('Invalid or expired Firebase token');
+    } catch (err: any) {
+      this.logger.error('Token Verification Error:', err);
+      throw new UnauthorizedException('Invalid or expired token');
     }
   }
 
   get isFunctional(): boolean {
-    return this._firebaseInitialized;
+    // For dual auth, we are functional if either is available
+    return !!this.supabase || admin.apps.length > 0;
   }
 }

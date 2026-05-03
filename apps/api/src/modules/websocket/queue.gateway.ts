@@ -4,12 +4,14 @@ import {
   SubscribeMessage,
   OnGatewayConnection,
   OnGatewayDisconnect,
+  OnGatewayInit,
   MessageBody,
   ConnectedSocket,
 } from '@nestjs/websockets';
 import { Logger } from '@nestjs/common';
 import { Server, Socket } from 'socket.io';
 import { QueueUpdatePayload, TokenCalledPayload } from '@spotly/types';
+import { AuthService } from '../auth/auth.service';
 
 @WebSocketGateway({
   cors: {
@@ -22,14 +24,36 @@ import { QueueUpdatePayload, TokenCalledPayload } from '@spotly/types';
   },
   namespace: '/',
 })
-export class QueueGateway implements OnGatewayConnection, OnGatewayDisconnect {
+export class QueueGateway implements OnGatewayConnection, OnGatewayDisconnect, OnGatewayInit {
   @WebSocketServer()
   server!: Server;
 
   private readonly logger = new Logger(QueueGateway.name);
 
+  constructor(private readonly authService: AuthService) {}
+
+  afterInit(server: Server) {
+    server.use(async (socket, next) => {
+      try {
+        const token =
+          socket.handshake.auth?.token ||
+          socket.handshake.headers?.authorization?.split(' ')[1];
+
+        if (!token) {
+          return next(new Error('Unauthorized: No token provided'));
+        }
+
+        const decoded = await this.authService.verifyToken(token);
+        socket.data.user = decoded;
+        next();
+      } catch (error) {
+        next(new Error('Unauthorized: Invalid token'));
+      }
+    });
+  }
+
   handleConnection(client: Socket) {
-    this.logger.log(`Client connected: ${client.id}`);
+    this.logger.log(`Client connected: ${client.id} (User: ${client.data.user?.uid})`);
   }
 
   handleDisconnect(client: Socket) {

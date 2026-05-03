@@ -14,7 +14,6 @@
 		"@spotly/types": "workspace:*",
 		"@spotly/ui": "workspace:*",
 		"axios": "^1.7.0",
-		"firebase": "^10.8.0",
 		"framer-motion": "^10.16.4",
 		"leaflet": "^1.9.4",
 		"lucide-react": "^0.291.0",

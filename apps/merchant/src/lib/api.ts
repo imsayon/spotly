@@ -1,18 +1,17 @@
 import axios from 'axios';
-import { getFirebaseAuth } from './firebase';
+import { supabase } from './supabase';
 
 const api = axios.create({
   baseURL: process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001/api',
   headers: { 'Content-Type': 'application/json' },
 });
 
-// ─── Request Interceptor — Attach Firebase JWT ──────────────────────────
+// ─── Request Interceptor — Attach Supabase JWT ──────────────────────────
 api.interceptors.request.use(async (config) => {
   try {
-    const user = getFirebaseAuth().currentUser;
-    if (user) {
-      const token = await user.getIdToken();
-      config.headers.Authorization = `Bearer ${token}`;
+    const { data: { session } } = await supabase.auth.getSession();
+    if (session?.access_token) {
+      config.headers.Authorization = `Bearer ${session.access_token}`;
     }
   } catch { /* public routes */ }
   return config;
@@ -22,8 +21,6 @@ api.interceptors.request.use(async (config) => {
 api.interceptors.response.use(
   (r) => r,
   (err) => {
-    // Re-throw original axios error so catch blocks can access err.response.data
-    // Attach a clean .message for convenience
     if (err.response) {
       err.message = err.response.data?.message ?? err.response.statusText ?? 'Request failed';
     }

@@ -1,23 +1,15 @@
 import { create } from 'zustand';
-import { getFirebaseAuth } from '@/lib/firebase';
-import {
-  GoogleAuthProvider,
-  createUserWithEmailAndPassword,
-  signInWithEmailAndPassword,
-  signInWithPopup,
-  signOut as firebaseSignOut,
-  updateProfile as updateFirebaseProfile,
-  type User as FirebaseUser,
-} from 'firebase/auth';
+import { supabase } from '@/lib/supabase';
+import type { User as SupabaseUser } from '@supabase/supabase-js';
 import api from '@/lib/api';
 import { User as BackendUser } from '@spotly/types';
 
 interface AuthState {
-  user: FirebaseUser | null;
+  user: SupabaseUser | null;
   profile: BackendUser | null;
   loading: boolean;
   forceOnboarding: boolean;
-  setUser: (user: FirebaseUser | null) => void;
+  setUser: (user: SupabaseUser | null) => void;
   setProfile: (profile: BackendUser | null) => void;
   setForceOnboarding: (val: boolean) => void;
   signInWithGoogle: () => Promise<void>;
@@ -41,9 +33,9 @@ export const useAuthStore = create<AuthState>()((set, get) => ({
   setForceOnboarding: (val) => set({ forceOnboarding: val }),
 
   signInWithGoogle: async () => {
-    const provider = new GoogleAuthProvider();
     try {
-      await signInWithPopup(getFirebaseAuth(), provider);
+      const { error } = await supabase.auth.signInWithOAuth({ provider: 'google' });
+      if (error) throw error;
     } catch (error) {
       console.error('Google Sign-In Error:', error);
       throw error;
@@ -52,7 +44,8 @@ export const useAuthStore = create<AuthState>()((set, get) => ({
 
   signInWithEmail: async (email, password) => {
     try {
-      await signInWithEmailAndPassword(getFirebaseAuth(), email, password);
+      const { error } = await supabase.auth.signInWithPassword({ email, password });
+      if (error) throw error;
     } catch (error) {
       console.error('Email Sign-In Error:', error);
       throw error;
@@ -61,10 +54,16 @@ export const useAuthStore = create<AuthState>()((set, get) => ({
 
   signUpWithEmail: async (email, password, name) => {
     try {
-      const credential = await createUserWithEmailAndPassword(getFirebaseAuth(), email, password);
-      if (name?.trim()) {
-        await updateFirebaseProfile(credential.user, { displayName: name.trim() });
-      }
+      const { error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          data: {
+            full_name: name?.trim() || '',
+          },
+        },
+      });
+      if (error) throw error;
     } catch (error) {
       console.error('Email Sign-Up Error:', error);
       throw error;
@@ -73,7 +72,7 @@ export const useAuthStore = create<AuthState>()((set, get) => ({
 
   signOut: async () => {
     try {
-      await firebaseSignOut(getFirebaseAuth());
+      await supabase.auth.signOut();
       set({ user: null, profile: null, forceOnboarding: false });
       if (typeof window !== 'undefined') {
         window.location.href = '/';
