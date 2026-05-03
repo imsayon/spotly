@@ -9,10 +9,25 @@ if (!supabaseUrl || !supabaseAnonKey) {
   );
 }
 
+const customStorage = {
+  getItem: (key: string) => {
+    if (typeof window === 'undefined') return null;
+    return window.localStorage.getItem(key);
+  },
+  setItem: (key: string, value: string) => {
+    if (typeof window === 'undefined') return;
+    window.localStorage.setItem(key, value);
+  },
+  removeItem: (key: string) => {
+    if (typeof window === 'undefined') return;
+    window.localStorage.removeItem(key);
+  }
+};
+
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
     detectSessionInUrl: true,
     persistSession: true,
-    storage: typeof window !== 'undefined' ? window.localStorage : undefined,
+    storage: customStorage,
   }
 });
