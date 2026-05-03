@@ -29,13 +29,10 @@ export class QueueService {
       throw new ConflictException('You already have an active queue entry at another outlet');
     }
 
-    // Atomic token number assignment (MAX+1 in transaction)
-    const tokenNumber = await this.repo.getNextTokenNumber(outletId);
-
+    // Atomic token assignment and queue insertion combined into a single DB lock
     const entry = await this.repo.joinQueue({
       userId,
       outletId,
-      tokenNumber,
       status: 'PENDING_ACCEPTANCE',
       joinedAt: new Date().toISOString(),
     });

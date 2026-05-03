@@ -21,16 +21,30 @@ export class PrismaQueueRepository implements QueueRepository {
     };
   }
 
-  async joinQueue(data: Omit<QueueEntry, 'id'>): Promise<QueueEntry> {
-    const created = await this.prisma.queueEntry.create({
-      data: {
-        userId: data.userId,
-        outletId: data.outletId,
-        tokenNumber: data.tokenNumber,
-        status: data.status,
-      },
+  async joinQueue(data: Omit<QueueEntry, 'id' | 'tokenNumber'>): Promise<QueueEntry> {
+    return this.prisma.$transaction(async (tx) => {
+      // 1. Lock the outlet row to prevent concurrent joins from reading the same max token
+      await tx.$executeRaw`SELECT id FROM "Outlet" WHERE id = ${data.outletId} FOR UPDATE`;
+
+      // 2. Safely read the max token
+      const aggregate = await tx.queueEntry.aggregate({
+        where: { outletId: data.outletId },
+        _max: { tokenNumber: true },
+      });
+      const tokenNumber = (aggregate._max.tokenNumber ?? 0) + 1;
+
+      // 3. Insert with the guaranteed unique token number
+      const created = await tx.queueEntry.create({
+        data: {
+          userId: data.userId,
+          outletId: data.outletId,
+          tokenNumber: tokenNumber,
+          status: data.status,
+        },
+      });
+
+      return this.mapToDomain(created);
     });
-    return this.mapToDomain(created);
   }
 
   async isOutletOpen(outletId: string): Promise<boolean> {
@@ -52,24 +66,7 @@ export class PrismaQueueRepository implements QueueRepository {
     return entry ? this.mapToDomain(entry) : null;
   }
 
-  /**
-   * Atomic token number assignment using Prisma $transaction.
-   * This prevents the race condition where two concurrent joins both read
-   * the same count and assign the same token number.
-   */
-  async getNextTokenNumber(outletId: string): Promise<number> {
-    return this.prisma.$transaction(async (tx) => {
-      // 1. Lock the outlet row to prevent concurrent transactions from reading the same _max
-      await tx.$executeRaw`SELECT id FROM "Outlet" WHERE id = ${outletId} FOR UPDATE`;
 
-      // 2. Now safe to aggregate
-      const aggregate = await tx.queueEntry.aggregate({
-        where: { outletId },
-        _max: { tokenNumber: true },
-      });
-      return (aggregate._max.tokenNumber ?? 0) + 1;
-    });
-  }
 
   async getQueue(outletId: string): Promise<QueueEntry[]> {
     const entries = await this.prisma.queueEntry.findMany({
