@@ -8,8 +8,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const setUser = useAuthStore((s) => s.setUser);
 
   useEffect(() => {
-    // Check initial session
+    // Fallback: If URL has hash but getSession misses it initially, try checking hash
+    const hash = typeof window !== 'undefined' ? window.location.hash : '';
+    
     supabase.auth.getSession().then(({ data: { session } }) => {
+      // If we didn't get a session but there's an access token in the URL, wait for onAuthStateChange to handle it
+      if (!session && hash.includes('access_token')) return;
+      
       setUser(session?.user ?? null);
       if (session?.user) {
         const store = useAuthStore.getState();

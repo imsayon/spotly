@@ -9,7 +9,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     // Initial session — setUser now handles registerOnBackend + fetchMerchantProfile
+    const hash = typeof window !== 'undefined' ? window.location.hash : '';
     supabase.auth.getSession().then(({ data: { session } }) => {
+      if (!session && hash.includes('access_token')) return;
       setUser(session?.user ?? null);
     });
 
