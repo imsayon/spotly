@@ -76,7 +76,10 @@ export default function MerchantLandingPage() {
           </div>
         </div>
         <button 
-          onClick={() => window.open('http://localhost:3000', '_blank')}
+          onClick={() => {
+            const consumerUrl = process.env.NEXT_PUBLIC_CONSUMER_URL || 'http://localhost:3000';
+            window.open(consumerUrl, '_blank');
+          }}
           style={{ 
             background: 'rgba(255,255,255,.03)', 
             border: '1px solid rgba(255,255,255,.08)', 

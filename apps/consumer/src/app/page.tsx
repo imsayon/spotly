@@ -73,7 +73,10 @@ export default function LandingPage() {
           <span style={{ fontWeight: 900, fontSize: 22, letterSpacing: -1 }}>spotly.</span>
         </div>
         <button
-          onClick={() => window.open('http://localhost:3001', '_blank')}
+          onClick={() => {
+            const merchantUrl = process.env.NEXT_PUBLIC_MERCHANT_URL || 'http://localhost:3001';
+            window.open(merchantUrl, '_blank');
+          }}
           style={{
             background: 'rgba(255,255,255,.03)',
             border: '1px solid rgba(255,255,255,.08)',

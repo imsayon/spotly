@@ -9,9 +9,21 @@ const api = axios.create({
 // ─── Request Interceptor — Attach Supabase JWT ──────────────────────────
 api.interceptors.request.use(async (config) => {
   try {
+    let token = null;
     const { data: { session } } = await supabase.auth.getSession();
-    if (session?.access_token) {
-      config.headers.Authorization = `Bearer ${session.access_token}`;
+    token = session?.access_token;
+
+    if (!token && typeof window !== 'undefined') {
+      const storageKey = Object.keys(localStorage).find(k => k.startsWith('sb-') && k.endsWith('-auth-token'));
+      if (storageKey) {
+        const sessionData = JSON.parse(localStorage.getItem(storageKey) || '{}');
+        token = sessionData?.access_token;
+      }
+    }
+
+    if (token) {
+      if (!config.headers) config.headers = {} as any;
+      config.headers.Authorization = `Bearer ${token}`;
     }
   } catch { /* public routes */ }
   return config;
