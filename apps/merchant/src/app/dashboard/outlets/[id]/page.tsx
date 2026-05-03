@@ -385,23 +385,6 @@ export default function OutletDetails() {
       {activeTab === 'settings' && (
         <div className="animate-in zoom-in-95 duration-300" style={{ maxWidth: 540 }}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-            {[
-              { l: 'Auto-Advance Queue', d: 'Automatically call next token after 5 minutes of inactivity' },
-              { l: 'Advance Booking', d: 'Allow customers to join the queue before outlet opens' },
-              { l: 'SMS Notifications', d: 'Send SMS alerts when token is 3 positions away' },
-            ].map(item => (
-              <div key={item.l} style={{ ...s.card, padding: '22px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <div style={{ flex: 1, paddingRight: 20 }}>
-                  <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 4 }}>{item.l}</div>
-                  <div style={{ fontSize: 12, color: 'rgba(255,255,255,.35)', lineHeight: 1.4 }}>{item.d}</div>
-                </div>
-                <div style={{ position: 'relative', width: 44, height: 22, cursor: 'pointer' }}>
-                  <div style={{ width: '100%', height: '100%', borderRadius: 11, background: 'rgba(31,217,124,.15)', border: '1px solid rgba(31,217,124,.3)' }} />
-                  <div style={{ position: 'absolute', top: 2, left: 24, width: 18, height: 18, borderRadius: '50%', background: '#1fd97c' }} />
-                </div>
-              </div>
-            ))}
-
             <div style={{ ...s.card, padding: '22px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', border: '1px solid rgba(255,77,109,.2)' }}>
               <div style={{ flex: 1, paddingRight: 20 }}>
                 <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 4, color: '#ff4d6d' }}>Danger Zone</div>

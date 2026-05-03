@@ -6,7 +6,7 @@ import {
 } from "@nestjs/common"
 import { PrismaService } from "../../prisma/prisma.service"
 import { Review } from "@spotly/types"
-import { Prisma } from "@prisma/client"
+import { Prisma } from "@spotly/database"
 
 @Injectable()
 export class ReviewService {

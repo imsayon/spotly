@@ -73,7 +73,7 @@ model MenuCategory {
   order     Int        @default(0)
   createdAt DateTime   @default(now())
   updatedAt DateTime   @updatedAt
-  outlet    Outlet     @relation(fields: [outletId], references: [id])
+  outlet    Outlet     @relation(fields: [outletId], references: [id], onDelete: Cascade)
   items     MenuItem[]
 }
 
@@ -88,7 +88,7 @@ model MenuItem {
   order       Int          @default(0)
   createdAt   DateTime     @default(now())
   updatedAt   DateTime     @updatedAt
-  category    MenuCategory @relation(fields: [categoryId], references: [id])
+  category    MenuCategory @relation(fields: [categoryId], references: [id], onDelete: Cascade)
 }
 
 model QueueEntry {
@@ -99,7 +99,7 @@ model QueueEntry {
   createdAt   DateTime    @default(now())
   tokenNumber Int
 
-  outlet      Outlet      @relation(fields: [outletId], references: [id])
+  outlet      Outlet      @relation(fields: [outletId], references: [id], onDelete: Cascade)
   user        User        @relation(fields: [userId], references: [id])
 }
 
