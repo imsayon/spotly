@@ -12,6 +12,43 @@ import { ReviewService } from "./review.service"
 import { FirebaseAuthGuard } from "../auth/guards/firebase-auth.guard"
 import { CurrentUser } from "../auth/decorators/current-user.decorator"
 import { DecodedUser } from "../auth/auth.service"
+import {
+	IsString,
+	IsNotEmpty,
+	IsUUID,
+	IsInt,
+	Min,
+	Max,
+	IsOptional,
+} from "class-validator"
+
+class CreateReviewDto {
+	@IsString()
+	@IsNotEmpty()
+	@IsUUID()
+	outletId!: string
+
+	@IsInt()
+	@Min(1)
+	@Max(5)
+	rating!: number
+
+	@IsString()
+	@IsOptional()
+	comment?: string
+}
+
+class UpdateReviewDto {
+	@IsInt()
+	@Min(1)
+	@Max(5)
+	@IsOptional()
+	rating?: number
+
+	@IsString()
+	@IsOptional()
+	comment?: string
+}
 
 @Controller("review")
 @UseGuards(FirebaseAuthGuard)
@@ -21,15 +58,13 @@ export class ReviewController {
 	@Post()
 	async createReview(
 		@CurrentUser() user: DecodedUser,
-		@Body("outletId") outletId: string,
-		@Body("rating") rating: number,
-		@Body("comment") comment?: string,
+		@Body() body: CreateReviewDto,
 	) {
 		const data = await this.reviewService.createReview(
 			user.uid,
-			outletId,
-			rating,
-			comment,
+			body.outletId,
+			body.rating,
+			body.comment,
 		)
 		return { success: true, data }
 	}
@@ -38,14 +73,13 @@ export class ReviewController {
 	async updateReview(
 		@CurrentUser() user: DecodedUser,
 		@Param("id") reviewId: string,
-		@Body("rating") rating?: number,
-		@Body("comment") comment?: string,
+		@Body() body: UpdateReviewDto,
 	) {
 		const data = await this.reviewService.updateReview(
 			reviewId,
 			user.uid,
-			rating,
-			comment,
+			body.rating,
+			body.comment,
 		)
 		return { success: true, data }
 	}

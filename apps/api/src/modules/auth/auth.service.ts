@@ -1,184 +1,172 @@
-import { Injectable, Logger, UnauthorizedException, OnModuleInit } from '@nestjs/common';
-import { createClient, SupabaseClient } from '@supabase/supabase-js';
-import * as admin from 'firebase-admin';
-import { PrismaService } from '../../prisma/prisma.service';
-import * as jwt from 'jsonwebtoken';
+import {
+	Injectable,
+	Logger,
+	UnauthorizedException,
+	OnModuleInit,
+} from "@nestjs/common"
+import { createClient, SupabaseClient } from "@supabase/supabase-js"
+import { PrismaService } from "../../prisma/prisma.service"
+import * as jwt from "jsonwebtoken"
 
 export interface DecodedUser {
-  uid: string;
-  email?: string;
-  name?: string;
+	uid: string
+	email?: string
+	name?: string
 }
 
 @Injectable()
 export class AuthService implements OnModuleInit {
-  private supabase!: SupabaseClient;
-  private readonly logger = new Logger(AuthService.name);
-  private readonly userCache = new Map<string, { user: DecodedUser; expiresAt: number }>();
-  private readonly CACHE_TTL_MS = 5 * 60 * 1000;
+	private supabase!: SupabaseClient
+	private readonly logger = new Logger(AuthService.name)
+	private readonly userCache = new Map<
+		string,
+		{ user: DecodedUser; expiresAt: number }
+	>()
+	private readonly CACHE_TTL_MS = 5 * 60 * 1000
 
-  constructor(private readonly prisma: PrismaService) {}
+	constructor(private readonly prisma: PrismaService) {}
 
-  onModuleInit() {
-    // 1. Initialize Supabase
-    const url = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
-    const key = process.env.SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+	onModuleInit() {
+		// Initialize Supabase
+		const url =
+			process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL
+		const key =
+			process.env.SUPABASE_ANON_KEY ||
+			process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 
-    if (!url || !key) {
-      this.logger.error('Supabase config missing. Token verification will fail.');
-    } else {
-      this.supabase = createClient(url, key);
-      this.logger.log('Supabase Auth initialized successfully.');
-    }
+		if (!url || !key) {
+			this.logger.error(
+				"Supabase config missing. Token verification will fail.",
+			)
+		} else {
+			this.supabase = createClient(url, key)
+			this.logger.log("Supabase Auth initialized successfully.")
+		}
+	}
 
-    // 2. Initialize Firebase Admin (for legacy dual-auth compatibility)
-    if (!admin.apps.length) {
-      try {
-        const saPath = process.env.FIREBASE_SERVICE_ACCOUNT_PATH;
-        const projectId = process.env.FIREBASE_PROJECT_ID;
-        const clientEmail = process.env.FIREBASE_CLIENT_EMAIL;
-        const privateKey = process.env.FIREBASE_PRIVATE_KEY;
+	async verifyToken(token: string): Promise<DecodedUser> {
+		try {
+			const decoded: any = jwt.decode(token)
+			const cacheKey = decoded?.sub || decoded?.uid
+			if (cacheKey) {
+				const cached = this.userCache.get(cacheKey)
+				if (cached && cached.expiresAt > Date.now()) return cached.user
+				if (cached) this.userCache.delete(cacheKey)
+			}
 
-        if (saPath) {
-          // Option A: Service account JSON file (local dev)
-          admin.initializeApp({
-            credential: admin.credential.cert(saPath),
-          });
-          this.logger.log('Firebase Admin initialized via service account file.');
-        } else if (projectId && clientEmail && privateKey) {
-          // Option B: Inline env vars (Render / production)
-          admin.initializeApp({
-            credential: admin.credential.cert({
-              projectId,
-              clientEmail,
-              privateKey: privateKey.replace(/\\n/g, '\n'),
-            }),
-          });
-          this.logger.log('Firebase Admin initialized via env vars.');
-        } else {
-          this.logger.warn('Firebase Admin credential missing. Dual-auth compatibility is disabled.');
-        }
-      } catch (err) {
-        this.logger.error('Failed to initialize Firebase Admin:', err);
-      }
-    }
-  }
+			let userId: string
+			let userEmail: string | undefined
+			let userPhone: string | undefined
+			let userName: string | undefined
 
-  async verifyToken(token: string): Promise<DecodedUser> {
-    try {
-      const decoded: any = jwt.decode(token);
-      const cacheKey = decoded?.sub || decoded?.uid;
-      if (cacheKey) {
-        const cached = this.userCache.get(cacheKey);
-        if (cached && cached.expiresAt > Date.now()) return cached.user;
-        if (cached) this.userCache.delete(cacheKey);
-      }
+			// SUPABASE FLOW
+			const {
+				data: { user },
+				error,
+			} = await this.supabase.auth.getUser(token)
+			if (error || !user) {
+				throw new Error(error?.message || "No user found")
+			}
+			userId = user.id
+			userEmail = user.email
+			userPhone = user.phone
+			userName =
+				user.user_metadata?.full_name ||
+				user.email?.split("@")[0] ||
+				user.phone
 
-      let userId: string;
-      let userEmail: string | undefined;
-      let userPhone: string | undefined;
-      let userName: string | undefined;
+			// Auto-Sync User to database
+			// Use findUnique first, then create only if not exists.
+			// This avoids the unique constraint error on `email` when multiple Supabase
+			// accounts share the same email or when a stale record exists.
+			let dbUser = await this.prisma.user.findUnique({
+				where: { id: userId },
+			})
 
-      // Detect if token is from Firebase by checking the issuer
-      if (decoded?.iss?.includes('securetoken.google.com')) {
-        // LEGACY FIREBASE FLOW
-        if (!admin.apps.length) {
-          throw new UnauthorizedException('Firebase Admin is not configured on the backend.');
-        }
-        const decodedToken = await admin.auth().verifyIdToken(token);
-        userId = decodedToken.uid;
-        userEmail = decodedToken.email;
-        userPhone = decodedToken.phone_number;
-        userName = decodedToken.name;
-      } else {
-        // SUPABASE FLOW
-        const { data: { user }, error } = await this.supabase.auth.getUser(token);
-        if (error || !user) {
-          throw new Error(error?.message || 'No user found');
-        }
-        userId = user.id;
-        userEmail = user.email;
-        userPhone = user.phone;
-        userName = user.user_metadata?.full_name || user.email?.split('@')[0] || user.phone;
-      }
-      
-      // Auto-Sync User to database
-      // Use findUnique first, then create only if not exists.
-      // This avoids the unique constraint error on `email` when multiple Supabase
-      // accounts share the same email or when a stale record exists.
-      let dbUser = await this.prisma.user.findUnique({ where: { id: userId } });
+			if (!dbUser) {
+				// Check if a user with this email already exists (from a different auth provider)
+				if (userEmail) {
+					dbUser = await this.prisma.user.findUnique({
+						where: { email: userEmail },
+					})
+				}
 
-      if (!dbUser) {
-        // Check if a user with this email already exists (from a different auth provider)
-        if (userEmail) {
-          dbUser = await this.prisma.user.findUnique({ where: { email: userEmail } });
-        }
+				if (!dbUser) {
+					try {
+						// Truly new user — create
+						dbUser = await this.prisma.user.create({
+							data: {
+								id: userId,
+								name: userName,
+								email: userEmail,
+								phone: userPhone,
+							},
+						})
+						this.logger.log(`New user created: ${dbUser.id}`)
+					} catch (createErr: any) {
+						// If another concurrent request just created the user, we will hit a unique constraint error (P2002)
+						if (createErr.code === "P2002") {
+							dbUser = await this.prisma.user.findUnique({
+								where: { id: userId },
+							})
+							if (!dbUser && userEmail) {
+								dbUser = await this.prisma.user.findUnique({
+									where: { email: userEmail },
+								})
+							}
+							if (!dbUser) {
+								throw new Error(
+									"User creation failed due to unique constraint, but could not retrieve the created user.",
+								)
+							}
+						} else {
+							throw createErr
+						}
+					}
+				} else if (dbUser.id !== userId) {
+					const legacyUser = dbUser
+					const legacyUserId = legacyUser.id
+					this.logger.warn(
+						`Migrating user ${legacyUserId} to auth provider ID ${userId} for email ${userEmail}.`,
+					)
+					dbUser = await this.prisma.$transaction(async (tx) => {
+						await tx.merchant.updateMany({
+							where: { ownerId: legacyUserId },
+							data: { ownerId: userId },
+						})
+						return tx.user.update({
+							where: { id: legacyUserId },
+							data: {
+								id: userId,
+								name: userName ?? legacyUser.name,
+								email: userEmail ?? legacyUser.email,
+								phone: userPhone ?? legacyUser.phone,
+							},
+						})
+					})
+				}
+			}
 
-        if (!dbUser) {
-          try {
-            // Truly new user — create
-            dbUser = await this.prisma.user.create({
-              data: {
-                id: userId,
-                name: userName,
-                email: userEmail,
-                phone: userPhone,
-              },
-            });
-            this.logger.log(`New user created: ${dbUser.id}`);
-          } catch (createErr: any) {
-            // If another concurrent request just created the user, we will hit a unique constraint error (P2002)
-            if (createErr.code === 'P2002') {
-              dbUser = await this.prisma.user.findUnique({ where: { id: userId } });
-              if (!dbUser && userEmail) {
-                dbUser = await this.prisma.user.findUnique({ where: { email: userEmail } });
-              }
-              if (!dbUser) {
-                throw new Error('User creation failed due to unique constraint, but could not retrieve the created user.');
-              }
-            } else {
-              throw createErr;
-            }
-          }
-        } else if (dbUser.id !== userId) {
-          const legacyUser = dbUser;
-          const legacyUserId = legacyUser.id;
-          this.logger.warn(`Migrating user ${legacyUserId} to auth provider ID ${userId} for email ${userEmail}.`);
-          dbUser = await this.prisma.$transaction(async (tx) => {
-            await tx.merchant.updateMany({
-              where: { ownerId: legacyUserId },
-              data: { ownerId: userId },
-            });
-            return tx.user.update({
-              where: { id: legacyUserId },
-              data: {
-                id: userId,
-                name: userName ?? legacyUser.name,
-                email: userEmail ?? legacyUser.email,
-                phone: userPhone ?? legacyUser.phone,
-              },
-            });
-          });
-        }
-      }
+			const result = {
+				uid: dbUser.id,
+				email: dbUser.email || undefined,
+				name: dbUser.name || undefined,
+			}
+			if (cacheKey) {
+				this.userCache.set(cacheKey, {
+					user: result,
+					expiresAt: Date.now() + this.CACHE_TTL_MS,
+				})
+			}
+			return result
+		} catch (err: any) {
+			this.logger.error("Token Verification Error:", err?.message || err)
+			throw new UnauthorizedException("Invalid or expired token")
+		}
+	}
 
-      const result = {
-        uid: dbUser.id,
-        email: dbUser.email || undefined,
-        name: dbUser.name || undefined,
-      };
-      if (cacheKey) {
-        this.userCache.set(cacheKey, { user: result, expiresAt: Date.now() + this.CACHE_TTL_MS });
-      }
-      return result;
-    } catch (err: any) {
-      this.logger.error('Token Verification Error:', err?.message || err);
-      throw new UnauthorizedException('Invalid or expired token');
-    }
-  }
-
-  get isFunctional(): boolean {
-    // For dual auth, we are functional if either is available
-    return !!this.supabase || admin.apps.length > 0;
-  }
+	get isFunctional(): boolean {
+		// For dual auth, we are functional if either is available
+		return !!this.supabase || admin.apps.length > 0
+	}
 }
