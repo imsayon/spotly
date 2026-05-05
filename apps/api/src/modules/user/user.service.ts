@@ -7,17 +7,24 @@ export class UserService {
   constructor(private readonly prisma: PrismaService) {}
 
   async upsertUser(uid: string, email: string | null, name: string, role: string = 'CONSUMER'): Promise<User> {
-    const existing = await this.findById(uid);
-    if (existing) return existing;
-
-    return this.prisma.user.create({
-      data: {
-        id: uid, // Use Firebase UID as Prisma ID
-        email: email || undefined,
-        name: name,
-        role: role as Role,
-      },
-    });
+    try {
+      return await this.prisma.user.upsert({
+        where: { id: uid },
+        create: {
+          id: uid,
+          email: email || undefined,
+          name,
+          role: role as Role,
+        },
+        update: {},
+      });
+    } catch (err: any) {
+      if (err?.code === 'P2002') {
+        const user = await this.findById(uid);
+        if (user) return user;
+      }
+      throw err;
+    }
   }
 
   async findById(uid: string): Promise<User | null> {

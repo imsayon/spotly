@@ -46,6 +46,9 @@ export interface QueueRepository {
 
   /** Get outlet entries for analytics within a date range */
   getOutletHistory(outletId: string, from: Date, to: Date): Promise<QueueEntry[]>;
+
+  /** Expire stale queue join requests */
+  cleanupStalePending(cutoff: Date): Promise<QueueEntry[]>;
 }
 
 export const QUEUE_REPOSITORY = 'QUEUE_REPOSITORY';

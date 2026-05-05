@@ -98,7 +98,8 @@ export class QueueController {
   @Get(':outletId')
   async getQueue(@Param('outletId') outletId: string) {
     const data = await this.queueService.getQueue(outletId);
-    return { success: true, data };
+    const sanitized = data.map(({ userId, ...entry }) => entry);
+    return { success: true, data: sanitized };
   }
 
   /** POST /api/queue/join — consumer joins a queue */

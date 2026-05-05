@@ -1,15 +1,28 @@
-import { BadRequestException, ConflictException, Inject, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ConflictException, Inject, Injectable, NotFoundException, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
 import { QueueRepository, QUEUE_REPOSITORY } from './interfaces/queue-repository.interface';
 import { QueueEntry, QueueUpdatePayload, TokenCalledPayload } from '@spotly/types';
 import { QueueGateway } from '../websocket/queue.gateway';
 
 @Injectable()
-export class QueueService {
+export class QueueService implements OnModuleInit, OnModuleDestroy {
+  private stalePendingTimer: NodeJS.Timeout | null = null;
+
   constructor(
     @Inject(QUEUE_REPOSITORY)
     private readonly repo: QueueRepository,
     private readonly gateway: QueueGateway,
   ) {}
+
+  onModuleInit() {
+    this.stalePendingTimer = setInterval(() => {
+      void this.cleanupStalePendingEntries();
+    }, 5 * 60 * 1000);
+    this.stalePendingTimer.unref?.();
+  }
+
+  onModuleDestroy() {
+    if (this.stalePendingTimer) clearInterval(this.stalePendingTimer);
+  }
 
   /**
    * Consumer joins a queue.
@@ -89,15 +102,19 @@ export class QueueService {
     return this.repo.getOutletHistory(outletId, start, end);
   }
 
+  async cleanupStalePendingEntries(): Promise<void> {
+    const cutoff = new Date(Date.now() - 10 * 60 * 1000);
+    const expired = await this.repo.cleanupStalePending(cutoff);
+    await Promise.all(expired.map(async (entry) => {
+      await this.gateway.emitEntryUpdate(entry.outletId, { entryId: entry.id, status: 'MISSED' });
+      await this.emitQueueUpdate(entry.outletId);
+    }));
+  }
+
   /**
    * Merchant advances the queue — marks next WAITING entry as CALLED.
    */
   async advanceQueue(outletId: string): Promise<QueueEntry | null> {
-    const queue = await this.repo.getQueue(outletId);
-    if (queue.find(e => e.status === 'CALLED')) {
-      throw new BadRequestException('Mark the current token as served or missed before calling next');
-    }
-
     const called = await this.repo.advanceQueue(outletId);
 
     if (called) {

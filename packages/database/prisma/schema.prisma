@@ -104,6 +104,10 @@ model QueueEntry {
 
   outlet      Outlet      @relation(fields: [outletId], references: [id], onDelete: Cascade)
   user        User        @relation(fields: [userId], references: [id])
+
+  @@index([userId, status])
+  @@index([outletId, status, tokenNumber])
+  @@index([outletId, createdAt])
 }
 
 model Review {
@@ -117,6 +121,7 @@ model Review {
   outlet    Outlet   @relation(fields: [outletId], references: [id], onDelete: Cascade)
   
   @@unique([userId, outletId])
+  @@index([outletId, createdAt])
 }
 
 /// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
@@ -129,6 +134,7 @@ model Favorite {
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId, outletId])
+  @@index([userId])
 }
 
 enum Role {

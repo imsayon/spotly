@@ -14,6 +14,8 @@ export interface DecodedUser {
 export class AuthService implements OnModuleInit {
   private supabase!: SupabaseClient;
   private readonly logger = new Logger(AuthService.name);
+  private readonly userCache = new Map<string, { user: DecodedUser; expiresAt: number }>();
+  private readonly CACHE_TTL_MS = 5 * 60 * 1000;
 
   constructor(private readonly prisma: PrismaService) {}
 
@@ -65,6 +67,13 @@ export class AuthService implements OnModuleInit {
   async verifyToken(token: string): Promise<DecodedUser> {
     try {
       const decoded: any = jwt.decode(token);
+      const cacheKey = decoded?.sub || decoded?.uid;
+      if (cacheKey) {
+        const cached = this.userCache.get(cacheKey);
+        if (cached && cached.expiresAt > Date.now()) return cached.user;
+        if (cached) this.userCache.delete(cacheKey);
+      }
+
       let userId: string;
       let userEmail: string | undefined;
       let userPhone: string | undefined;
@@ -153,11 +162,15 @@ export class AuthService implements OnModuleInit {
         }
       }
 
-      return {
+      const result = {
         uid: dbUser.id,
         email: dbUser.email || undefined,
         name: dbUser.name || undefined,
       };
+      if (cacheKey) {
+        this.userCache.set(cacheKey, { user: result, expiresAt: Date.now() + this.CACHE_TTL_MS });
+      }
+      return result;
     } catch (err: any) {
       this.logger.error('Token Verification Error:', err?.message || err);
       throw new UnauthorizedException('Invalid or expired token');

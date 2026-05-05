@@ -11,15 +11,16 @@ let socket: Socket | null = null;
 export async function getSocket(): Promise<Socket> {
   if (socket?.connected) return socket;
 
-  const { data: { session } } = await supabase.auth.getSession();
-  const token = session?.access_token;
-
   if (socket) socket.disconnect();
 
   socket = io(process.env.NEXT_PUBLIC_WS_URL ?? 'http://localhost:3001', {
     transports: ['websocket'],
-    auth: { token },
+    auth: async (cb) => {
+      const { data: { session } } = await supabase.auth.getSession();
+      cb({ token: session?.access_token });
+    },
     autoConnect: true,
+    reconnection: true,
   });
 
   return socket;

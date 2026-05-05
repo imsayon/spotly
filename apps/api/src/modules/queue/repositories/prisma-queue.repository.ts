@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable } from '@nestjs/common';
 import { QueueRepository } from '../interfaces/queue-repository.interface';
 import { PrismaService } from '../../../prisma/prisma.service';
 import { QueueEntry as PrismaQueueEntry } from '@spotly/database';
@@ -23,7 +23,12 @@ export class PrismaQueueRepository implements QueueRepository {
 
   async joinQueue(data: Omit<QueueEntry, 'id' | 'tokenNumber'>): Promise<QueueEntry> {
     return this.prisma.$transaction(async (tx) => {
-      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${data.userId}))`;
+      await tx.$executeRaw`
+        SELECT pg_advisory_xact_lock(
+          ('x' || left(md5(${data.userId}), 8))::bit(32)::int,
+          ('x' || right(md5(${data.userId}), 8))::bit(32)::int
+        )
+      `;
 
       const existing = await tx.queueEntry.findFirst({
         where: {
@@ -70,9 +75,24 @@ export class PrismaQueueRepository implements QueueRepository {
   async isOutletOpen(outletId: string): Promise<boolean> {
     const outlet = await this.prisma.outlet.findUnique({
       where: { id: outletId },
-      select: { isActive: true },
+      select: { isActive: true, openTime: true, closeTime: true },
     });
-    return Boolean(outlet?.isActive);
+    if (!outlet?.isActive) return false;
+    if (!outlet.openTime || !outlet.closeTime) return true;
+
+    const [openH, openM] = outlet.openTime.split(':').map(Number);
+    const [closeH, closeM] = outlet.closeTime.split(':').map(Number);
+    if (![openH, openM, closeH, closeM].every(Number.isFinite)) return true;
+
+    const now = new Date();
+    const nowMinutes = now.getHours() * 60 + now.getMinutes();
+    const openMinutes = openH * 60 + openM;
+    const closeMinutes = closeH * 60 + closeM;
+
+    if (openMinutes <= closeMinutes) {
+      return nowMinutes >= openMinutes && nowMinutes < closeMinutes;
+    }
+    return nowMinutes >= openMinutes || nowMinutes < closeMinutes;
   }
 
   async findActiveEntryForUser(userId: string): Promise<QueueEntry | null> {
@@ -107,40 +127,54 @@ export class PrismaQueueRepository implements QueueRepository {
   }
 
   async advanceQueue(outletId: string): Promise<QueueEntry | null> {
-    const alreadyCalled = await this.prisma.queueEntry.findFirst({
-      where: { outletId, status: 'CALLED' },
+    return this.prisma.$transaction(async (tx) => {
+      const existing = await tx.$queryRaw<Array<{ id: string }>>`
+        SELECT id FROM "QueueEntry"
+        WHERE "outletId" = ${outletId} AND status = 'CALLED'
+        LIMIT 1
+        FOR UPDATE
+      `;
+      if (existing.length > 0) {
+        throw new BadRequestException('Mark the current token as served or missed before calling next');
+      }
+
+      const claimed = await tx.$queryRaw<Array<{ id: string }>>`
+        UPDATE "QueueEntry"
+        SET status = 'CALLED', "updatedAt" = NOW()
+        WHERE id = (
+          SELECT id FROM "QueueEntry"
+          WHERE "outletId" = ${outletId} AND status = 'WAITING'
+          ORDER BY "tokenNumber" ASC
+          LIMIT 1
+          FOR UPDATE SKIP LOCKED
+        )
+        RETURNING id
+      `;
+      if (claimed.length === 0) return null;
+
+      const updated = await tx.queueEntry.findUnique({ where: { id: claimed[0].id } });
+      return updated ? this.mapToDomain(updated) : null;
     });
-    if (alreadyCalled) return this.mapToDomain(alreadyCalled);
-
-    // 1. Find the first WAITING entry
-    const nextWaiting = await this.prisma.queueEntry.findFirst({
-      where: { outletId, status: 'WAITING' },
-      orderBy: { tokenNumber: 'asc' },
-    });
-
-    if (!nextWaiting) return null;
-
-    // 2. Mark it as CALLED
-    const updated = await this.prisma.queueEntry.update({
-      where: { id: nextWaiting.id },
-      data: { status: 'CALLED' },
-    });
-
-    return this.mapToDomain(updated);
   }
 
   async markMissed(entryId: string): Promise<void> {
-    await this.prisma.queueEntry.update({
-      where: { id: entryId },
+    const result = await this.prisma.queueEntry.updateMany({
+      where: { id: entryId, status: 'CALLED' },
       data: { status: 'MISSED' },
     });
+    if (result.count === 0) {
+      throw new BadRequestException('Entry must be in CALLED state before marking missed');
+    }
   }
 
   async markServed(entryId: string): Promise<void> {
-    await this.prisma.queueEntry.update({
-      where: { id: entryId },
+    const result = await this.prisma.queueEntry.updateMany({
+      where: { id: entryId, status: 'CALLED' },
       data: { status: 'SERVED' },
     });
+    if (result.count === 0) {
+      throw new BadRequestException('Entry must be in CALLED state before marking served');
+    }
   }
 
   async leaveQueue(entryId: string): Promise<void> {
@@ -208,5 +242,24 @@ export class PrismaQueueRepository implements QueueRepository {
       orderBy: { tokenNumber: 'asc' },
     });
     return entries.map((e) => this.mapToDomain(e));
+  }
+
+  async cleanupStalePending(cutoff: Date): Promise<QueueEntry[]> {
+    return this.prisma.$transaction(async (tx) => {
+      const stale = await tx.queueEntry.findMany({
+        where: {
+          status: 'PENDING_ACCEPTANCE',
+          createdAt: { lt: cutoff },
+        },
+      });
+      if (stale.length === 0) return [];
+
+      await tx.queueEntry.updateMany({
+        where: { id: { in: stale.map((entry) => entry.id) } },
+        data: { status: 'MISSED' },
+      });
+
+      return stale.map((entry) => this.mapToDomain({ ...entry, status: 'MISSED' }));
+    });
   }
 }

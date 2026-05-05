@@ -175,7 +175,12 @@ export default function ConsumerMerchantPage() {
         return;
       }
       if (!confirm('You are already in another queue. Leave that and join this one?')) return;
-      try { await useQueueStore.getState().leaveQueue(myEntry.id); } catch {}
+      try {
+        await useQueueStore.getState().leaveQueue(myEntry.id);
+      } catch (error) {
+        addToast('Could not leave your current queue. Please try again before joining another.', 'error');
+        return;
+      }
     }
 
     setJoiningId(outletId);

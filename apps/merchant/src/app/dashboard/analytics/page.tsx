@@ -22,6 +22,8 @@ const s = {
   } as React.CSSProperties,
 };
 
+const AVG_SERVICE_MINUTES = 4.5
+
 interface AnalyticsData {
   totalTokens: number
   avgWaitTime: string
@@ -50,18 +52,17 @@ export default function MerchantAnalytics() {
         let missedToday = 0
         const allEntries: any[] = []
 
-        for (const outlet of outlets) {
-          try {
-            const qRes = await api.get(`/queue/${outlet.id}/history`)
-            const entries = qRes.data.data || []
-            allEntries.push(...entries)
-            totalTokens += entries.length
-            servedToday += entries.filter((e: any) => e.status === 'SERVED').length
-            missedToday += entries.filter((e: any) => e.status === 'MISSED' || e.status === 'CANCELLED').length
-          } catch {
-            // Skip unavailable outlets
-          }
-        }
+        const queueResults = await Promise.all(
+          outlets.map((outlet: any) => api.get(`/queue/${outlet.id}/history`).catch(() => ({ data: { data: [] } })))
+        )
+
+        queueResults.forEach((qRes) => {
+          const entries = qRes.data.data || []
+          allEntries.push(...entries)
+          totalTokens += entries.length
+          servedToday += entries.filter((e: any) => e.status === 'SERVED').length
+          missedToday += entries.filter((e: any) => e.status === 'MISSED' || e.status === 'CANCELLED').length
+        })
 
         // Build hourly distribution (group by hour of joinedAt)
         const hourlyMap = new Array(24).fill(0)
@@ -78,7 +79,7 @@ export default function MerchantAnalytics() {
 
         setData({
           totalTokens,
-          avgWaitTime: allEntries.length > 0 ? `${Math.max(1, Math.round(totalTokens * 4.5 / Math.max(1, servedToday)))}m` : '—',
+          avgWaitTime: servedToday > 0 ? `${Math.max(1, Math.round((totalTokens / servedToday) * AVG_SERVICE_MINUTES))}m` : '—',
           servedToday,
           missedToday,
           hourlyData: hourlyMap,

@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState, useEffect, useRef } from "react"
+import React, { useState, useEffect } from "react"
 import { motion } from "framer-motion"
 import api from "@/lib/api"
 import { useAuthStore } from "@/store/auth.store"
@@ -100,8 +100,6 @@ export default function SettingsPage() {
   const [name, setName]         = useState('')
   const [phone, setPhone]       = useState('')
   const [address, setAddress]   = useState('')
-  const [openTime, setOpenTime] = useState('09:00')
-  const [closeTime, setCloseTime] = useState('21:00')
   const [copied, setCopied]     = useState(false)
 
   // Selected outlet for share link
@@ -216,41 +214,6 @@ export default function SettingsPage() {
           <SettingsInput label="Phone" value={phone} onChange={setPhone} type="tel" placeholder="+91 98765 43210" />
           <SettingsInput label="Address" value={address} onChange={setAddress} placeholder="123 Main Street" />
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-              <label style={{ fontSize: 11, fontWeight: 700, color: 'rgba(255,255,255,.35)', textTransform: 'uppercase', letterSpacing: 1.2 }}>
-                Opening Time
-              </label>
-              <input
-                type="time"
-                value={openTime}
-                onChange={e => setOpenTime(e.target.value)}
-                style={{
-                  padding: '12px 16px', borderRadius: 12,
-                  background: 'rgba(255,255,255,.05)',
-                  border: '1px solid rgba(255,255,255,.12)',
-                  color: '#fff', fontSize: 14, outline: 'none',
-                }}
-              />
-            </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-              <label style={{ fontSize: 11, fontWeight: 700, color: 'rgba(255,255,255,.35)', textTransform: 'uppercase', letterSpacing: 1.2 }}>
-                Closing Time
-              </label>
-              <input
-                type="time"
-                value={closeTime}
-                onChange={e => setCloseTime(e.target.value)}
-                style={{
-                  padding: '12px 16px', borderRadius: 12,
-                  background: 'rgba(255,255,255,.05)',
-                  border: '1px solid rgba(255,255,255,.12)',
-                  color: '#fff', fontSize: 14, outline: 'none',
-                }}
-              />
-            </div>
-          </div>
-
           <button
             onClick={handleSave}
             disabled={saving}
@@ -352,10 +315,6 @@ export default function SettingsPage() {
         </Section>
 
       </div>
-
-      <style>{`
-        input[type="time"]::-webkit-calendar-picker-indicator { filter: invert(1) opacity(0.35); }
-      `}</style>
     </motion.div>
   )
 }

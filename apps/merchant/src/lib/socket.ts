@@ -7,12 +7,12 @@ export async function getSocket(): Promise<Socket> {
   if (socket?.connected) return socket;
   if (socket) { socket.disconnect(); socket = null; }
 
-  const { data: { session } } = await supabase.auth.getSession();
-  const token = session?.access_token;
-
   socket = io(process.env.NEXT_PUBLIC_WS_URL ?? 'http://localhost:3001', {
     transports: ['websocket'],
-    auth: { token },
+    auth: async (cb) => {
+      const { data: { session } } = await supabase.auth.getSession();
+      cb({ token: session?.access_token });
+    },
     autoConnect: true,
     reconnection: true,
     reconnectionAttempts: 5,
