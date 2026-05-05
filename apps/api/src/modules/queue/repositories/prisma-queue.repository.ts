@@ -23,10 +23,23 @@ export class PrismaQueueRepository implements QueueRepository {
 
   async joinQueue(data: Omit<QueueEntry, 'id' | 'tokenNumber'>): Promise<QueueEntry> {
     return this.prisma.$transaction(async (tx) => {
-      // 1. Lock the outlet row to prevent concurrent joins from reading the same max token
-      // Removed raw SQL FOR UPDATE lock to prevent hanging in transaction mode
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${data.userId}))`;
 
-      // 2. Atomic increment — upsert the daily counter row, increment, return new value
+      const existing = await tx.queueEntry.findFirst({
+        where: {
+          userId: data.userId,
+          status: { in: ['PENDING_ACCEPTANCE', 'WAITING', 'CALLED'] },
+        },
+        orderBy: { createdAt: 'desc' },
+      });
+      if (existing) {
+        if (existing.outletId === data.outletId) return this.mapToDomain(existing);
+        const err = new Error('DUPLICATE_ACTIVE_ENTRY');
+        (err as Error & { outletId?: string }).outletId = existing.outletId;
+        throw err;
+      }
+
+      // Atomic increment — upsert the daily counter row, increment, return new value.
       const today = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
       const result = await tx.$queryRaw<Array<{ counter: number }>>`
         INSERT INTO "OutletDailyCounter" ("outletId", date, counter)
@@ -36,18 +49,16 @@ export class PrismaQueueRepository implements QueueRepository {
         RETURNING counter::int
       `;
       
-      if (!result?.[0]?.counter) throw new Error('Counter increment failed');
-      const tokenNumber = result[0].counter;
+      const tokenNumber = result?.[0]?.counter;
       if (!Number.isFinite(tokenNumber) || tokenNumber <= 0) {
         throw new Error(`Invalid token number: ${tokenNumber}`);
       }
 
-      // 3. Insert with the guaranteed unique token number
       const created = await tx.queueEntry.create({
         data: {
           userId: data.userId,
           outletId: data.outletId,
-          tokenNumber: tokenNumber,
+          tokenNumber,
           status: data.status,
         },
       });
@@ -186,5 +197,16 @@ export class PrismaQueueRepository implements QueueRepository {
         merchantCategory: entry.outlet?.merchant?.category,
       };
     });
+  }
+
+  async getOutletHistory(outletId: string, from: Date, to: Date): Promise<QueueEntry[]> {
+    const entries = await this.prisma.queueEntry.findMany({
+      where: {
+        outletId,
+        createdAt: { gte: from, lte: to },
+      },
+      orderBy: { tokenNumber: 'asc' },
+    });
+    return entries.map((e) => this.mapToDomain(e));
   }
 }

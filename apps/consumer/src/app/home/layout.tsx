@@ -39,7 +39,8 @@ export default function ConsumerLayout({
   }, [fetchActiveEntry])
 
   const inQueue = !!myEntry
-  const notifCount = inQueue ? 1 : 0
+  const notifications: Array<{ id: string }> = []
+  const notifCount = notifications.length
 
   const navItems = [
     { id: '/home', icon: <Ic.Home />, label: 'Home' },
@@ -150,21 +151,13 @@ export default function ConsumerLayout({
                 <span style={{ fontWeight: 800, fontSize: 15 }}>Notifications</span>
                 <button style={{ background: 'none', border: 'none', color: 'var(--t3)', cursor: 'pointer', fontSize: 12, fontWeight: 600 }} onClick={() => setShowNotif(false)} className="hover:text-white transition-colors">Clear all</button>
               </div>
-              {[
-                { icon: <Ic.Bell />, text: 'Your token #43 is coming up soon!', time: '2m ago', c: 'yellow' },
-                { icon: <Ic.Shield />, text: 'Artisan Bakehouse confirmed your spot', time: '8m ago', c: 'green' },
-                { icon: <Ic.Zap />, text: 'Coffee Lab has 0 queue - join now!', time: '15m ago', c: 'yellow' },
-              ].map((n, i) => (
-                <div key={i} style={{ padding: '14px 20px', borderBottom: '1px solid var(--bdr)', display: 'flex', gap: 12, cursor: 'pointer', transition: 'all .2s' }} className="hover:bg-[#ffffff0a] active:bg-[#ffffff10]">
-                  <div style={{ width: 28, height: 28, borderRadius: 10, background: 'rgba(255,255,255,.06)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                    {n.icon}
-                  </div>
-                  <div>
-                    <p style={{ fontSize: 13, lineHeight: 1.45, marginBottom: 4, fontWeight: 500, color: '#e5e7eb' }}>{n.text}</p>
-                    <span style={{ fontSize: 11, color: 'var(--t3)', fontWeight: 600 }}>{n.time}</span>
-                  </div>
+              <div style={{ padding: '28px 20px', textAlign: 'center' }}>
+                <div style={{ width: 36, height: 36, borderRadius: 12, background: 'rgba(255,255,255,.05)', color: 'var(--t3)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', marginBottom: 12 }}>
+                  <Ic.Bell />
                 </div>
-              ))}
+                <p style={{ fontSize: 13, lineHeight: 1.45, marginBottom: 4, fontWeight: 700, color: '#e5e7eb' }}>No notifications</p>
+                <span style={{ fontSize: 11, color: 'var(--t3)', fontWeight: 600 }}>Live alerts will appear here once notification delivery is available.</span>
+              </div>
             </div>
           </div>
         )}

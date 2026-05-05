@@ -131,10 +131,25 @@ export class AuthService implements OnModuleInit {
               throw createErr;
             }
           }
-        } else {
-          // Existing user with same email but different ID (provider migration)
-          // Update the user's ID to the new auth provider's ID
-          this.logger.warn(`User with email ${userEmail} exists under ID ${dbUser.id}, current auth ID is ${userId}. Using existing record.`);
+        } else if (dbUser.id !== userId) {
+          const legacyUser = dbUser;
+          const legacyUserId = legacyUser.id;
+          this.logger.warn(`Migrating user ${legacyUserId} to auth provider ID ${userId} for email ${userEmail}.`);
+          dbUser = await this.prisma.$transaction(async (tx) => {
+            await tx.merchant.updateMany({
+              where: { ownerId: legacyUserId },
+              data: { ownerId: userId },
+            });
+            return tx.user.update({
+              where: { id: legacyUserId },
+              data: {
+                id: userId,
+                name: userName ?? legacyUser.name,
+                email: userEmail ?? legacyUser.email,
+                phone: userPhone ?? legacyUser.phone,
+              },
+            });
+          });
         }
       }
 

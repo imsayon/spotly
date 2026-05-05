@@ -43,6 +43,9 @@ export interface QueueRepository {
 
   /** Get past entries (SERVED + CANCELLED) for a user */
   getHistory(userId: string, limit?: number): Promise<QueueEntry[]>;
+
+  /** Get outlet entries for analytics within a date range */
+  getOutletHistory(outletId: string, from: Date, to: Date): Promise<QueueEntry[]>;
 }
 
 export const QUEUE_REPOSITORY = 'QUEUE_REPOSITORY';

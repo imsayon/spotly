@@ -48,7 +48,8 @@ serviceAccountKey.json
 # TypeScript
 *.tsbuildinfo
 
-
+.vscode
+.kiro
 .info
 .DS_Store
 

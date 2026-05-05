@@ -112,9 +112,6 @@ importers:
 
   apps/consumer:
     dependencies:
-      '@spotly/database':
-        specifier: workspace:*
-        version: link:../../packages/database
       '@spotly/types':
         specifier: workspace:*
         version: link:../../packages/types
@@ -185,9 +182,6 @@ importers:
 
   apps/merchant:
     dependencies:
-      '@spotly/database':
-        specifier: workspace:*
-        version: link:../../packages/database
       '@spotly/types':
         specifier: workspace:*
         version: link:../../packages/types

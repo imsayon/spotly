@@ -63,6 +63,19 @@ export class QueueController {
     return { success: true, data };
   }
 
+  /** GET /api/queue/:outletId/history — merchant analytics history for an outlet */
+  @Get(':outletId/history')
+  @UseGuards(FirebaseAuthGuard)
+  async getOutletHistory(
+    @Param('outletId') outletId: string,
+    @CurrentUser() user: DecodedUser,
+    @Query('date') date?: string,
+  ) {
+    await this.verifyMerchantOwnership(user.uid, outletId);
+    const data = await this.queueService.getOutletHistory(outletId, date);
+    return { success: true, data };
+  }
+
   /** GET /api/queue/entry/:entryId — consumer polls their own entry */
   @Get('entry/:entryId')
   @UseGuards(FirebaseAuthGuard)

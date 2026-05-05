@@ -10,7 +10,6 @@
 		"type-check": "tsc -p tsconfig.typecheck.json --noEmit --incremental false"
 	},
 	"dependencies": {
-		"@spotly/database": "workspace:*",
 		"@spotly/types": "workspace:*",
 		"@spotly/ui": "workspace:*",
 		"axios": "^1.7.0",

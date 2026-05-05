@@ -82,21 +82,20 @@ export default function ConsumerQueuePage() {
     if (!entry?.outletId) return;
 
     let mounted = true;
+    let cleanupFn: (() => void) | undefined;
+    let joinedOutletId: string | undefined;
     
     const initSocket = async () => {
       const socket = await getSocket();
-      if (!mounted) return;
 
       const join = () => {
         if (mounted && entry?.outletId) {
+          joinedOutletId = entry.outletId;
           socket.emit('join_outlet', { outletId: entry.outletId });
         }
       };
 
-      if (socket.connected) join();
-      socket.on('connect', join);
-
-      socket.on('queue_update', (payload: any) => {
+      const onQueueUpdate = (payload: any) => {
         if (!mounted) return;
         handleQueueUpdate(payload);
         const updated = payload.entries.find((e: any) => e.id === entryId);
@@ -106,38 +105,49 @@ export default function ConsumerQueuePage() {
           e.status === 'WAITING' && e.tokenNumber < (updated?.tokenNumber ?? entry.tokenNumber)
         ).length;
         setAhead(waitingAhead);
-      });
+      };
 
-      socket.on('token_called', (payload: any) => {
+      const onTokenCalled = (payload: any) => {
         if (!mounted) return;
         if (payload.tokenNumber === entry.tokenNumber) {
           handleTokenCalled(payload.tokenNumber);
           setEntry(prev => prev ? { ...prev, status: 'CALLED' } : null);
         }
-      });
+      };
 
-      socket.on('entry_update', (payload: { entryId: string; status: string }) => {
+      const onEntryUpdate = (payload: { entryId: string; status: string }) => {
         if (!mounted) return;
         if (payload.entryId === entryId) {
           setEntry(prev => prev ? { ...prev, status: payload.status as any } : null);
         }
-      });
+      };
+
+      if (socket.connected) join();
+      socket.on('connect', join);
+      socket.on('queue_update', onQueueUpdate);
+      socket.on('token_called', onTokenCalled);
+      socket.on('entry_update', onEntryUpdate);
       
       return () => {
         socket.off('connect', join);
-        socket.off('queue_update');
-        socket.off('token_called');
-        socket.off('entry_update');
+        socket.off('queue_update', onQueueUpdate);
+        socket.off('token_called', onTokenCalled);
+        socket.off('entry_update', onEntryUpdate);
       };
     };
 
-    let cleanup: (() => void) | undefined;
-    initSocket().then(cb => cleanup = cb);
+    initSocket().then(cb => {
+      if (!mounted) {
+        cb?.();
+        return;
+      }
+      cleanupFn = cb;
+    });
 
     return () => {
       mounted = false;
-      if (cleanup) cleanup();
-      leaveOutletRoom(entry.outletId);
+      cleanupFn?.();
+      if (joinedOutletId) leaveOutletRoom(joinedOutletId);
       // We don't disconnect the singleton socket
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps

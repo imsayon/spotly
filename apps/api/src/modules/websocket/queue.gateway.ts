@@ -12,6 +12,7 @@ import { Logger } from '@nestjs/common';
 import { Server, Socket } from 'socket.io';
 import { QueueUpdatePayload, TokenCalledPayload } from '@spotly/types';
 import { AuthService } from '../auth/auth.service';
+import { PrismaService } from '../../prisma/prisma.service';
 
 @WebSocketGateway({
   cors: {
@@ -30,11 +31,18 @@ export class QueueGateway implements OnGatewayConnection, OnGatewayDisconnect, O
 
   private readonly logger = new Logger(QueueGateway.name);
 
-  constructor(private readonly authService: AuthService) {}
+  constructor(
+    private readonly authService: AuthService,
+    private readonly prisma: PrismaService,
+  ) {}
 
   afterInit(server: Server) {
     server.use(async (socket, next) => {
       try {
+        if (!this.authService.isFunctional) {
+          return next(new Error('Unauthorized: Auth service unavailable'));
+        }
+
         const token =
           socket.handshake.auth?.token ||
           socket.handshake.headers?.authorization?.split(' ')[1];
@@ -65,10 +73,43 @@ export class QueueGateway implements OnGatewayConnection, OnGatewayDisconnect, O
    * They join the Socket.IO room `outlet:{outletId}`.
    */
   @SubscribeMessage('join_outlet')
-  handleJoinOutlet(
+  async handleJoinOutlet(
     @MessageBody() data: { outletId: string },
     @ConnectedSocket() client: Socket,
   ) {
+    const userId = client.data.user?.uid;
+    if (!userId || !data?.outletId) {
+      client.emit('error', { message: 'Unauthorized' });
+      return;
+    }
+
+    const [activeEntry, outlet] = await Promise.all([
+      this.prisma.queueEntry.findFirst({
+        where: {
+          userId,
+          outletId: data.outletId,
+          status: { in: ['PENDING_ACCEPTANCE', 'WAITING', 'CALLED'] },
+        },
+        select: { id: true },
+      }),
+      this.prisma.outlet.findUnique({
+        where: { id: data.outletId },
+        select: {
+          merchant: {
+            select: { ownerId: true },
+          },
+        },
+      }),
+    ]);
+
+    const isMerchant = outlet?.merchant.ownerId === userId;
+    const isParticipant = Boolean(activeEntry);
+    if (!isMerchant && !isParticipant) {
+      client.emit('error', { message: 'Not authorized for this outlet' });
+      this.logger.warn(`Client ${client.id} denied room outlet:${data.outletId}`);
+      return;
+    }
+
     const room = `outlet:${data.outletId}`;
     client.join(room);
     this.logger.log(`Client ${client.id} joined room ${room}`);
@@ -88,6 +129,30 @@ export class QueueGateway implements OnGatewayConnection, OnGatewayDisconnect, O
     this.logger.log(`Client ${client.id} left room ${room}`);
   }
 
+  @SubscribeMessage('join_outlet_status')
+  handleJoinOutletStatus(
+    @MessageBody() data: { outletId: string },
+    @ConnectedSocket() client: Socket,
+  ) {
+    if (!client.data.user?.uid || !data?.outletId) {
+      client.emit('error', { message: 'Unauthorized' });
+      return;
+    }
+
+    const room = `outlet_status:${data.outletId}`;
+    client.join(room);
+    client.emit('joined', { room });
+  }
+
+  @SubscribeMessage('leave_outlet_status')
+  handleLeaveOutletStatus(
+    @MessageBody() data: { outletId: string },
+    @ConnectedSocket() client: Socket,
+  ) {
+    const room = `outlet_status:${data.outletId}`;
+    client.leave(room);
+  }
+
   /**
    * Emit `queue_update` to all clients watching an outlet.
    * Called by QueueService after every DB write.
@@ -99,7 +164,7 @@ export class QueueGateway implements OnGatewayConnection, OnGatewayDisconnect, O
   /**
    * Emit `token_called` when merchant calls the next token.
    */
-  async emitTokenCalled(outletId: string, payload: TokenCalledPayload): Promise<void> {
+  async emitTokenCalled(outletId: string, payload: Omit<TokenCalledPayload, 'userId'>): Promise<void> {
     this.server.to(`outlet:${outletId}`).emit('token_called', payload);
   }
 
@@ -108,5 +173,14 @@ export class QueueGateway implements OnGatewayConnection, OnGatewayDisconnect, O
    */
   async emitEntryUpdate(outletId: string, payload: { entryId: string; status: string }): Promise<void> {
     this.server.to(`outlet:${outletId}`).emit('entry_update', payload);
+  }
+
+  async emitOutletStatus(outletId: string, payload: { outletId: string; isActive: boolean; isOpen?: boolean }): Promise<void> {
+    this.server.to(`outlet_status:${outletId}`).emit('outlet_status', payload);
+    this.server.to(`outlet:${outletId}`).emit('outlet_status', payload);
+  }
+
+  async notifyOutletStatusChange(outletId: string, isOpen: boolean): Promise<void> {
+    await this.emitOutletStatus(outletId, { outletId, isActive: isOpen, isOpen });
   }
 }

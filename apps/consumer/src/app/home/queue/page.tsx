@@ -26,11 +26,12 @@ export default function ConsumerQueue() {
   useEffect(() => {
     const load = async () => {
       const entry = await fetchActiveEntry()
-      setLoading(false)
       // If user has an active entry, redirect them to the real live queue page
       if (entry) {
         router.replace(`/queue/${entry.id}`)
+        return
       }
+      setLoading(false)
     }
     load()
   }, [fetchActiveEntry, router])

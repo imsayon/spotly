@@ -44,7 +44,7 @@ export default function MerchantAnalytics() {
         const outletsRes = await api.get(`/outlet/merchant/${merchantProfile.id}`)
         const outlets = outletsRes.data.data || []
 
-        // Aggregate queue data from all outlets
+        // Aggregate today's queue history from all outlets
         let totalTokens = 0
         let servedToday = 0
         let missedToday = 0
@@ -52,7 +52,7 @@ export default function MerchantAnalytics() {
 
         for (const outlet of outlets) {
           try {
-            const qRes = await api.get(`/queue/${outlet.id}`)
+            const qRes = await api.get(`/queue/${outlet.id}/history`)
             const entries = qRes.data.data || []
             allEntries.push(...entries)
             totalTokens += entries.length
@@ -65,7 +65,11 @@ export default function MerchantAnalytics() {
 
         // Build hourly distribution (group by hour of joinedAt)
         const hourlyMap = new Array(24).fill(0)
-        allEntries.forEach((entry: any) => {
+        const completedEntries = allEntries.filter((entry: any) => (
+          entry.status === 'SERVED' || entry.status === 'MISSED' || entry.status === 'CANCELLED'
+        ))
+
+        completedEntries.forEach((entry: any) => {
           if (entry.joinedAt) {
             const hour = new Date(entry.joinedAt).getHours()
             hourlyMap[hour]++

@@ -149,17 +149,18 @@ export function useLiveLocation(options: UseLiveLocationOptions = {}) {
     }
 
     setLoading(true)
-    navigator.geolocation.getCurrentPosition(updateFromPosition, handleError, {
-      enableHighAccuracy: true,
-      timeout: 12000,
-      maximumAge: 0,
-    })
 
     if (prompt && watch) {
       watchId = navigator.geolocation.watchPosition(updateFromPosition, handleError, {
         enableHighAccuracy: true,
         timeout: 12000,
         maximumAge: 5000,
+      })
+    } else {
+      navigator.geolocation.getCurrentPosition(updateFromPosition, handleError, {
+        enableHighAccuracy: true,
+        timeout: 12000,
+        maximumAge: 0,
       })
     }
 

@@ -1,12 +1,13 @@
 "use client"
 
-import React, { useEffect, useState } from "react"
+import React, { useEffect, useMemo, useState } from "react"
 import { useParams, useRouter } from "next/navigation"
 import { motion, AnimatePresence } from "framer-motion"
 import { Ic, useToasts, THEME, Orb } from "@spotly/ui"
 import { useAuthStore } from "@/store/auth.store"
 import { useQueueStore } from "@/store/queue.store"
 import api from "@/lib/api"
+import { getSocket } from "@/lib/socket"
 import { Merchant, Outlet, QueueEntry } from "@spotly/types"
 
 const s = {
@@ -71,6 +72,7 @@ export default function ConsumerMerchantPage() {
   const [outlets, setOutlets] = useState<OutletWithQueue[]>([])
   const [loading, setLoading] = useState(true)
   const [joiningId, setJoiningId] = useState<string | null>(null)
+  const outletIdsKey = useMemo(() => outlets.map((outlet) => outlet.id).join(','), [outlets])
 
   useEffect(() => {
     const loadData = async () => {
@@ -106,7 +108,62 @@ export default function ConsumerMerchantPage() {
     if (id) loadData();
   }, [id, addToast]);
 
+  useEffect(() => {
+    if (!user || !outletIdsKey) return;
+
+    let mounted = true;
+    let cleanupFn: (() => void) | undefined;
+    const outletIds = outletIdsKey.split(',').filter(Boolean);
+
+    const initStatusSocket = async () => {
+      const socket = await getSocket();
+
+      const joinRooms = () => {
+        if (!mounted) return;
+        outletIds.forEach((outletId) => socket.emit('join_outlet_status', { outletId }));
+      };
+
+      const onOutletStatus = (payload: { outletId: string; isActive?: boolean; isOpen?: boolean }) => {
+        if (!mounted) return;
+        const isActive = payload.isActive ?? payload.isOpen;
+        if (isActive === undefined) return;
+        setOutlets((current) => current.map((outlet) => (
+          outlet.id === payload.outletId ? { ...outlet, isActive } : outlet
+        )));
+      };
+
+      if (socket.connected) joinRooms();
+      socket.on('connect', joinRooms);
+      socket.on('outlet_status', onOutletStatus);
+
+      return () => {
+        socket.off('connect', joinRooms);
+        socket.off('outlet_status', onOutletStatus);
+        outletIds.forEach((outletId) => socket.emit('leave_outlet_status', { outletId }));
+      };
+    };
+
+    initStatusSocket().then((cleanup) => {
+      if (!mounted) {
+        cleanup?.();
+        return;
+      }
+      cleanupFn = cleanup;
+    });
+
+    return () => {
+      mounted = false;
+      cleanupFn?.();
+    };
+  }, [outletIdsKey, user]);
+
   const handleJoin = async (outletId: string) => {
+    const outlet = outlets.find((item) => item.id === outletId);
+    if (outlet && outlet.isActive === false) {
+      addToast('This outlet is currently closed', 'info');
+      return;
+    }
+
     if (!user) {
       addToast('Please sign in to join the queue', 'info');
       return;
@@ -205,8 +262,8 @@ export default function ConsumerMerchantPage() {
                 </div>
                 <div style={{ display: 'flex', gap: 16, marginTop: 18 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, fontWeight: 700, color: 'rgba(255,255,255,.5)' }}>
-                    <div style={{ width: 6, height: 6, borderRadius: '50%', background: '#1fd97c' }} />
-                    {o.queueLength} People
+                    <div style={{ width: 6, height: 6, borderRadius: '50%', background: o.isActive === false ? '#ff4d6d' : '#1fd97c' }} />
+                    {o.isActive === false ? 'Closed' : `${o.queueLength} People`}
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, fontWeight: 800, color: '#f5c418' }}>
                     <Ic.Clock /> {o.estimatedWait} wait
@@ -217,17 +274,18 @@ export default function ConsumerMerchantPage() {
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
                 onClick={() => handleJoin(o.id)}
-                disabled={joiningId === o.id}
+                disabled={joiningId === o.id || o.isActive === false}
                 style={{ 
                   ...s.btnJoin, 
-                  background: myEntry?.outletId === o.id ? 'rgba(31,217,124,.1)' : THEME.gradients.consumer,
-                  color: myEntry?.outletId === o.id ? '#1fd97c' : '#000',
-                  border: myEntry?.outletId === o.id ? '1px solid rgba(31,217,124,.2)' : 'none',
-                  boxShadow: myEntry?.outletId === o.id ? 'none' : s.btnJoin.boxShadow
+                  background: o.isActive === false ? 'rgba(255,255,255,.05)' : myEntry?.outletId === o.id ? 'rgba(31,217,124,.1)' : THEME.gradients.consumer,
+                  color: o.isActive === false ? 'rgba(255,255,255,.35)' : myEntry?.outletId === o.id ? '#1fd97c' : '#000',
+                  border: o.isActive === false ? '1px solid rgba(255,255,255,.08)' : myEntry?.outletId === o.id ? '1px solid rgba(31,217,124,.2)' : 'none',
+                  boxShadow: o.isActive === false || myEntry?.outletId === o.id ? 'none' : s.btnJoin.boxShadow,
+                  cursor: o.isActive === false ? 'not-allowed' : 'pointer'
                 }}
               >
-                {joiningId === o.id ? '...' : myEntry?.outletId === o.id ? 'Active' : 'Get Token'}
-                {!myEntry && <Ic.ChevR />}
+                {o.isActive === false ? 'Closed' : joiningId === o.id ? '...' : myEntry?.outletId === o.id ? 'Active' : 'Get Token'}
+                {!myEntry && o.isActive !== false && <Ic.ChevR />}
               </motion.button>
             </motion.div>
           ))}

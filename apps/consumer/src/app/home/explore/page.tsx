@@ -98,7 +98,7 @@ export default function ConsumerExplore() {
     try {
       const res = await api.get('/favorite');
       if (res.data.success && res.data.data) {
-        const favIds = res.data.data.map((f: any) => f.outletId || f.merchantId || f.id);
+        const favIds = res.data.data.map((f: any) => f.outletId);
         setFavorites(new Set(favIds));
       }
     } catch (err) {

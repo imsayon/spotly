@@ -6,12 +6,16 @@ import {
 } from "@nestjs/common"
 import { PrismaService } from "../../prisma/prisma.service"
 import { Outlet } from "@spotly/database"
+import { QueueGateway } from "../websocket/queue.gateway"
 
 @Injectable()
 export class OutletService {
 	private readonly logger = new Logger(OutletService.name)
 
-	constructor(private readonly prisma: PrismaService) {}
+	constructor(
+		private readonly prisma: PrismaService,
+		private readonly gateway: QueueGateway,
+	) {}
 
 	async create(
 		merchantId: string,
@@ -63,7 +67,7 @@ export class OutletService {
 		if (!outlet) throw new NotFoundException("Outlet not found")
 		if (outlet.merchantId !== merchantId) throw new ForbiddenException("You cannot modify another merchant's outlet")
 
-		return this.prisma.outlet.update({
+		const updated = await this.prisma.outlet.update({
 			where: { id },
 			data: {
 				name: data.name,
@@ -75,6 +79,10 @@ export class OutletService {
 				closeTime: data.closeTime,
 			},
 		})
+		if (data.isActive !== undefined && data.isActive !== outlet.isActive) {
+			await this.gateway.notifyOutletStatusChange(id, updated.isActive)
+		}
+		return updated
 	}
 
 	async delete(id: string, merchantId: string): Promise<void> {

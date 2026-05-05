@@ -74,7 +74,7 @@ export default function LandingPage() {
         </div>
         <button
           onClick={() => {
-            const merchantUrl = process.env.NEXT_PUBLIC_MERCHANT_URL || 'http://localhost:3001';
+            const merchantUrl = process.env.NEXT_PUBLIC_MERCHANT_URL || 'http://localhost:3002';
             window.open(merchantUrl, '_blank');
           }}
           style={{
@@ -172,31 +172,6 @@ export default function LandingPage() {
           </motion.button>
         </motion.div>
       </motion.main>
-
-      <motion.div
-        initial={{ opacity: 0, y: 30 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 1, duration: 0.8 }}
-        style={{
-          padding: '40px',
-          borderTop: '1px solid rgba(255,255,255,.05)',
-          display: 'flex',
-          justifyContent: 'center',
-          gap: 'clamp(24px, 8vw, 96px)',
-          background: 'rgba(255,255,255,.01)'
-        }}
-      >
-        {[
-          { label: 'Time Saved', val: '12k hrs+' },
-          { label: 'Live Spots', val: '200+' },
-          { label: 'Partner Outlets', val: '85' }
-        ].map((s, i) => (
-          <div key={i} style={{ textAlign: 'center' }}>
-            <div style={{ fontSize: 26, fontWeight: 900, color: '#fff', marginBottom: 2 }}>{s.val}</div>
-            <div style={{ fontSize: 10, fontWeight: 800, color: 'rgba(255,255,255,.2)', textTransform: 'uppercase', letterSpacing: 1.5 }}>{s.label}</div>
-          </div>
-        ))}
-      </motion.div>
 
       <ConsumerAuthModal
         isOpen={isAuthModalOpen}

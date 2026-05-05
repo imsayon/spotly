@@ -22,20 +22,20 @@ export class QueueService {
       throw new BadRequestException('This outlet is not accepting queue entries right now');
     }
 
-    // Duplicate guard — check for existing active entry for this user at ANY outlet
-    const existingEntry = await this.repo.findActiveEntryForUser(userId);
-    if (existingEntry) {
-      if (existingEntry.outletId === outletId) return existingEntry;
-      throw new ConflictException('You already have an active queue entry at another outlet');
+    let entry: QueueEntry;
+    try {
+      entry = await this.repo.joinQueue({
+        userId,
+        outletId,
+        status: 'PENDING_ACCEPTANCE',
+        joinedAt: new Date().toISOString(),
+      });
+    } catch (error) {
+      if (error instanceof Error && error.message === 'DUPLICATE_ACTIVE_ENTRY') {
+        throw new ConflictException('You already have an active queue entry at another outlet');
+      }
+      throw error;
     }
-
-    // Atomic token assignment and queue insertion combined into a single DB lock
-    const entry = await this.repo.joinQueue({
-      userId,
-      outletId,
-      status: 'PENDING_ACCEPTANCE',
-      joinedAt: new Date().toISOString(),
-    });
 
     // Emit live update to all clients in this outlet's room
     await this.emitQueueUpdate(outletId);
@@ -74,6 +74,22 @@ export class QueueService {
   }
 
   /**
+   * Get outlet entries for a merchant-owned outlet for a single local date.
+   */
+  async getOutletHistory(outletId: string, dateStr?: string): Promise<QueueEntry[]> {
+    const start = dateStr ? new Date(dateStr) : new Date();
+    if (Number.isNaN(start.getTime())) {
+      throw new BadRequestException('Invalid date');
+    }
+    start.setHours(0, 0, 0, 0);
+
+    const end = new Date(start);
+    end.setHours(23, 59, 59, 999);
+
+    return this.repo.getOutletHistory(outletId, start, end);
+  }
+
+  /**
    * Merchant advances the queue — marks next WAITING entry as CALLED.
    */
   async advanceQueue(outletId: string): Promise<QueueEntry | null> {
@@ -88,12 +104,11 @@ export class QueueService {
       // Emit token_called event first so consumer UI responds immediately
       // NOTE: We strip userId from the broadcast to avoid PII leakage over unauthenticated WS.
       // Consumer clients match against their own local entry state instead.
-      const payload: Omit<TokenCalledPayload, 'userId'> & { userId?: string } = {
+      const payload: Omit<TokenCalledPayload, 'userId'> = {
         outletId,
         tokenNumber: called.tokenNumber,
-        // userId intentionally omitted from broadcast
       };
-      await this.gateway.emitTokenCalled(outletId, payload as TokenCalledPayload);
+      await this.gateway.emitTokenCalled(outletId, payload);
 
       // Then emit general queue update
       await this.emitQueueUpdate(outletId);

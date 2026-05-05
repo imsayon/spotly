@@ -177,32 +177,6 @@ export default function MerchantLandingPage() {
         </motion.div>
       </motion.main>
 
-      {/* TRUST SECTION */}
-      <motion.div 
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ delay: 1.2, duration: 1 }}
-        style={{ 
-          padding: '48px', 
-          borderTop: '1px solid rgba(255,255,255,.04)',
-          display: 'flex',
-          justifyContent: 'center',
-          gap: 'clamp(32px, 8vw, 120px)',
-          background: 'rgba(255,255,255,0.01)'
-        }}
-      >
-        {[
-          { label: 'Throughput Boost', val: '+34%' },
-          { label: 'Wait Accuracy', val: '99.2%' },
-          { label: 'Active Outlets', val: '2.5k+' }
-        ].map((s, i) => (
-          <div key={i} style={{ textAlign: 'center' }}>
-            <div style={{ fontSize: 26, fontWeight: 900, color: '#fff', marginBottom: 2 }}>{s.val}</div>
-            <div style={{ fontSize: 10, fontWeight: 800, color: 'rgba(255,255,255,.2)', textTransform: 'uppercase', letterSpacing: 2 }}>{s.label}</div>
-          </div>
-        ))}
-      </motion.div>
-
       <AuthModal 
         isOpen={isAuthModalOpen} 
         onClose={() => setIsAuthModalOpen(false)} 
