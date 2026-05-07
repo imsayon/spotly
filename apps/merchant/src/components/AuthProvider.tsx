@@ -20,7 +20,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         supabase.auth.setSession({ access_token, refresh_token }).then(({ data: { session } }) => {
           setUser(session?.user ?? null);
           if (typeof window !== 'undefined') {
-            window.location.hash = '';
+            window.history.replaceState(null, '', window.location.pathname + window.location.search);
           }
         });
         return;

@@ -23,9 +23,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             const store = useAuthStore.getState();
             store.registerOnBackend('CONSUMER').then(() => store.fetchProfile());
           }
-          if (typeof window !== 'undefined') {
-            window.location.hash = '';
-          }
+            if (typeof window !== 'undefined') {
+              window.history.replaceState(null, '', window.location.pathname + window.location.search);
+            }
         });
         return;
       }
