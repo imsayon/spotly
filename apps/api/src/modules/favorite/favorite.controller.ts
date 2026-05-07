@@ -6,6 +6,7 @@ import {
 	Param,
 	UseGuards,
 	Body,
+	ParseUUIDPipe,
 } from "@nestjs/common"
 import { FavoriteService } from "./favorite.service"
 import { FirebaseAuthGuard } from "../auth/guards/firebase-auth.guard"
@@ -20,7 +21,7 @@ export class FavoriteController {
 	@Post()
 	async addFavorite(
 		@CurrentUser() user: DecodedUser,
-		@Body("outletId") outletId: string,
+		@Body("outletId", ParseUUIDPipe) outletId: string,
 	) {
 		const data = await this.favoriteService.addFavorite(user.uid, outletId)
 		return { success: true, data }
@@ -29,7 +30,7 @@ export class FavoriteController {
 	@Delete(":outletId")
 	async removeFavorite(
 		@CurrentUser() user: DecodedUser,
-		@Param("outletId") outletId: string,
+		@Param("outletId", ParseUUIDPipe) outletId: string,
 	) {
 		await this.favoriteService.removeFavorite(user.uid, outletId)
 		return { success: true }
@@ -46,7 +47,7 @@ export class FavoriteController {
 	@Get(":outletId/check")
 	async isFavorite(
 		@CurrentUser() user: DecodedUser,
-		@Param("outletId") outletId: string,
+		@Param("outletId", ParseUUIDPipe) outletId: string,
 	) {
 		const isFavorite = await this.favoriteService.isFavorite(
 			user.uid,

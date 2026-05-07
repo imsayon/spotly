@@ -383,7 +383,9 @@ export default function MerchantDashboard() {
 	// Generate QR code for selected outlet
 	useEffect(() => {
 		if (!store.selectedOutletId) return
-		const url = `${typeof window !== "undefined" ? window.location.origin.replace(":3002", ":3000") : "http://localhost:3000"}?outlet=${store.selectedOutletId}`
+		const consumerBase =
+			process.env.NEXT_PUBLIC_CONSUMER_URL ?? "http://localhost:3000"
+		const url = `${consumerBase}?outlet=${store.selectedOutletId}`
 		QRCodeLib.toDataURL(url, {
 			width: 80,
 			color: {
@@ -809,7 +811,10 @@ export default function MerchantDashboard() {
 						</p>
 						<button
 							onClick={() => {
-								const url = `${typeof window !== "undefined" ? window.location.origin.replace(":3002", ":3000") : "http://localhost:3000"}?outlet=${store.selectedOutletId}`
+								const consumerBase =
+									process.env.NEXT_PUBLIC_CONSUMER_URL ??
+									"http://localhost:3000"
+								const url = `${consumerBase}?outlet=${store.selectedOutletId}`
 								navigator.clipboard.writeText(url)
 								addToast("Share link copied!", "success")
 							}}

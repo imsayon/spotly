@@ -3,6 +3,7 @@ import {
 	Controller,
 	Get,
 	Param,
+	ParseUUIDPipe,
 	Patch,
 	Post,
 	Delete,
@@ -79,14 +80,16 @@ export class OutletController {
 
 	/** GET /api/outlet/merchant/:merchantId */
 	@Get("merchant/:merchantId")
-	async findByMerchant(@Param("merchantId") merchantId: string) {
+	async findByMerchant(
+		@Param("merchantId", ParseUUIDPipe) merchantId: string,
+	) {
 		const data = await this.outletService.findByMerchant(merchantId)
 		return { success: true, data }
 	}
 
 	/** GET /api/outlet/:id */
 	@Get(":id")
-	async findOne(@Param("id") id: string) {
+	async findOne(@Param("id", ParseUUIDPipe) id: string) {
 		const data = await this.outletService.findById(id)
 		return { success: true, data }
 	}
@@ -122,7 +125,7 @@ export class OutletController {
 	@UseGuards(FirebaseAuthGuard)
 	async update(
 		@CurrentUser() user: DecodedUser,
-		@Param("id") id: string,
+		@Param("id", ParseUUIDPipe) id: string,
 		@Body() body: UpdateOutletDto,
 	) {
 		const merchant = await this.merchantService.findByUser(user.uid)
@@ -132,7 +135,15 @@ export class OutletController {
 		const data = await this.outletService.update(
 			id,
 			merchant.id,
-			body as Partial<{ name: string; address: string; lat: number; lng: number; openTime: string; closeTime: string; isActive: boolean }>,
+			body as Partial<{
+				name: string
+				address: string
+				lat: number
+				lng: number
+				openTime: string
+				closeTime: string
+				isActive: boolean
+			}>,
 		)
 		return { success: true, data }
 	}
@@ -140,7 +151,10 @@ export class OutletController {
 	/** DELETE /api/outlet/:id — merchant deletes an outlet */
 	@Delete(":id")
 	@UseGuards(FirebaseAuthGuard)
-	async delete(@CurrentUser() user: DecodedUser, @Param("id") id: string) {
+	async delete(
+		@CurrentUser() user: DecodedUser,
+		@Param("id", ParseUUIDPipe) id: string,
+	) {
 		const merchant = await this.merchantService.findByUser(user.uid)
 		if (!merchant) {
 			return { success: false, message: "Merchant record not found" }

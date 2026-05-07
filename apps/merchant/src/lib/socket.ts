@@ -1,42 +1,61 @@
-import { io, Socket } from 'socket.io-client';
-import { supabase } from './supabase';
+import { io, Socket } from "socket.io-client"
+import { supabase } from "./supabase"
 
-let socket: Socket | null = null;
+let socket: Socket | null = null
+let socketPromise: Promise<Socket> | null = null
 
-export async function getSocket(): Promise<Socket> {
-  if (socket?.connected) return socket;
-  if (socket) { socket.disconnect(); socket = null; }
+export function getSocket(): Promise<Socket> {
+	if (socket?.connected) return Promise.resolve(socket)
+	if (socketPromise) return socketPromise
 
-  socket = io(process.env.NEXT_PUBLIC_WS_URL ?? 'http://localhost:3001', {
-    transports: ['websocket'],
-    auth: async (cb) => {
-      const { data: { session } } = await supabase.auth.getSession();
-      cb({ token: session?.access_token });
-    },
-    autoConnect: true,
-    reconnection: true,
-    reconnectionAttempts: 5,
-    reconnectionDelay: 2000,
-  });
+	if (socket) {
+		socket.disconnect()
+		socket = null
+	}
 
-  socket.on('disconnect', () => {
-    // Don't null out — reconnection is automatic
-  });
+	socketPromise = new Promise((resolve, reject) => {
+		const s = io(
+			process.env.NEXT_PUBLIC_WS_URL ?? "http://localhost:3001",
+			{
+				transports: ["websocket"],
+				auth: async (cb) => {
+					const {
+						data: { session },
+					} = await supabase.auth.getSession()
+					cb({ token: session?.access_token })
+				},
+				autoConnect: true,
+				reconnection: true,
+				reconnectionAttempts: 5,
+				reconnectionDelay: 2000,
+			},
+		)
 
-  return socket;
+		s.once("connect", () => {
+			socket = s
+			socketPromise = null
+			resolve(s)
+		})
+		s.once("connect_error", (err) => {
+			socketPromise = null
+			reject(err)
+		})
+	})
+
+	return socketPromise
 }
 
 export async function joinOutletRoom(outletId: string): Promise<void> {
-  const s = await getSocket();
-  s.emit('join_outlet', { outletId });
+	const s = await getSocket()
+	s.emit("join_outlet", { outletId })
 }
 
 export async function leaveOutletRoom(outletId: string): Promise<void> {
-  const s = await getSocket();
-  s.emit('leave_outlet', { outletId });
+	const s = await getSocket()
+	s.emit("leave_outlet", { outletId })
 }
 
 export async function disconnectSocket(): Promise<void> {
-  socket?.disconnect();
-  socket = null;
+	socket?.disconnect()
+	socket = null
 }

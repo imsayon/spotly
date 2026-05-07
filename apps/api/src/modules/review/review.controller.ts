@@ -7,6 +7,7 @@ import {
 	Param,
 	Body,
 	UseGuards,
+	ParseUUIDPipe,
 } from "@nestjs/common"
 import { ReviewService } from "./review.service"
 import { FirebaseAuthGuard } from "../auth/guards/firebase-auth.guard"
@@ -72,7 +73,7 @@ export class ReviewController {
 	@Patch(":id")
 	async updateReview(
 		@CurrentUser() user: DecodedUser,
-		@Param("id") reviewId: string,
+		@Param("id", ParseUUIDPipe) reviewId: string,
 		@Body() body: UpdateReviewDto,
 	) {
 		const data = await this.reviewService.updateReview(
@@ -87,14 +88,14 @@ export class ReviewController {
 	@Delete(":id")
 	async deleteReview(
 		@CurrentUser() user: DecodedUser,
-		@Param("id") reviewId: string,
+		@Param("id", ParseUUIDPipe) reviewId: string,
 	) {
 		await this.reviewService.deleteReview(reviewId, user.uid)
 		return { success: true }
 	}
 
 	@Get("outlet/:outletId")
-	async getOutletReviews(@Param("outletId") outletId: string) {
+	async getOutletReviews(@Param("outletId", ParseUUIDPipe) outletId: string) {
 		const reviews = await this.reviewService.getOutletReviews(outletId)
 		const avgRating =
 			await this.reviewService.getOutletAverageRating(outletId)
@@ -109,7 +110,7 @@ export class ReviewController {
 	@Get("outlet/:outletId/user-review")
 	async getUserReview(
 		@CurrentUser() user: DecodedUser,
-		@Param("outletId") outletId: string,
+		@Param("outletId", ParseUUIDPipe) outletId: string,
 	) {
 		const data = await this.reviewService.getUserReview(user.uid, outletId)
 		return { success: true, data }

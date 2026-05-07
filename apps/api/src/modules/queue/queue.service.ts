@@ -1,6 +1,7 @@
 import {
 	BadRequestException,
 	ConflictException,
+	ForbiddenException,
 	Inject,
 	Injectable,
 	NotFoundException,
@@ -178,6 +179,11 @@ export class QueueService {
 	 * Mark entry as SERVED (called by merchant after serving).
 	 */
 	async markServed(entryId: string, outletId: string): Promise<void> {
+		const entry = await this.repo.getEntry(entryId)
+		if (!entry)
+			throw new NotFoundException(`Queue entry ${entryId} not found`)
+		if (entry.outletId !== outletId)
+			throw new ForbiddenException("Entry does not belong to this outlet")
 		await this.repo.markServed(entryId)
 		await this.gateway.emitEntryUpdate(outletId, {
 			entryId,
@@ -190,6 +196,11 @@ export class QueueService {
 	 * Mark entry as MISSED (called by merchant if customer doesn't respond to call)
 	 */
 	async markMissed(entryId: string, outletId: string): Promise<void> {
+		const entry = await this.repo.getEntry(entryId)
+		if (!entry)
+			throw new NotFoundException(`Queue entry ${entryId} not found`)
+		if (entry.outletId !== outletId)
+			throw new ForbiddenException("Entry does not belong to this outlet")
 		await this.repo.markMissed(entryId)
 		await this.gateway.emitEntryUpdate(outletId, {
 			entryId,
@@ -205,7 +216,8 @@ export class QueueService {
 		const entry = await this.repo.getEntry(entryId)
 		if (!entry)
 			throw new NotFoundException(`Queue entry ${entryId} not found`)
-		// Move from PENDING_ACCEPTANCE → WAITING
+		if (entry.outletId !== outletId)
+			throw new ForbiddenException("Entry does not belong to this outlet")
 		await this.repo.acceptEntry(entryId)
 		await this.emitQueueUpdate(outletId)
 	}

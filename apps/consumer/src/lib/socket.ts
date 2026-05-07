@@ -1,42 +1,64 @@
-import { io, Socket } from 'socket.io-client';
+import { io, Socket } from "socket.io-client"
 
-import { supabase } from './supabase';
+import { supabase } from "./supabase"
 
-let socket: Socket | null = null;
+let socket: Socket | null = null
+let socketPromise: Promise<Socket> | null = null
 
 /**
  * Get or create the singleton Socket.IO connection.
- * Call this once; the same socket is reused across the app.
+ * Returns a promise that resolves when the socket is connected.
  */
-export async function getSocket(): Promise<Socket> {
-  if (socket?.connected) return socket;
+export function getSocket(): Promise<Socket> {
+	if (socket?.connected) return Promise.resolve(socket)
+	if (socketPromise) return socketPromise
 
-  if (socket) socket.disconnect();
+	if (socket) {
+		socket.disconnect()
+		socket = null
+	}
 
-  socket = io(process.env.NEXT_PUBLIC_WS_URL ?? 'http://localhost:3001', {
-    transports: ['websocket'],
-    auth: async (cb) => {
-      const { data: { session } } = await supabase.auth.getSession();
-      cb({ token: session?.access_token });
-    },
-    autoConnect: true,
-    reconnection: true,
-  });
+	socketPromise = new Promise((resolve, reject) => {
+		const s = io(
+			process.env.NEXT_PUBLIC_WS_URL ?? "http://localhost:3001",
+			{
+				transports: ["websocket"],
+				auth: async (cb) => {
+					const {
+						data: { session },
+					} = await supabase.auth.getSession()
+					cb({ token: session?.access_token })
+				},
+				autoConnect: true,
+				reconnection: true,
+			},
+		)
 
-  return socket;
+		s.once("connect", () => {
+			socket = s
+			socketPromise = null
+			resolve(s)
+		})
+		s.once("connect_error", (err) => {
+			socketPromise = null
+			reject(err)
+		})
+	})
+
+	return socketPromise
 }
 
 export async function joinOutletRoom(outletId: string) {
-  const s = await getSocket();
-  s.emit('join_outlet', { outletId });
+	const s = await getSocket()
+	s.emit("join_outlet", { outletId })
 }
 
 export async function leaveOutletRoom(outletId: string) {
-  const s = await getSocket();
-  s.emit('leave_outlet', { outletId });
+	const s = await getSocket()
+	s.emit("leave_outlet", { outletId })
 }
 
 export function disconnectSocket() {
-  socket?.disconnect();
-  socket = null;
+	socket?.disconnect()
+	socket = null
 }

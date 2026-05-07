@@ -4,7 +4,7 @@ import { OutletController } from "./outlet.controller"
 import { AuthModule } from "../auth/auth.module"
 import { MerchantModule } from "../merchant/merchant.module"
 import { WebsocketModule } from "../websocket/websocket.module"
-import { PrismaModule } from "../prisma/prisma.module"
+import { PrismaModule } from "../../prisma/prisma.module"
 
 @Module({
 	imports: [AuthModule, MerchantModule, WebsocketModule, PrismaModule],

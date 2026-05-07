@@ -4,6 +4,7 @@ import {
 	UnauthorizedException,
 	OnModuleInit,
 } from "@nestjs/common"
+import { Cron, CronExpression } from "@nestjs/schedule"
 import { createClient, SupabaseClient } from "@supabase/supabase-js"
 import { PrismaService } from "../../prisma/prisma.service"
 import * as jwt from "jsonwebtoken"
@@ -134,6 +135,18 @@ export class AuthService implements OnModuleInit {
 							where: { ownerId: legacyUserId },
 							data: { ownerId: userId },
 						})
+						await tx.queueEntry.updateMany({
+							where: { userId: legacyUserId },
+							data: { userId },
+						})
+						await tx.review.updateMany({
+							where: { userId: legacyUserId },
+							data: { userId },
+						})
+						await tx.favorite.updateMany({
+							where: { userId: legacyUserId },
+							data: { userId },
+						})
 						return tx.user.update({
 							where: { id: legacyUserId },
 							data: {
@@ -165,8 +178,15 @@ export class AuthService implements OnModuleInit {
 		}
 	}
 
+	@Cron(CronExpression.EVERY_30_MINUTES)
+	private pruneCache(): void {
+		const now = Date.now()
+		for (const [key, value] of this.userCache.entries()) {
+			if (value.expiresAt <= now) this.userCache.delete(key)
+		}
+	}
+
 	get isFunctional(): boolean {
-		// For dual auth, we are functional if either is available
-		return !!this.supabase || admin.apps.length > 0
+		return !!this.supabase
 	}
 }

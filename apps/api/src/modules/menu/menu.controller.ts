@@ -7,6 +7,7 @@ import {
 	Param,
 	Body,
 	UseGuards,
+	ParseUUIDPipe,
 } from "@nestjs/common"
 import { MenuService } from "./menu.service"
 import { FirebaseAuthGuard } from "../auth/guards/firebase-auth.guard"
@@ -81,7 +82,7 @@ export class MenuController {
 	constructor(private readonly menuService: MenuService) {}
 
 	@Get(":outletId")
-	async getMenu(@Param("outletId") outletId: string) {
+	async getMenu(@Param("outletId", ParseUUIDPipe) outletId: string) {
 		const data = await this.menuService.getMenu(outletId)
 		return { success: true, data }
 	}
@@ -89,7 +90,7 @@ export class MenuController {
 	@Post(":outletId/category")
 	async createCategory(
 		@CurrentUser() user: DecodedUser,
-		@Param("outletId") outletId: string,
+		@Param("outletId", ParseUUIDPipe) outletId: string,
 		@Body() body: CreateCategoryDto,
 	) {
 		const data = await this.menuService.createCategory(
@@ -103,7 +104,7 @@ export class MenuController {
 	@Patch("category/:id")
 	async updateCategory(
 		@CurrentUser() user: DecodedUser,
-		@Param("id") id: string,
+		@Param("id", ParseUUIDPipe) id: string,
 		@Body() body: UpdateCategoryDto,
 	) {
 		const data = await this.menuService.updateCategory(
@@ -117,7 +118,7 @@ export class MenuController {
 	@Delete("category/:id")
 	async deleteCategory(
 		@CurrentUser() user: DecodedUser,
-		@Param("id") id: string,
+		@Param("id", ParseUUIDPipe) id: string,
 	) {
 		const data = await this.menuService.deleteCategory(user.uid, id)
 		return { success: true, data }
@@ -126,7 +127,7 @@ export class MenuController {
 	@Post("category/:categoryId/item")
 	async createItem(
 		@CurrentUser() user: DecodedUser,
-		@Param("categoryId") categoryId: string,
+		@Param("categoryId", ParseUUIDPipe) categoryId: string,
 		@Body() body: CreateMenuItemDto,
 	) {
 		const data = await this.menuService.createItem(
@@ -140,7 +141,7 @@ export class MenuController {
 	@Patch("item/:id")
 	async updateItem(
 		@CurrentUser() user: DecodedUser,
-		@Param("id") id: string,
+		@Param("id", ParseUUIDPipe) id: string,
 		@Body() body: UpdateMenuItemDto,
 	) {
 		const data = await this.menuService.updateItem(user.uid, id, body)
@@ -150,7 +151,7 @@ export class MenuController {
 	@Delete("item/:id")
 	async deleteItem(
 		@CurrentUser() user: DecodedUser,
-		@Param("id") id: string,
+		@Param("id", ParseUUIDPipe) id: string,
 	) {
 		const data = await this.menuService.deleteItem(user.uid, id)
 		return { success: true, data }

@@ -14,6 +14,8 @@ services:
             - SUPABASE_ANON_KEY=${SUPABASE_ANON_KEY}
         restart: unless-stopped
 
+    # NOTE: NEXT_PUBLIC_* vars are inlined at BUILD TIME. For production, set real public URLs
+    # in .env and pass as build args in dockerfile, or build locally and copy artifacts.
     merchant:
         build:
             context: ../
@@ -22,8 +24,8 @@ services:
             - "3000:3000"
         environment:
             - NODE_ENV=production
-            - NEXT_PUBLIC_API_URL=http://api:3001/api
-            - NEXT_PUBLIC_WS_URL=ws://api:3001
+            - NEXT_PUBLIC_API_URL=http://localhost:3001/api
+            - NEXT_PUBLIC_WS_URL=http://localhost:3001
             - NEXT_PUBLIC_SUPABASE_URL=${NEXT_PUBLIC_SUPABASE_URL}
             - NEXT_PUBLIC_SUPABASE_ANON_KEY=${NEXT_PUBLIC_SUPABASE_ANON_KEY}
         restart: unless-stopped
@@ -36,8 +38,8 @@ services:
             - "3002:3000"
         environment:
             - NODE_ENV=production
-            - NEXT_PUBLIC_API_URL=http://api:3001/api
-            - NEXT_PUBLIC_WS_URL=ws://api:3001
+            - NEXT_PUBLIC_API_URL=http://localhost:3001/api
+            - NEXT_PUBLIC_WS_URL=http://localhost:3001
             - NEXT_PUBLIC_SUPABASE_URL=${NEXT_PUBLIC_SUPABASE_URL}
             - NEXT_PUBLIC_SUPABASE_ANON_KEY=${NEXT_PUBLIC_SUPABASE_ANON_KEY}
             - NEXT_PUBLIC_MERCHANT_URL=http://localhost:3000
