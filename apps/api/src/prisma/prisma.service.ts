@@ -11,7 +11,7 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
       await this.$queryRaw`SELECT 1 FROM "OutletDailyCounter" LIMIT 1`;
     } catch (error) {
       this.logger.error('OutletDailyCounter table missing or inaccessible. Run: prisma migrate deploy');
-      process.exit(1);
+      throw new Error('Database schema incomplete: OutletDailyCounter table missing or inaccessible');
     }
   }
 

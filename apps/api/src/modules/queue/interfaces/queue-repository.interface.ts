@@ -41,6 +41,9 @@ export interface QueueRepository {
   /** Accept a PENDING_ACCEPTANCE entry, moving it to WAITING */
   acceptEntry(entryId: string): Promise<void>;
 
+  /** Merchant rejects a PENDING_ACCEPTANCE or WAITING entry → MISSED */
+  rejectEntry(entryId: string): Promise<void>;
+
   /** Get past entries (SERVED + CANCELLED) for a user */
   getHistory(userId: string, limit?: number): Promise<QueueEntry[]>;
 

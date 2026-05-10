@@ -222,6 +222,24 @@ export class QueueService {
 		await this.emitQueueUpdate(outletId)
 	}
 
+	/**
+	 * Merchant rejects a PENDING_ACCEPTANCE or WAITING entry — marks it as MISSED.
+	 * Unlike markMissed (for CALLED no-shows), this handles proactive merchant removal.
+	 */
+	async rejectEntry(entryId: string, outletId: string): Promise<void> {
+		const entry = await this.repo.getEntry(entryId)
+		if (!entry)
+			throw new NotFoundException(`Queue entry ${entryId} not found`)
+		if (entry.outletId !== outletId)
+			throw new ForbiddenException("Entry does not belong to this outlet")
+		await this.repo.rejectEntry(entryId)
+		await this.gateway.emitEntryUpdate(outletId, {
+			entryId,
+			status: "MISSED",
+		})
+		await this.emitQueueUpdate(outletId)
+	}
+
 	// ─── Private ───────────────────────────────────────────────────────────────
 
 	private async emitQueueUpdate(outletId: string): Promise<void> {

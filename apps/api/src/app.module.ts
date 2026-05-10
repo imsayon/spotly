@@ -1,4 +1,5 @@
 import { Module } from "@nestjs/common"
+import { ScheduleModule } from "@nestjs/schedule"
 import { AppController } from "./app.controller"
 import { AuthModule } from "./modules/auth/auth.module"
 import { UserModule } from "./modules/user/user.module"
@@ -17,6 +18,7 @@ import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
 
 @Module({
 	imports: [
+		ScheduleModule.forRoot(),
 		ThrottlerModule.forRoot([{
 			ttl: 60000,
 			limit: 100,

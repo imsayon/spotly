@@ -13,7 +13,9 @@ import { Server, Socket } from "socket.io"
 import { QueueUpdatePayload, TokenCalledPayload } from "@spotly/types"
 import { AuthService } from "../auth/auth.service"
 import { PrismaService } from "../../prisma/prisma.service"
+import { SkipThrottle } from "@nestjs/throttler"
 
+@SkipThrottle()
 @WebSocketGateway({
 	cors: {
 		origin: [

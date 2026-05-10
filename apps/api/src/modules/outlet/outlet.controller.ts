@@ -8,6 +8,7 @@ import {
 	Post,
 	Delete,
 	UseGuards,
+	ForbiddenException,
 } from "@nestjs/common"
 import { OutletService } from "./outlet.service"
 import { MerchantService } from "../merchant/merchant.service"
@@ -104,10 +105,7 @@ export class OutletController {
 		// Ensure the authenticated user owns a merchant account
 		const merchant = await this.merchantService.findByUser(user.uid)
 		if (!merchant) {
-			return {
-				success: false,
-				message: "You must register as a merchant first",
-			}
+			throw new ForbiddenException("You must register as a merchant first")
 		}
 		const data = await this.outletService.create(
 			merchant.id,
@@ -130,7 +128,7 @@ export class OutletController {
 	) {
 		const merchant = await this.merchantService.findByUser(user.uid)
 		if (!merchant) {
-			return { success: false, message: "Merchant record not found" }
+			throw new ForbiddenException("Merchant record not found")
 		}
 		const data = await this.outletService.update(
 			id,
@@ -157,7 +155,7 @@ export class OutletController {
 	) {
 		const merchant = await this.merchantService.findByUser(user.uid)
 		if (!merchant) {
-			return { success: false, message: "Merchant record not found" }
+			throw new ForbiddenException("Merchant record not found")
 		}
 		await this.outletService.delete(id, merchant.id)
 		return { success: true }

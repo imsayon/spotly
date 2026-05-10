@@ -128,7 +128,7 @@ export const useQueueStore = create<QueueStore>((set, get) => ({
 
   rejectEntry: async (entryId: string) => {
     try {
-      await api.post(`/queue/missed/${entryId}`, { outletId: get().selectedOutletId });
+      await api.post(`/queue/reject/${entryId}`, { outletId: get().selectedOutletId });
       get()._addToast?.('Entry rejected', 'info');
       get().fetchQueue();
     } catch {

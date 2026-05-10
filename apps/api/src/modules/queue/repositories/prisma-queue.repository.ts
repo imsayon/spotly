@@ -225,6 +225,26 @@ export class PrismaQueueRepository implements QueueRepository {
 	}
 
 	/**
+	 * Merchant rejects a PENDING_ACCEPTANCE or WAITING entry.
+	 * Unlike `markMissed` (which requires CALLED state for no-shows),
+	 * this allows merchants to proactively remove entries before they are called.
+	 */
+	async rejectEntry(entryId: string): Promise<void> {
+		const result = await this.prisma.queueEntry.updateMany({
+			where: {
+				id: entryId,
+				status: { in: ["PENDING_ACCEPTANCE", "WAITING"] },
+			},
+			data: { status: "MISSED" },
+		})
+		if (result.count === 0) {
+			throw new BadRequestException(
+				"Entry must be in PENDING_ACCEPTANCE or WAITING state to reject",
+			)
+		}
+	}
+
+	/**
 	 * Get past queue entries for a user (SERVED + CANCELLED).
 	 * Includes outlet info for display in consumer profile.
 	 */

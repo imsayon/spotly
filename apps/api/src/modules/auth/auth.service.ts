@@ -7,7 +7,6 @@ import {
 import { Cron, CronExpression } from "@nestjs/schedule"
 import { createClient, SupabaseClient } from "@supabase/supabase-js"
 import { PrismaService } from "../../prisma/prisma.service"
-import * as jwt from "jsonwebtoken"
 
 export interface DecodedUser {
 	uid: string
@@ -47,20 +46,9 @@ export class AuthService implements OnModuleInit {
 
 	async verifyToken(token: string): Promise<DecodedUser> {
 		try {
-			const decoded: any = jwt.decode(token)
-			const cacheKey = decoded?.sub || decoded?.uid
-			if (cacheKey) {
-				const cached = this.userCache.get(cacheKey)
-				if (cached && cached.expiresAt > Date.now()) return cached.user
-				if (cached) this.userCache.delete(cacheKey)
-			}
-
-			let userId: string
-			let userEmail: string | undefined
-			let userPhone: string | undefined
-			let userName: string | undefined
-
-			// SUPABASE FLOW
+			// ALWAYS verify with Supabase first — never trust unverified JWT claims.
+			// Previously, jwt.decode() (no signature check) was used for cache lookup
+			// before verification, allowing forged JWTs to bypass auth via cache hits.
 			const {
 				data: { user },
 				error,
@@ -68,10 +56,17 @@ export class AuthService implements OnModuleInit {
 			if (error || !user) {
 				throw new Error(error?.message || "No user found")
 			}
-			userId = user.id
-			userEmail = user.email
-			userPhone = user.phone
-			userName =
+
+			const userId = user.id
+
+			// Check cache AFTER successful verification, keyed on verified user ID
+			const cached = this.userCache.get(userId)
+			if (cached && cached.expiresAt > Date.now()) return cached.user
+			if (cached) this.userCache.delete(userId)
+
+			const userEmail = user.email
+			const userPhone = user.phone
+			const userName =
 				user.user_metadata?.full_name ||
 				user.email?.split("@")[0] ||
 				user.phone
@@ -165,12 +160,10 @@ export class AuthService implements OnModuleInit {
 				email: dbUser.email || undefined,
 				name: dbUser.name || undefined,
 			}
-			if (cacheKey) {
-				this.userCache.set(cacheKey, {
-					user: result,
-					expiresAt: Date.now() + this.CACHE_TTL_MS,
-				})
-			}
+			this.userCache.set(userId, {
+				user: result,
+				expiresAt: Date.now() + this.CACHE_TTL_MS,
+			})
 			return result
 		} catch (err: any) {
 			this.logger.error("Token Verification Error:", err?.message || err)

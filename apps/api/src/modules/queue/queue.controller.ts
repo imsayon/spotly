@@ -181,6 +181,19 @@ export class QueueController {
 		return { success: true }
 	}
 
+	/** POST /api/queue/reject/:entryId — merchant rejects a PENDING or WAITING entry */
+	@Post("reject/:entryId")
+	@UseGuards(FirebaseAuthGuard)
+	async reject(
+		@CurrentUser() user: DecodedUser,
+		@Param("entryId", ParseUUIDPipe) entryId: string,
+		@Body() body: ServedDto,
+	) {
+		await this.verifyMerchantOwnership(user.uid, body.outletId)
+		await this.queueService.rejectEntry(entryId, body.outletId)
+		return { success: true }
+	}
+
 	/** DELETE /api/queue/leave/:entryId — consumer leaves queue */
 	@Delete("leave/:entryId")
 	@UseGuards(FirebaseAuthGuard)
