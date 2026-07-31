@@ -1,0 +1,11 @@
+{
+  "name": "@spotly/config",
+  "version": "0.0.1",
+  "private": true,
+  "exports": {
+    "./tsconfig": "./tsconfig.base.json",
+    "./tsconfig-next": "./tsconfig.next.json",
+    "./eslint-base": "./eslint.base.js",
+    "./eslint-next": "./eslint.next.js"
+  }
+}

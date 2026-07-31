@@ -1,0 +1,50 @@
+{
+	"name": "@spotly/server",
+	"version": "2.0.0",
+	"private": true,
+	"scripts": {
+		"dev": "nest start --watch",
+		"build": "nest build",
+		"start": "node dist/main.js",
+		"lint": "eslint \"src/**/*.ts\"",
+		"type-check": "tsc --noEmit",
+		"db:generate": "prisma generate --config=./prisma.config.ts && node -e \"const{execSync}=require('child_process');const src=execSync('realpath ../packages/database/node_modules/@prisma/client').toString().trim().replace('/@prisma/client','');const dst=execSync('realpath ./node_modules/@prisma/client').toString().trim().replace('/@prisma/client','');execSync('cp -r '+src+'/.prisma '+dst+'/');console.log('✅ Synced .prisma/client to server')\"",
+		"db:push": "prisma db push --config=./prisma.config.ts",
+		"db:migrate": "prisma migrate deploy --config=./prisma.config.ts"
+	},
+	"dependencies": {
+		"@nestjs/common": "^11.1.28",
+		"@nestjs/config": "^4.0.4",
+		"@nestjs/core": "^11.1.28",
+		"@nestjs/platform-express": "^11.1.28",
+		"@nestjs/platform-socket.io": "^11.1.28",
+		"@nestjs/schedule": "^6.1.3",
+		"@nestjs/swagger": "^11.4.6",
+		"@nestjs/throttler": "^6.5.0",
+		"@nestjs/websockets": "^11.1.28",
+		"@prisma/adapter-pg": "^7.9.0",
+		"@prisma/client": "^7.9.0",
+		"@spotly/database": "file:../packages/database",
+		"@spotly/types": "file:../packages/types",
+		"@supabase/supabase-js": "^2.110.8",
+		"cors": "^2.8.6",
+		"dotenv": "^17.4.2",
+		"helmet": "^8.3.0",
+		"pino": "^10.3.1",
+		"pino-pretty": "^13.1.3",
+		"reflect-metadata": "^0.2.2",
+		"rxjs": "^7.8.2",
+		"socket.io": "^4.8.3",
+		"zod": "^3.24.2"
+	},
+	"devDependencies": {
+		"@nestjs/cli": "^11.0.24",
+		"@nestjs/schematics": "^11.1.0",
+		"@nestjs/testing": "^11.1.28",
+		"@types/cors": "^2.8.19",
+		"@types/express": "^5.0.6",
+		"@types/node": "^26.1.1",
+		"prisma": "^7.9.0",
+		"typescript": "^5.8.3"
+	}
+}

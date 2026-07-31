@@ -1,0 +1,65 @@
+# ─── Stage 1: Builder ─────────────────────────────────────────────────────────
+FROM node:22-alpine AS builder
+
+WORKDIR /app
+
+# Install pnpm (pinned stable version)
+RUN npm install -g pnpm@9.15.9 --no-audit --no-update-notifier
+
+# ── Copy shared packages ──
+COPY packages/types ./packages/types
+COPY packages/database ./packages/database
+
+# ── Build packages/types ──
+WORKDIR /app/packages/types
+RUN pnpm install --frozen-lockfile
+RUN pnpm build
+
+# ── Install packages/database deps & generate Prisma client ──
+WORKDIR /app/packages/database
+RUN pnpm install --frozen-lockfile
+# Generate Prisma client into packages/database's node_modules
+RUN pnpm build
+
+# ── Install & build server ──
+WORKDIR /app/server
+COPY server/package.json server/pnpm-lock.yaml server/prisma.config.ts ./
+RUN pnpm install --frozen-lockfile
+
+# Sync generated Prisma client from packages/database into server's pnpm store
+# (pnpm creates separate virtual stores per package; we must sync the generated types)
+RUN node -e " \
+  const {execSync} = require('child_process'); \
+  const src = execSync('realpath ../packages/database/node_modules/@prisma/client').toString().trim().replace('/@prisma/client',''); \
+  const dst = execSync('realpath ./node_modules/@prisma/client').toString().trim().replace('/@prisma/client',''); \
+  execSync('cp -r ' + src + '/.prisma ' + dst + '/'); \
+  console.log('✅ Prisma client synced to server node_modules'); \
+"
+
+COPY server/ .
+RUN pnpm build
+
+# ─── Stage 2: Runner ──────────────────────────────────────────────────────────
+FROM node:22-alpine AS runner
+
+WORKDIR /app
+
+ENV NODE_ENV=production
+
+RUN addgroup --system --gid 1001 nodejs && \
+    adduser --system --uid 1001 nestjs
+
+# Copy compiled server output
+COPY --from=builder --chown=nestjs:nodejs /app/server/dist ./dist
+# Copy production node_modules (includes synced prisma client)
+COPY --from=builder --chown=nestjs:nodejs /app/server/node_modules ./node_modules
+COPY --from=builder --chown=nestjs:nodejs /app/server/package.json ./
+
+USER nestjs
+
+EXPOSE 3001
+
+HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=5 \
+  CMD wget -qO- http://localhost:3001/api/v1/health || exit 1
+
+CMD ["node", "dist/main.js"]

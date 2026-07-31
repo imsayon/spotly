@@ -1,0 +1,128 @@
+name: spotly
+
+# ─── Usage ────────────────────────────────────────────────────────────────────
+# Start everything:   docker compose -f ops/docker-compose.yml up --build
+# Stop everything:    docker compose -f ops/docker-compose.yml down
+# Stop + wipe DB:     docker compose -f ops/docker-compose.yml down -v
+# Logs:               docker compose -f ops/docker-compose.yml logs -f <service>
+#
+# Required: create ops/docker/.env.local with the values from .env.example
+# ─────────────────────────────────────────────────────────────────────────────
+
+services:
+
+  # ─── POSTGRES ───────────────────────────────────────────────────────────────
+  postgres:
+    image: postgres:16-alpine
+    container_name: spotly-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: spotly
+      POSTGRES_PASSWORD: spotlypassword
+      POSTGRES_DB: spotlydb
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U spotly -d spotlydb"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  # ─── DB MIGRATION (runs once, exits) ────────────────────────────────────────
+  # Uses npx prisma@7.9.0 directly with the schema volume-mounted.
+  # Prisma 7: connection URL passed via DATABASE_URL env var.
+  migrate:
+    image: node:22-alpine
+    container_name: spotly-migrate
+    working_dir: /app
+    environment:
+      DATABASE_URL: postgresql://spotly:spotlypassword@postgres:5432/spotlydb?schema=public
+    volumes:
+      - ../packages/database/prisma:/app/prisma
+    command: >
+      sh -c "npx --yes prisma@7.9.0 migrate deploy --schema=/app/prisma/schema.prisma &&
+             echo '✅ Migrations complete'"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: "no"
+
+  # ─── NESTJS BACKEND ─────────────────────────────────────────────────────────
+  server:
+    build:
+      context: ..
+      dockerfile: ops/docker/Dockerfile.server
+    container_name: spotly-server
+    restart: unless-stopped
+    ports:
+      - "3001:3001"
+    env_file:
+      - path: docker/.env.local
+        required: false
+    environment:
+      NODE_ENV: production
+      PORT: "3001"
+      DATABASE_URL: postgresql://spotly:spotlypassword@postgres:5432/spotlydb?schema=public
+      DIRECT_URL: postgresql://spotly:spotlypassword@postgres:5432/spotlydb?schema=public
+      CONSUMER_URL: http://localhost:3000
+      MERCHANT_URL: http://localhost:3002
+    depends_on:
+      postgres:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:3001/api/v1/health || exit 1"]
+      interval: 15s
+      timeout: 5s
+      start_period: 30s
+      retries: 5
+
+  # ─── CONSUMER NEXT.JS APP ───────────────────────────────────────────────────
+  consumer-client:
+    build:
+      context: ..
+      dockerfile: ops/docker/Dockerfile.consumer
+    container_name: spotly-consumer
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    env_file:
+      - path: docker/.env.local
+        required: false
+    environment:
+      NODE_ENV: production
+      PORT: "3000"
+      NEXT_PUBLIC_API_URL: http://localhost:3001/api/v1
+      NEXT_PUBLIC_WS_URL: http://localhost:3001
+      NEXT_PUBLIC_MERCHANT_URL: http://localhost:3002
+    depends_on:
+      server:
+        condition: service_healthy
+
+  # ─── MERCHANT NEXT.JS APP ───────────────────────────────────────────────────
+  merchant-client:
+    build:
+      context: ..
+      dockerfile: ops/docker/Dockerfile.merchant
+    container_name: spotly-merchant
+    restart: unless-stopped
+    ports:
+      - "3002:3002"
+    env_file:
+      - path: docker/.env.local
+        required: false
+    environment:
+      NODE_ENV: production
+      PORT: "3002"
+      NEXT_PUBLIC_API_URL: http://localhost:3001/api/v1
+      NEXT_PUBLIC_WS_URL: http://localhost:3001
+      NEXT_PUBLIC_CONSUMER_URL: http://localhost:3000
+    depends_on:
+      server:
+        condition: service_healthy
+
+volumes:
+  postgres_data:
