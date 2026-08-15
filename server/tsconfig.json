@@ -1,0 +1,27 @@
+{
+	"compilerOptions": {
+		"outDir": "./dist",
+		"baseUrl": ".",
+		"paths": {
+			"@/*": ["./src/*"],
+			"@prisma/client": ["./node_modules/.pnpm/@prisma+client@7.9.0_prisma@7.9.0_@types+react@19.2.17_react-dom@19.2.8_react@19.2.8__r_f20b7f67758fc5ec67dc74f149481466/node_modules/@prisma/client"]
+		},
+		"module": "commonjs",
+		"declaration": false,
+		"removeComments": true,
+		"emitDecoratorMetadata": true,
+		"experimentalDecorators": true,
+		"allowSyntheticDefaultImports": true,
+		"target": "ES2022",
+		"sourceMap": true,
+		"incremental": true,
+		"skipLibCheck": true,
+		"strictNullChecks": true,
+		"noImplicitAny": true,
+		"strictBindCallApply": true,
+		"forceConsistentCasingInFileNames": true,
+		"noFallthroughCasesInSwitch": true
+	},
+	"include": ["src/**/*"],
+	"exclude": ["node_modules", "dist", "prisma.config.ts"]
+}
