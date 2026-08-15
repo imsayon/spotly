@@ -3,8 +3,7 @@
 		"outDir": "./dist",
 		"baseUrl": ".",
 		"paths": {
-			"@/*": ["./src/*"],
-			"@prisma/client": ["./node_modules/.pnpm/@prisma+client@7.9.0_prisma@7.9.0_@types+react@19.2.17_react-dom@19.2.8_react@19.2.8__r_f20b7f67758fc5ec67dc74f149481466/node_modules/@prisma/client"]
+			"@/*": ["./src/*"]
 		},
 		"module": "commonjs",
 		"declaration": false,
