@@ -1,0 +1,387 @@
+[2J[3J[H[[90m3:23:58 pm[0m] Starting compilation in watch mode...
+
+[[90m3:24:12 pm[0m] Found 0 errors. Watching for file changes.
+
+[15:24:19.575] [32mINFO[39m (15100): [36mStarting Nest application...[39m
+    [35mcontext[39m: "NestFactory"
+[15:24:19.576] [32mINFO[39m (15100): [36mAppModule dependencies initialized[39m
+    [35mcontext[39m: "InstanceLoader"
+[15:24:19.576] [32mINFO[39m (15100): [36mPrismaModule dependencies initialized[39m
+    [35mcontext[39m: "InstanceLoader"
+[15:24:19.576] [32mINFO[39m (15100): [36mAppEventsModule dependencies initialized[39m
+    [35mcontext[39m: "InstanceLoader"
+[15:24:19.576] [32mINFO[39m (15100): [36mConfigHostModule dependencies initialized[39m
+    [35mcontext[39m: "InstanceLoader"
+[15:24:19.576] [32mINFO[39m (15100): [36mThrottlerModule dependencies initialized[39m
+    [35mcontext[39m: "InstanceLoader"
+[15:24:19.576] [32mINFO[39m (15100): [36mDiscoveryModule dependencies initialized[39m
+    [35mcontext[39m: "InstanceLoader"
+[15:24:19.576] [32mINFO[39m (15100): [36mConfigModule dependencies initialized[39m
+    [35mcontext[39m: "InstanceLoader"
+[15:24:19.576] [32mINFO[39m (15100): [36mScheduleModule dependencies initialized[39m
+    [35mcontext[39m: "InstanceLoader"
+[15:24:19.576] [32mINFO[39m (15100): [36mHealthModule dependencies initialized[39m
+    [35mcontext[39m: "InstanceLoader"
+[15:24:19.576] [32mINFO[39m (15100): [36mUserModule dependencies initialized[39m
+    [35mcontext[39m: "InstanceLoader"
+[15:24:19.576] [32mINFO[39m (15100): [36mMerchantModule dependencies initialized[39m
+    [35mcontext[39m: "InstanceLoader"
+[15:24:19.577] [32mINFO[39m (15100): [36mOutletModule dependencies initialized[39m
+    [35mcontext[39m: "InstanceLoader"
+[15:24:19.577] [32mINFO[39m (15100): [36mMenuModule dependencies initialized[39m
+    [35mcontext[39m: "InstanceLoader"
+[15:24:19.577] [32mINFO[39m (15100): [36mReviewModule dependencies initialized[39m
+    [35mcontext[39m: "InstanceLoader"
+[15:24:19.577] [32mINFO[39m (15100): [36mFavoriteModule dependencies initialized[39m
+    [35mcontext[39m: "InstanceLoader"
+[15:24:19.577] [32mINFO[39m (15100): [36mQueueModule dependencies initialized[39m
+    [35mcontext[39m: "InstanceLoader"
+[15:24:19.577] [32mINFO[39m (15100): [36mQueueGateway subscribed to the "join_outlet_room" message[39m
+    [35mcontext[39m: "WebSocketsController"
+[15:24:19.577] [32mINFO[39m (15100): [36mQueueGateway subscribed to the "leave_outlet_room" message[39m
+    [35mcontext[39m: "WebSocketsController"
+[15:24:19.577] [33mWARN[39m (15100): [36mUnsupported route path: "/api/v1/*". In previous versions, the symbols ?, *, and + were used to denote optional or repeating path parameters. The latest version of "path-to-regexp" now requires the use of named parameters. For example, instead of using a route like /users/* to capture all routes starting with "/users", you should use /users/*path. For more details, refer to the migration guide. Attempting to auto-convert to "/api/v1/{*path}"...[39m
+    [35mcontext[39m: "LegacyRouteConverter"
+[15:24:19.577] [32mINFO[39m (15100): [36mHealthController {/api/v1/health}:[39m
+    [35mcontext[39m: "RoutesResolver"
+[15:24:19.577] [32mINFO[39m (15100): [36mMapped {/api/v1/health, GET} route[39m
+    [35mcontext[39m: "RouterExplorer"
+[15:24:19.577] [32mINFO[39m (15100): [36mUserController {/api/v1/user}:[39m
+    [35mcontext[39m: "RoutesResolver"
+[15:24:19.577] [32mINFO[39m (15100): [36mMapped {/api/v1/user/me, GET} route[39m
+    [35mcontext[39m: "RouterExplorer"
+[15:24:19.577] [32mINFO[39m (15100): [36mMapped {/api/v1/user/:id, GET} route[39m
+    [35mcontext[39m: "RouterExplorer"
+[15:24:19.577] [32mINFO[39m (15100): [36mMapped {/api/v1/user/me, PATCH} route[39m
+    [35mcontext[39m: "RouterExplorer"
+[15:24:19.577] [32mINFO[39m (15100): [36mMerchantController {/api/v1/merchant}:[39m
+    [35mcontext[39m: "RoutesResolver"
+[15:24:19.577] [32mINFO[39m (15100): [36mMapped {/api/v1/merchant, GET} route[39m
+    [35mcontext[39m: "RouterExplorer"
+[15:24:19.577] [32mINFO[39m (15100): [36mMapped {/api/v1/merchant/me, GET} route[39m
+    [35mcontext[39m: "RouterExplorer"
+[15:24:19.577] [32mINFO[39m (15100): [36mMapped {/api/v1/merchant/:id, GET} route[39m
+    [35mcontext[39m: "RouterExplorer"
+[15:24:19.577] [32mINFO[39m (15100): [36mMapped {/api/v1/merchant, POST} route[39m
+    [35mcontext[39m: "RouterExplorer"
+[15:24:19.577] [32mINFO[39m (15100): [36mMapped {/api/v1/merchant/:id, PATCH} route[39m
+    [35mcontext[39m: "RouterExplorer"
+[15:24:19.577] [32mINFO[39m (15100): [36mOutletController {/api/v1/outlet}:[39m
+    [35mcontext[39m: "RoutesResolver"
+[15:24:19.577] [32mINFO[39m (15100): [36mMapped {/api/v1/outlet/:id, GET} route[39m
+    [35mcontext[39m: "RouterExplorer"
+[15:24:19.577] [32mINFO[39m (15100): [36mMapped {/api/v1/outlet/merchant/:merchantId, GET} route[39m
+    [35mcontext[39m: "RouterExplorer"
+[15:24:19.577] [32mINFO[39m (15100): [36mMapped {/api/v1/outlet, POST} route[39m
+    [35mcontext[39m: "RouterExplorer"
+[15:24:19.577] [32mINFO[39m (15100): [36mMapped {/api/v1/outlet/:id, PATCH} route[39m
+    [35mcontext[39m: "RouterExplorer"
+[15:24:19.577] [32mINFO[39m (15100): [36mMapped {/api/v1/outlet/:id/active, PATCH} route[39m
+    [35mcontext[39m: "RouterExplorer"
+[15:24:19.577] [32mINFO[39m (15100): [36mQueueController {/api/v1/queue}:[39m
+    [35mcontext[39m: "RoutesResolver"
+[15:24:19.577] [32mINFO[39m (15100): [36mMapped {/api/v1/queue/join, POST} route[39m
+    [35mcontext[39m: "RouterExplorer"
+[15:24:19.577] [32mINFO[39m (15100): [36mMapped {/api/v1/queue/active, GET} route[39m
+    [35mcontext[39m: "RouterExplorer"
+[15:24:19.577] [32mINFO[39m (15100): [36mMapped {/api/v1/queue/history, GET} route[39m
+    [35mcontext[39m: "RouterExplorer"
+[15:24:19.577] [32mINFO[39m (15100): [36mMapped {/api/v1/queue/outlet/:outletId, GET} route[39m
+    [35mcontext[39m: "RouterExplorer"
+[15:24:19.577] [32mINFO[39m (15100): [36mMapped {/api/v1/queue/outlet/:outletId/advance, POST} route[39m
+    [35mcontext[39m: "RouterExplorer"
+[15:24:19.577] [32mINFO[39m (15100): [36mMapped {/api/v1/queue/entry/:id/leave, PATCH} route[39m
+    [35mcontext[39m: "RouterExplorer"
+[15:24:19.577] [32mINFO[39m (15100): [36mMapped {/api/v1/queue/entry/:id/accept, PATCH} route[39m
+    [35mcontext[39m: "RouterExplorer"
+[15:24:19.577] [32mINFO[39m (15100): [36mMapped {/api/v1/queue/entry/:id/reject, PATCH} route[39m
+    [35mcontext[39m: "RouterExplorer"
+[15:24:19.577] [32mINFO[39m (15100): [36mMapped {/api/v1/queue/entry/:id/served, PATCH} route[39m
+    [35mcontext[39m: "RouterExplorer"
+[15:24:19.577] [32mINFO[39m (15100): [36mMapped {/api/v1/queue/entry/:id/missed, PATCH} route[39m
+    [35mcontext[39m: "RouterExplorer"
+[15:24:19.577] [32mINFO[39m (15100): [36mMenuController {/api/v1/menu}:[39m
+    [35mcontext[39m: "RoutesResolver"
+[15:24:19.577] [32mINFO[39m (15100): [36mMapped {/api/v1/menu/outlet/:outletId, GET} route[39m
+    [35mcontext[39m: "RouterExplorer"
+[15:24:19.578] [32mINFO[39m (15100): [36mMapped {/api/v1/menu/category, POST} route[39m
+    [35mcontext[39m: "RouterExplorer"
+[15:24:19.578] [32mINFO[39m (15100): [36mMapped {/api/v1/menu/item, POST} route[39m
+    [35mcontext[39m: "RouterExplorer"
+[15:24:19.578] [32mINFO[39m (15100): [36mMapped {/api/v1/menu/item/:id/availability, PATCH} route[39m
+    [35mcontext[39m: "RouterExplorer"
+[15:24:19.578] [32mINFO[39m (15100): [36mMapped {/api/v1/menu/item/:id, DELETE} route[39m
+    [35mcontext[39m: "RouterExplorer"
+[15:24:19.578] [32mINFO[39m (15100): [36mReviewController {/api/v1/review}:[39m
+    [35mcontext[39m: "RoutesResolver"
+[15:24:19.578] [32mINFO[39m (15100): [36mMapped {/api/v1/review, POST} route[39m
+    [35mcontext[39m: "RouterExplorer"
+[15:24:19.578] [32mINFO[39m (15100): [36mMapped {/api/v1/review/outlet/:outletId, GET} route[39m
+    [35mcontext[39m: "RouterExplorer"
+[15:24:19.578] [32mINFO[39m (15100): [36mFavoriteController {/api/v1/favorite}:[39m
+    [35mcontext[39m: "RoutesResolver"
+[15:24:19.578] [32mINFO[39m (15100): [36mMapped {/api/v1/favorite/toggle/:outletId, POST} route[39m
+    [35mcontext[39m: "RouterExplorer"
+[15:24:19.578] [32mINFO[39m (15100): [36mMapped {/api/v1/favorite/me, GET} route[39m
+    [35mcontext[39m: "RouterExplorer"
+[15:24:19.578] [32mINFO[39m (15100): [36mNest application successfully started[39m
+    [35mcontext[39m: "NestApplication"
+[15:24:19.579] [32mINFO[39m (15100): [36m🚀 Spotly NestJS Server running on port 3001 (Env: development)[39m
+[15:25:02.118] [31mERROR[39m (15100): [36mFailed to run stale queue entries cleanup[39m
+    [35mtrace[39m: {
+      "code": "P2022",
+      "meta": {
+        "modelName": "QueueEntry",
+        "driverAdapterError": {
+          "name": "DriverAdapterError",
+          "cause": {
+            "originalCode": "42703",
+            "originalMessage": "column QueueEntry.calledAt does not exist",
+            "kind": "ColumnNotFound",
+            "column": "QueueEntry.calledAt"
+          }
+        }
+      },
+      "clientVersion": "7.9.0",
+      "name": "PrismaClientKnownRequestError"
+    }
+    [35mcontext[39m: "QueueCronService"
+[15:26:00.874] [31mERROR[39m (15100): [36mFailed to run stale queue entries cleanup[39m
+    [35mtrace[39m: {
+      "code": "P2022",
+      "meta": {
+        "modelName": "QueueEntry",
+        "driverAdapterError": {
+          "name": "DriverAdapterError",
+          "cause": {
+            "originalCode": "42703",
+            "originalMessage": "column QueueEntry.calledAt does not exist",
+            "kind": "ColumnNotFound",
+            "column": "QueueEntry.calledAt"
+          }
+        }
+      },
+      "clientVersion": "7.9.0",
+      "name": "PrismaClientKnownRequestError"
+    }
+    [35mcontext[39m: "QueueCronService"
+[15:27:00.878] [31mERROR[39m (15100): [36mFailed to run stale queue entries cleanup[39m
+    [35mtrace[39m: {
+      "code": "P2022",
+      "meta": {
+        "modelName": "QueueEntry",
+        "driverAdapterError": {
+          "name": "DriverAdapterError",
+          "cause": {
+            "originalCode": "42703",
+            "originalMessage": "column QueueEntry.calledAt does not exist",
+            "kind": "ColumnNotFound",
+            "column": "QueueEntry.calledAt"
+          }
+        }
+      },
+      "clientVersion": "7.9.0",
+      "name": "PrismaClientKnownRequestError"
+    }
+    [35mcontext[39m: "QueueCronService"
+[15:28:01.057] [31mERROR[39m (15100): [36mFailed to run stale queue entries cleanup[39m
+    [35mtrace[39m: {
+      "code": "P2022",
+      "meta": {
+        "modelName": "QueueEntry",
+        "driverAdapterError": {
+          "name": "DriverAdapterError",
+          "cause": {
+            "originalCode": "42703",
+            "originalMessage": "column QueueEntry.calledAt does not exist",
+            "kind": "ColumnNotFound",
+            "column": "QueueEntry.calledAt"
+          }
+        }
+      },
+      "clientVersion": "7.9.0",
+      "name": "PrismaClientKnownRequestError"
+    }
+    [35mcontext[39m: "QueueCronService"
+[15:29:01.151] [31mERROR[39m (15100): [36mFailed to run stale queue entries cleanup[39m
+    [35mtrace[39m: {
+      "code": "P2022",
+      "meta": {
+        "modelName": "QueueEntry",
+        "driverAdapterError": {
+          "name": "DriverAdapterError",
+          "cause": {
+            "originalCode": "42703",
+            "originalMessage": "column QueueEntry.calledAt does not exist",
+            "kind": "ColumnNotFound",
+            "column": "QueueEntry.calledAt"
+          }
+        }
+      },
+      "clientVersion": "7.9.0",
+      "name": "PrismaClientKnownRequestError"
+    }
+    [35mcontext[39m: "QueueCronService"
+[2J[3J[H[[90m3:41:23 pm[0m] File change detected. Starting incremental compilation...
+
+[[90m3:41:23 pm[0m] Found 0 errors. Watching for file changes.
+
+[15:41:30.713] [32mINFO[39m (28756): [36mStarting Nest application...[39m
+    [35mcontext[39m: "NestFactory"
+[15:41:30.715] [32mINFO[39m (28756): [36mAppModule dependencies initialized[39m
+    [35mcontext[39m: "InstanceLoader"
+[15:41:30.715] [32mINFO[39m (28756): [36mPrismaModule dependencies initialized[39m
+    [35mcontext[39m: "InstanceLoader"
+[15:41:30.715] [32mINFO[39m (28756): [36mAppEventsModule dependencies initialized[39m
+    [35mcontext[39m: "InstanceLoader"
+[15:41:30.715] [32mINFO[39m (28756): [36mConfigHostModule dependencies initialized[39m
+    [35mcontext[39m: "InstanceLoader"
+[15:41:30.715] [32mINFO[39m (28756): [36mThrottlerModule dependencies initialized[39m
+    [35mcontext[39m: "InstanceLoader"
+[15:41:30.716] [32mINFO[39m (28756): [36mDiscoveryModule dependencies initialized[39m
+    [35mcontext[39m: "InstanceLoader"
+[15:41:30.716] [32mINFO[39m (28756): [36mConfigModule dependencies initialized[39m
+    [35mcontext[39m: "InstanceLoader"
+[15:41:30.716] [32mINFO[39m (28756): [36mScheduleModule dependencies initialized[39m
+    [35mcontext[39m: "InstanceLoader"
+[15:41:30.716] [32mINFO[39m (28756): [36mHealthModule dependencies initialized[39m
+    [35mcontext[39m: "InstanceLoader"
+[15:41:30.717] [32mINFO[39m (28756): [36mUserModule dependencies initialized[39m
+    [35mcontext[39m: "InstanceLoader"
+[15:41:30.717] [32mINFO[39m (28756): [36mMerchantModule dependencies initialized[39m
+    [35mcontext[39m: "InstanceLoader"
+[15:41:30.717] [32mINFO[39m (28756): [36mOutletModule dependencies initialized[39m
+    [35mcontext[39m: "InstanceLoader"
+[15:41:30.717] [32mINFO[39m (28756): [36mMenuModule dependencies initialized[39m
+    [35mcontext[39m: "InstanceLoader"
+[15:41:30.717] [32mINFO[39m (28756): [36mReviewModule dependencies initialized[39m
+    [35mcontext[39m: "InstanceLoader"
+[15:41:30.717] [32mINFO[39m (28756): [36mFavoriteModule dependencies initialized[39m
+    [35mcontext[39m: "InstanceLoader"
+[15:41:30.717] [32mINFO[39m (28756): [36mQueueModule dependencies initialized[39m
+    [35mcontext[39m: "InstanceLoader"
+[15:41:30.717] [32mINFO[39m (28756): [36mQueueGateway subscribed to the "join_outlet_room" message[39m
+    [35mcontext[39m: "WebSocketsController"
+[15:41:30.717] [32mINFO[39m (28756): [36mQueueGateway subscribed to the "leave_outlet_room" message[39m
+    [35mcontext[39m: "WebSocketsController"
+[15:41:30.717] [33mWARN[39m (28756): [36mUnsupported route path: "/api/v1/*". In previous versions, the symbols ?, *, and + were used to denote optional or repeating path parameters. The latest version of "path-to-regexp" now requires the use of named parameters. For example, instead of using a route like /users/* to capture all routes starting with "/users", you should use /users/*path. For more details, refer to the migration guide. Attempting to auto-convert to "/api/v1/{*path}"...[39m
+    [35mcontext[39m: "LegacyRouteConverter"
+[15:41:30.717] [32mINFO[39m (28756): [36mHealthController {/api/v1/health}:[39m
+    [35mcontext[39m: "RoutesResolver"
+[15:41:30.717] [32mINFO[39m (28756): [36mMapped {/api/v1/health, GET} route[39m
+    [35mcontext[39m: "RouterExplorer"
+[15:41:30.717] [32mINFO[39m (28756): [36mUserController {/api/v1/user}:[39m
+    [35mcontext[39m: "RoutesResolver"
+[15:41:30.717] [32mINFO[39m (28756): [36mMapped {/api/v1/user/me, GET} route[39m
+    [35mcontext[39m: "RouterExplorer"
+[15:41:30.718] [32mINFO[39m (28756): [36mMapped {/api/v1/user/:id, GET} route[39m
+    [35mcontext[39m: "RouterExplorer"
+[15:41:30.718] [32mINFO[39m (28756): [36mMapped {/api/v1/user/me, PATCH} route[39m
+    [35mcontext[39m: "RouterExplorer"
+[15:41:30.718] [32mINFO[39m (28756): [36mMerchantController {/api/v1/merchant}:[39m
+    [35mcontext[39m: "RoutesResolver"
+[15:41:30.718] [32mINFO[39m (28756): [36mMapped {/api/v1/merchant, GET} route[39m
+    [35mcontext[39m: "RouterExplorer"
+[15:41:30.718] [32mINFO[39m (28756): [36mMapped {/api/v1/merchant/me, GET} route[39m
+    [35mcontext[39m: "RouterExplorer"
+[15:41:30.718] [32mINFO[39m (28756): [36mMapped {/api/v1/merchant/:id, GET} route[39m
+    [35mcontext[39m: "RouterExplorer"
+[15:41:30.718] [32mINFO[39m (28756): [36mMapped {/api/v1/merchant, POST} route[39m
+    [35mcontext[39m: "RouterExplorer"
+[15:41:30.718] [32mINFO[39m (28756): [36mMapped {/api/v1/merchant/:id, PATCH} route[39m
+    [35mcontext[39m: "RouterExplorer"
+[15:41:30.718] [32mINFO[39m (28756): [36mOutletController {/api/v1/outlet}:[39m
+    [35mcontext[39m: "RoutesResolver"
+[15:41:30.718] [32mINFO[39m (28756): [36mMapped {/api/v1/outlet/:id, GET} route[39m
+    [35mcontext[39m: "RouterExplorer"
+[15:41:30.718] [32mINFO[39m (28756): [36mMapped {/api/v1/outlet/merchant/:merchantId, GET} route[39m
+    [35mcontext[39m: "RouterExplorer"
+[15:41:30.718] [32mINFO[39m (28756): [36mMapped {/api/v1/outlet, POST} route[39m
+    [35mcontext[39m: "RouterExplorer"
+[15:41:30.718] [32mINFO[39m (28756): [36mMapped {/api/v1/outlet/:id, PATCH} route[39m
+    [35mcontext[39m: "RouterExplorer"
+[15:41:30.718] [32mINFO[39m (28756): [36mMapped {/api/v1/outlet/:id/active, PATCH} route[39m
+    [35mcontext[39m: "RouterExplorer"
+[15:41:30.718] [32mINFO[39m (28756): [36mQueueController {/api/v1/queue}:[39m
+    [35mcontext[39m: "RoutesResolver"
+[15:41:30.718] [32mINFO[39m (28756): [36mMapped {/api/v1/queue/join, POST} route[39m
+    [35mcontext[39m: "RouterExplorer"
+[15:41:30.718] [32mINFO[39m (28756): [36mMapped {/api/v1/queue/active, GET} route[39m
+    [35mcontext[39m: "RouterExplorer"
+[15:41:30.718] [32mINFO[39m (28756): [36mMapped {/api/v1/queue/history, GET} route[39m
+    [35mcontext[39m: "RouterExplorer"
+[15:41:30.718] [32mINFO[39m (28756): [36mMapped {/api/v1/queue/outlet/:outletId, GET} route[39m
+    [35mcontext[39m: "RouterExplorer"
+[15:41:30.718] [32mINFO[39m (28756): [36mMapped {/api/v1/queue/outlet/:outletId/advance, POST} route[39m
+    [35mcontext[39m: "RouterExplorer"
+[15:41:30.718] [32mINFO[39m (28756): [36mMapped {/api/v1/queue/entry/:id/leave, PATCH} route[39m
+    [35mcontext[39m: "RouterExplorer"
+[15:41:30.718] [32mINFO[39m (28756): [36mMapped {/api/v1/queue/entry/:id/accept, PATCH} route[39m
+    [35mcontext[39m: "RouterExplorer"
+[15:41:30.718] [32mINFO[39m (28756): [36mMapped {/api/v1/queue/entry/:id/reject, PATCH} route[39m
+    [35mcontext[39m: "RouterExplorer"
+[15:41:30.718] [32mINFO[39m (28756): [36mMapped {/api/v1/queue/entry/:id/served, PATCH} route[39m
+    [35mcontext[39m: "RouterExplorer"
+[15:41:30.718] [32mINFO[39m (28756): [36mMapped {/api/v1/queue/entry/:id/missed, PATCH} route[39m
+    [35mcontext[39m: "RouterExplorer"
+[15:41:30.718] [32mINFO[39m (28756): [36mMenuController {/api/v1/menu}:[39m
+    [35mcontext[39m: "RoutesResolver"
+[15:41:30.718] [32mINFO[39m (28756): [36mMapped {/api/v1/menu/outlet/:outletId, GET} route[39m
+    [35mcontext[39m: "RouterExplorer"
+[15:41:30.718] [32mINFO[39m (28756): [36mMapped {/api/v1/menu/category, POST} route[39m
+    [35mcontext[39m: "RouterExplorer"
+[15:41:30.719] [32mINFO[39m (28756): [36mMapped {/api/v1/menu/item, POST} route[39m
+    [35mcontext[39m: "RouterExplorer"
+[15:41:30.719] [32mINFO[39m (28756): [36mMapped {/api/v1/menu/item/:id/availability, PATCH} route[39m
+    [35mcontext[39m: "RouterExplorer"
+[15:41:30.719] [32mINFO[39m (28756): [36mMapped {/api/v1/menu/item/:id, DELETE} route[39m
+    [35mcontext[39m: "RouterExplorer"
+[15:41:30.719] [32mINFO[39m (28756): [36mReviewController {/api/v1/review}:[39m
+    [35mcontext[39m: "RoutesResolver"
+[15:41:30.719] [32mINFO[39m (28756): [36mMapped {/api/v1/review, POST} route[39m
+    [35mcontext[39m: "RouterExplorer"
+[15:41:30.719] [32mINFO[39m (28756): [36mMapped {/api/v1/review/outlet/:outletId, GET} route[39m
+    [35mcontext[39m: "RouterExplorer"
+[15:41:30.719] [32mINFO[39m (28756): [36mFavoriteController {/api/v1/favorite}:[39m
+    [35mcontext[39m: "RoutesResolver"
+[15:41:30.719] [32mINFO[39m (28756): [36mMapped {/api/v1/favorite/toggle/:outletId, POST} route[39m
+    [35mcontext[39m: "RouterExplorer"
+[15:41:30.719] [32mINFO[39m (28756): [36mMapped {/api/v1/favorite/me, GET} route[39m
+    [35mcontext[39m: "RouterExplorer"
+[15:41:30.719] [32mINFO[39m (28756): [36mNest application successfully started[39m
+    [35mcontext[39m: "NestApplication"
+[15:41:30.720] [32mINFO[39m (28756): [36m🚀 Spotly NestJS Server running on port 3001 (Env: development)[39m
+[2J[3J[H[[90m3:43:40 pm[0m] File change detected. Starting incremental compilation...
+
+[[90m3:43:43 pm[0m] Found 0 errors. Watching for file changes.
+
+[2J[3J[H[[90m3:43:56 pm[0m] File change detected. Starting incremental compilation...
+
+[[90m3:44:02 pm[0m] Found 0 errors. Watching for file changes.
+
+[2J[3J[H[[90m3:44:02 pm[0m] File change detected. Starting incremental compilation...
+
+[[90m3:44:05 pm[0m] Found 0 errors. Watching for file changes.
+
+[2J[3J[H[[90m3:44:17 pm[0m] File change detected. Starting incremental compilation...
+
+[[90m3:44:19 pm[0m] Found 0 errors. Watching for file changes.
+
+[2J[3J[H[[90m3:44:28 pm[0m] File change detected. Starting incremental compilation...
+
+[[90m3:44:30 pm[0m] Found 0 errors. Watching for file changes.
+
+[2J[3J[H[[90m3:52:15 pm[0m] File change detected. Starting incremental compilation...
+
+[[90m3:52:16 pm[0m] Found 0 errors. Watching for file changes.
+
+[2J[3J[H[[90m3:57:38 pm[0m] File change detected. Starting incremental compilation...
+
+[2J[3J[H[[90m3:57:40 pm[0m] File change detected. Starting incremental compilation...
+
+[[90m3:57:40 pm[0m] Found 0 errors. Watching for file changes.
+
+[2J[3J[H[[90m3:59:05 pm[0m] File change detected. Starting incremental compilation...
+
+[[90m3:59:05 pm[0m] Found 0 errors. Watching for file changes.
+

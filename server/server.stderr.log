@@ -1,0 +1,69 @@
+❌ Failed to start Spotly server: Error: listen EADDRINUSE: address already in use :::3001
+    at Server.setupListenHandle [as _listen2] (node:net:1940:16)
+    at listenInCluster (node:net:1997:12)
+    at Server.listen (node:net:2102:7)
+    at ExpressAdapter.listen (C:\Users\shrin\OneDrive\Desktop\spotly\spotly\server\node_modules\.pnpm\@nestjs+platform-express@11_3610481afed0d66818f6323dad6da34c\node_modules\@nestjs\platform-express\adapters\express-adapter.js:115:32)
+    at C:\Users\shrin\OneDrive\Desktop\spotly\spotly\server\node_modules\.pnpm\@nestjs+core@11.1.28_@nestj_cf3bda414d9a599c1f75a6b5fbaf342d\node_modules\@nestjs\core\nest-application.js:190:30
+    at new Promise (<anonymous>)
+    at NestApplication.listen (C:\Users\shrin\OneDrive\Desktop\spotly\spotly\server\node_modules\.pnpm\@nestjs+core@11.1.28_@nestj_cf3bda414d9a599c1f75a6b5fbaf342d\node_modules\@nestjs\core\nest-application.js:180:16)
+    at async bootstrap (C:\Users\shrin\OneDrive\Desktop\spotly\spotly\server\src\main.ts:60:2) {
+  code: 'EADDRINUSE',
+  errno: -4091,
+  syscall: 'listen',
+  address: '::',
+  port: 3001
+}
+node:internal/modules/cjs/loader:1404
+  throw err;
+  ^
+
+Error: Cannot find module 'C:\Users\shrin\OneDrive\Desktop\spotly\spotly\server\dist\main'
+    at Function._resolveFilename (node:internal/modules/cjs/loader:1401:15)
+    at defaultResolveImpl (node:internal/modules/cjs/loader:1057:19)
+    at resolveForCJSWithHooks (node:internal/modules/cjs/loader:1062:22)
+    at Function._load (node:internal/modules/cjs/loader:1211:37)
+    at TracingChannel.traceSync (node:diagnostics_channel:322:14)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:235:24)
+    at Function.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:171:5)
+    at node:internal/main/run_main_module:36:49 {
+  code: 'MODULE_NOT_FOUND',
+  requireStack: []
+}
+
+Node.js v22.17.0
+node:internal/modules/cjs/loader:1404
+  throw err;
+  ^
+
+Error: Cannot find module 'C:\Users\shrin\OneDrive\Desktop\spotly\spotly\server\dist\main'
+    at Function._resolveFilename (node:internal/modules/cjs/loader:1401:15)
+    at defaultResolveImpl (node:internal/modules/cjs/loader:1057:19)
+    at resolveForCJSWithHooks (node:internal/modules/cjs/loader:1062:22)
+    at Function._load (node:internal/modules/cjs/loader:1211:37)
+    at TracingChannel.traceSync (node:diagnostics_channel:322:14)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:235:24)
+    at Function.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:171:5)
+    at node:internal/main/run_main_module:36:49 {
+  code: 'MODULE_NOT_FOUND',
+  requireStack: []
+}
+
+Node.js v22.17.0
+node:internal/modules/cjs/loader:1404
+  throw err;
+  ^
+
+Error: Cannot find module 'C:\Users\shrin\OneDrive\Desktop\spotly\spotly\server\dist\main'
+    at Function._resolveFilename (node:internal/modules/cjs/loader:1401:15)
+    at defaultResolveImpl (node:internal/modules/cjs/loader:1057:19)
+    at resolveForCJSWithHooks (node:internal/modules/cjs/loader:1062:22)
+    at Function._load (node:internal/modules/cjs/loader:1211:37)
+    at TracingChannel.traceSync (node:diagnostics_channel:322:14)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:235:24)
+    at Function.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:171:5)
+    at node:internal/main/run_main_module:36:49 {
+  code: 'MODULE_NOT_FOUND',
+  requireStack: []
+}
+
+Node.js v22.17.0
