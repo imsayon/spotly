@@ -49,7 +49,14 @@ export class PrismaQueueRepository implements QueueRepository {
 			}
 
 			// Atomic increment — upsert the daily counter row, increment, return new value.
-			const today = new Date().toISOString().slice(0, 10) // YYYY-MM-DD
+			const outlet = await tx.outlet.findUnique({
+				where: { id: data.outletId },
+				select: { timezone: true },
+			})
+			if (!outlet) throw new BadRequestException("Outlet not found")
+
+			// Token numbers reset on the outlet's business day, rather than UTC.
+			const today = this.localDate(new Date(), outlet.timezone)
 			const result = await tx.$queryRaw<Array<{ counter: number }>>`
         INSERT INTO "OutletDailyCounter" ("outletId", date, counter)
         VALUES (${data.outletId}, ${today}::date, 1)
@@ -79,7 +86,7 @@ export class PrismaQueueRepository implements QueueRepository {
 	async isOutletOpen(outletId: string): Promise<boolean> {
 		const outlet = await this.prisma.outlet.findUnique({
 			where: { id: outletId },
-			select: { isActive: true, openTime: true, closeTime: true },
+			select: { isActive: true, openTime: true, closeTime: true, timezone: true },
 		})
 		if (!outlet?.isActive) return false
 		if (!outlet.openTime || !outlet.closeTime) return true
@@ -88,12 +95,8 @@ export class PrismaQueueRepository implements QueueRepository {
 		const [closeH, closeM] = outlet.closeTime.split(":").map(Number)
 		if (![openH, openM, closeH, closeM].every(Number.isFinite)) return true
 
-		// TODO: Add timezone column to Outlet schema. Defaulting to Asia/Kolkata (IST) for now.
-		const now = new Date()
-		const nowInIST = new Date(
-			now.toLocaleString("en-US", { timeZone: "Asia/Kolkata" }),
-		)
-		const nowMinutes = nowInIST.getHours() * 60 + nowInIST.getMinutes()
+		const time = this.localTime(new Date(), outlet.timezone)
+		const nowMinutes = time.hour * 60 + time.minute
 		const openMinutes = openH * 60 + openM
 		const closeMinutes = closeH * 60 + closeM
 
@@ -317,5 +320,35 @@ export class PrismaQueueRepository implements QueueRepository {
 				this.mapToDomain({ ...entry, status: "MISSED" }),
 			)
 		})
+	}
+
+	private localDate(date: Date, timeZone: string): string {
+		const parts = this.timeParts(date, timeZone)
+		return `${parts.year}-${String(parts.month).padStart(2, "0")}-${String(parts.day).padStart(2, "0")}`
+	}
+
+	private localTime(date: Date, timeZone: string): { hour: number; minute: number } {
+		const parts = this.timeParts(date, timeZone)
+		return { hour: parts.hour, minute: parts.minute }
+	}
+
+	private timeParts(date: Date, timeZone: string): Record<string, number> {
+		try {
+			return Object.fromEntries(
+				new Intl.DateTimeFormat("en-CA", {
+					timeZone,
+					year: "numeric",
+					month: "2-digit",
+					day: "2-digit",
+					hour: "2-digit",
+					minute: "2-digit",
+					hourCycle: "h23",
+				}).formatToParts(date)
+					.filter((part) => part.type !== "literal")
+					.map((part) => [part.type, Number(part.value)]),
+			)
+		} catch {
+			throw new BadRequestException("Outlet has an invalid timezone")
+		}
 	}
 }

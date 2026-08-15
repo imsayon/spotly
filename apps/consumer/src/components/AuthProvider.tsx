@@ -21,7 +21,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           setUser(session?.user ?? null);
           if (session?.user) {
             const store = useAuthStore.getState();
-            store.registerOnBackend('CONSUMER').then(() => store.fetchProfile());
+            store.registerOnBackend('CONSUMER').then(() => store.fetchProfile()).catch(console.error);
           }
             if (typeof window !== 'undefined') {
               window.history.replaceState(null, '', window.location.pathname + window.location.search);
@@ -35,7 +35,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setUser(session?.user ?? null);
       if (session?.user) {
         const store = useAuthStore.getState();
-        store.registerOnBackend('CONSUMER').then(() => store.fetchProfile());
+        store.registerOnBackend('CONSUMER').then(() => store.fetchProfile()).catch(console.error);
       }
     });
 

@@ -75,6 +75,8 @@ export class AuthService implements OnModuleInit {
 			// Use findUnique first, then create only if not exists.
 			// This avoids the unique constraint error on `email` when multiple Supabase
 			// accounts share the same email or when a stale record exists.
+			console.log("verifyToken running");
+console.log("Supabase user:", user.id, user.email);
 			let dbUser = await this.prisma.user.findUnique({
 				where: { id: userId },
 			})
@@ -89,6 +91,7 @@ export class AuthService implements OnModuleInit {
 
 				if (!dbUser) {
 					try {
+						console.log("Creating user in Prisma");
 						// Truly new user — create
 						dbUser = await this.prisma.user.create({
 							data: {

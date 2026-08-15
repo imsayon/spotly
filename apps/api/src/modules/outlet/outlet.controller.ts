@@ -41,6 +41,10 @@ class CreateOutletDto {
 	@IsString()
 	@IsOptional()
 	closeTime?: string
+
+	@IsString()
+	@IsOptional()
+	timezone?: string
 }
 
 class UpdateOutletDto {
@@ -70,6 +74,10 @@ class UpdateOutletDto {
 
 	@IsOptional()
 	isActive?: boolean
+
+	@IsString()
+	@IsOptional()
+	timezone?: string
 }
 
 @Controller("outlet")
@@ -115,6 +123,7 @@ export class OutletController {
 			body.lng,
 			body.openTime,
 			body.closeTime,
+			body.timezone,
 		)
 		return { success: true, data }
 	}
@@ -141,6 +150,7 @@ export class OutletController {
 				openTime: string
 				closeTime: string
 				isActive: boolean
+				timezone: string
 			}>,
 		)
 		return { success: true, data }

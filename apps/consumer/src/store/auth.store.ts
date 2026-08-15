@@ -137,10 +137,6 @@ export const useAuthStore = create<AuthState>()((set, get) => ({
   },
 
   registerOnBackend: async (role = 'CONSUMER') => {
-    try {
-      await api.post('/user/register', { role });
-    } catch {
-      // Silently fail
-    }
+    await api.post('/user/register', { role });
   },
 }));

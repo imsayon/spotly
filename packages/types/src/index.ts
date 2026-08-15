@@ -52,6 +52,7 @@ export interface Outlet {
   isActive?: boolean;
   openTime?: string;
   closeTime?: string;
+  timezone?: string;
   phone?: string;
   operatingHours?: string;
   createdAt: string;

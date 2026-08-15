@@ -25,6 +25,7 @@ export class OutletService {
 		lng?: number,
 		openTime?: string,
 		closeTime?: string,
+		timezone?: string,
 	): Promise<Outlet> {
 		this.logger.log(
 			`Creating outlet "${name}" for merchant ${merchantId}`,
@@ -38,6 +39,7 @@ export class OutletService {
 				lng,
 				openTime: openTime || "09:00",
 				closeTime: closeTime || "21:00",
+				timezone: timezone || "Asia/Kolkata",
 			},
 		})
 	}
@@ -77,6 +79,7 @@ export class OutletService {
 				isActive: data.isActive,
 				openTime: data.openTime,
 				closeTime: data.closeTime,
+				timezone: data.timezone,
 			},
 		})
 		if (data.isActive !== undefined && data.isActive !== outlet.isActive) {

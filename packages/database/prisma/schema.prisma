@@ -58,6 +58,7 @@ model Outlet {
   isActive       Boolean        @default(true)
   openTime       String?        @default("09:00")
   closeTime      String?        @default("21:00")
+  timezone       String         @default("Asia/Kolkata")
   createdAt      DateTime       @default(now())
   updatedAt      DateTime       @default(now()) @updatedAt
   favorites      Favorite[]
@@ -66,6 +67,8 @@ model Outlet {
   queues         QueueEntry[]
   reviews        Review[]
   dailyCounters  OutletDailyCounter[]
+
+  @@index([merchantId, isActive])
 }
 
 model MenuCategory {
