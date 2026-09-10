@@ -5,7 +5,7 @@ import { usePathname, useRouter } from "next/navigation"
 import { motion, AnimatePresence } from "framer-motion"
 import { useAuthStore } from "@/store/auth.store"
 import { useQueueStore } from "@/store/queue.store"
-import { Ic, useToasts, ToastContainer, THEME } from "@spotly/ui"
+import { Ic, useToasts, ToastContainer, THEME, ThemeToggle } from "@spotly/ui"
 import Link from "next/link"
 
 const s = {
@@ -20,6 +20,7 @@ export default function MerchantLayout({ children }: { children: React.ReactNode
   const { merchantProfile, signOut } = useAuthStore()
   const { toasts, add: addToast } = useToasts()
   const store = useQueueStore()
+  const [mobileNavOpen, setMobileNavOpen] = React.useState(false)
 
   // Wire toast into queue store so it can display messages
   useEffect(() => {
@@ -51,31 +52,31 @@ export default function MerchantLayout({ children }: { children: React.ReactNode
 
   if (authLoading || !user || !merchantProfile) {
     return (
-      <div style={{ height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#050509' }}>
-        <div style={{ width: 40, height: 40, border: '3px solid rgba(255,255,255,.04)', borderTopColor: '#1fd97c', borderRadius: '50%', animation: 'spin 1s linear infinite' }} />
+      <div className="merchant-loading">
+        <div className="merchant-spinner" />
         <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
       </div>
     );
   }
 
   return (
-    <div style={{ height: '100vh', display: 'flex', background: '#050509', overflow: 'hidden' }}>
+    <div className="merchant-shell" style={{ height: '100vh', display: 'flex', overflow: 'hidden' }}>
 
       {/* ─── SIDEBAR ─── */}
       <div
+        className="merchant-sidebar hidden md:flex"
         style={{
           width: 256,
           height: '100vh',
-          borderRight: '1px solid rgba(255,255,255,.05)',
+          borderRight: '1px solid var(--border)',
           padding: '24px 12px',
           display: 'flex',
           flexDirection: 'column',
-          background: 'rgba(255,255,255,.01)',
+          background: 'var(--surface)',
           backdropFilter: 'blur(10px)',
           zIndex: 100,
           flexShrink: 0,
         }}
-        className="hidden md:flex"
       >
         {/* LOGO */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '0 12px 28px' }}>
@@ -83,8 +84,8 @@ export default function MerchantLayout({ children }: { children: React.ReactNode
             <Ic.Zap />
           </div>
           <div>
-            <div style={{ fontFamily: 'var(--font-sans)', fontWeight: 900, fontSize: 18, color: '#fff', letterSpacing: -1 }}>spotly.</div>
-            <div style={{ fontSize: 9, color: 'rgba(255,255,255,.25)', fontWeight: 800, textTransform: 'uppercase', letterSpacing: 1.5 }}>Merchant</div>
+            <div className="merchant-brand-name">spotly.</div>
+            <div className="merchant-brand-subtitle">Merchant</div>
           </div>
         </div>
 
@@ -96,14 +97,15 @@ export default function MerchantLayout({ children }: { children: React.ReactNode
               <Link
                 key={n.id}
                 href={n.id}
+                className={`merchant-nav-link ${isActive ? 'is-active' : ''}`}
                 style={{
                   display: 'flex',
                   alignItems: 'center',
                   gap: 12,
                   padding: '11px 14px',
                   borderRadius: 14,
-                  background: isActive ? 'rgba(31,217,124,.08)' : 'transparent',
-                  color: isActive ? '#fff' : 'rgba(255,255,255,.4)',
+                  background: 'transparent',
+                  color: 'var(--text-secondary)',
                   fontWeight: 700,
                   fontSize: 14,
                   transition: 'all .25s',
@@ -120,7 +122,7 @@ export default function MerchantLayout({ children }: { children: React.ReactNode
                     boxShadow: '0 0 8px rgba(31,217,124,.5)',
                   }} />
                 )}
-                <span style={{ color: isActive ? '#1fd97c' : 'inherit' }}>{n.ic}</span>
+                <span>{n.ic}</span>
                 {n.l}
               </Link>
             )
@@ -161,16 +163,17 @@ export default function MerchantLayout({ children }: { children: React.ReactNode
 
         {/* BOTTOM PROFILE */}
         <div style={{ borderTop: '1px solid rgba(255,255,255,.05)', paddingTop: 16, display: 'flex', flexDirection: 'column', gap: 10 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '6px 12px' }}>
+          <ThemeToggle />
+          <div className="merchant-profile-row" style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '6px 12px' }}>
             <div style={{ width: 38, height: 38, borderRadius: 12, ...s.gradM, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14, fontWeight: 900, color: '#fff', flexShrink: 0 }}>
               {merchantProfile?.name?.[0]?.toUpperCase() || 'M'}
             </div>
             <div style={{ overflow: 'hidden' }}>
-              <div style={{ fontWeight: 800, fontSize: 13, color: '#fff', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+              <div className="merchant-profile-name" style={{ fontWeight: 800, fontSize: 13, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                 {merchantProfile?.name || 'Merchant'}
               </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 4, color: '#1fd97c', fontSize: 10, fontWeight: 800 }}>
-                <div style={{ width: 5, height: 5, borderRadius: '50%', background: '#1fd97c' }} /> Verified
+              <div className="merchant-profile-status" style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 10, fontWeight: 800 }}>
+                <div style={{ width: 5, height: 5, borderRadius: '50%' }} /> Verified
               </div>
             </div>
           </div>
@@ -186,9 +189,9 @@ export default function MerchantLayout({ children }: { children: React.ReactNode
       </div>
 
       {/* ─── MAIN CONTENT ─── */}
-      <main style={{ flex: 1, overflowY: 'auto', background: '#050509', position: 'relative' }}>
+      <main className="merchant-main" style={{ flex: 1, overflowY: 'auto', position: 'relative' }}>
         {/* Mobile header */}
-        <div className="md:hidden flex items-center justify-between p-4 border-b border-[#ffffff08]">
+        <div className="merchant-mobile-header md:hidden flex items-center justify-between p-4">
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             <div style={{ width: 30, height: 30, borderRadius: 8, ...s.gradM, display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Ic.Zap /></div>
             <span style={{ fontWeight: 900, fontSize: 16 }}>spotly.</span>
@@ -207,11 +210,14 @@ export default function MerchantLayout({ children }: { children: React.ReactNode
             >
               {store.isOpen ? 'OPEN' : 'CLOSED'}
             </button>
-            <button style={{ color: 'rgba(255,255,255,.5)', background: 'none', border: 'none' }}>
+            <ThemeToggle />
+            <button aria-label="Open navigation" onClick={() => setMobileNavOpen((value) => !value)} style={{ color: 'var(--text-secondary)', background: 'none', border: 'none', minWidth: 44, minHeight: 44 }}>
               <Ic.Menu />
             </button>
           </div>
         </div>
+
+        {mobileNavOpen && <nav className="mobile-nav-drawer md:hidden" aria-label="Mobile navigation">{nav.map((item) => <Link key={item.id} href={item.id} onClick={() => setMobileNavOpen(false)} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '12px 10px', color: 'var(--text-primary)', textDecoration: 'none', fontWeight: 700 }}>{item.ic}{item.l}</Link>)}</nav>}
 
         {children}
       </main>

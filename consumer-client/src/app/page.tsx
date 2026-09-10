@@ -1,177 +1,97 @@
 "use client"
 
-import React, { useEffect, useState } from "react"
-import { motion } from "framer-motion"
+import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
-import { Ic } from "@spotly/ui"
+import { Ic, ThemeToggle } from "@spotly/ui"
 import { ConsumerAuthModal } from "@/components/ConsumerAuthModal"
 import { useAuthStore } from "@/store/auth.store"
 import { env } from "@/lib/env"
 
+const steps = [
+	["01", "Find a business", "Search nearby places and choose the outlet that works for you."],
+	["02", "Request a spot", "Send a request. The business accepts it before your place is confirmed."],
+	["03", "Follow your turn", "Keep moving through your day and return when the queue calls you."],
+] as const
+
+const categories = [
+	["Coffee", Ic.Clock, "Coffee shops and quick service"],
+	["Health", Ic.Activity, "Clinics and personal care"],
+	["Dining", Ic.Store, "Restaurants and walk-ins"],
+	["Services", Ic.Grid, "Everyday appointments and errands"],
+] as const
+
 export default function LandingPage() {
-  const router = useRouter()
-  const { user, loading } = useAuthStore()
-  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false)
-  const [mounted, setMounted] = useState(false)
+	const router = useRouter()
+	const { user, loading } = useAuthStore()
+	const [open, setOpen] = useState(false)
 
-  useEffect(() => {
-    setMounted(true)
-  }, [])
+	useEffect(() => {
+		if (!loading && user) router.replace("/home")
+	}, [loading, router, user])
 
-  useEffect(() => {
-    if (mounted && !loading && user) {
-      router.replace("/home")
-    }
-  }, [loading, mounted, router, user])
+	const start = () => user ? router.push("/home") : setOpen(true)
 
-  if (!mounted || loading) return (
-    <div style={{ height: '100vh', background: '#050509', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-      <div style={{ width: 40, height: 40, border: '2px solid rgba(255,255,255,.05)', borderTopColor: '#f5c418', borderRadius: '50%', animation: 'spin 1s linear infinite' }} />
-    </div>
-  )
+	if (loading) return <div className="marketing-page" aria-label="Loading Spotly" />
 
-  const containerVars = {
-    hidden: { opacity: 0 },
-    visible: {
-      opacity: 1,
-      transition: { staggerChildren: 0.1, delayChildren: 0.1 }
-    }
-  }
+	return (
+		<div className="marketing-page">
+			<header className="marketing-header">
+				<a href="#top" className="brand-lockup" aria-label="Spotly home">
+					<span className="brand-mark"><Ic.Clock size={17} /></span>
+					<span className="brand-name">spotly.</span>
+				</a>
+				<nav className="marketing-nav" aria-label="Primary navigation">
+					<a href="#how">How it works</a>
+					<a href="#categories">Explore</a>
+					<a href={env.NEXT_PUBLIC_MERCHANT_URL}>For businesses</a>
+				</nav>
+				<div className="marketing-actions">
+					<ThemeToggle />
+					<button className="button-secondary" onClick={() => setOpen(true)}>Sign in</button>
+				</div>
+			</header>
 
-  const itemVars = {
-    hidden: { opacity: 0, y: 15 },
-    visible: { opacity: 1, y: 0, transition: { duration: 0.6, ease: [0.16, 1, 0.3, 1] as any } }
-  }
+			<main id="top" className="marketing-main">
+				<section className="marketing-hero" aria-labelledby="consumer-title">
+					<div>
+						<div className="eyebrow">A calmer way to walk in</div>
+						<h1 id="consumer-title">Your day.<br />Your place <span>in line.</span></h1>
+						<p>Find a nearby business, request a spot, and follow your turn without standing around. Spotly keeps the queue clear and your day moving.</p>
+						<div className="marketing-cta">
+							<button className="button-primary" onClick={start}>Find a business <Ic.Arrow /></button>
+							<a className="button-secondary" href="#how">How it works</a>
+						</div>
+					</div>
+					<QueuePreview audience="consumer" />
+				</section>
 
-  return (
-    <div style={{
-      minHeight: '100vh',
-      background: '#0b0d10',
-      color: '#fff',
-      position: 'relative',
-      overflow: 'hidden',
-      display: 'flex',
-      flexDirection: 'column'
-    }}>
-      <nav style={{
-        padding: '24px clamp(24px, 5vw, 64px)',
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        position: 'relative',
-        zIndex: 10
-      }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <div style={{ width: 34, height: 34, borderRadius: 10, background: '#f5c418', color: '#17130a', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <Ic.Zap />
-          </div>
-          <span style={{ fontWeight: 900, fontSize: 22, letterSpacing: -1 }}>spotly.</span>
-        </div>
-        <button
-          onClick={() => {
-            const merchantUrl = env.NEXT_PUBLIC_MERCHANT_URL;
-            window.open(merchantUrl, '_blank');
-          }}
-          style={{
-            background: 'transparent',
-            border: '1px solid rgba(255,255,255,.2)',
-            padding: '10px 20px',
-            borderRadius: 12,
-            color: 'rgba(255,255,255,.6)',
-            fontSize: 14,
-            fontWeight: 700,
-            cursor: 'pointer'
-          }}
-        >
-          For Partners
-        </button>
-      </nav>
+				<section id="how" className="marketing-section" aria-labelledby="how-title">
+					<div className="section-kicker">Three clear steps</div>
+					<h2 id="how-title">More time for what you came to do.</h2>
+					<div className="steps-grid">{steps.map(([number, title, copy]) => <article className="step-card" key={number}><span className="step-number">{number}</span><h3>{title}</h3><p>{copy}</p></article>)}</div>
+				</section>
 
-      <motion.main
-        variants={containerVars}
-        initial="hidden"
-        animate="visible"
-        style={{
-          flex: 1,
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          justifyContent: 'center',
-          padding: '0 24px',
-          textAlign: 'center',
-          position: 'relative',
-          zIndex: 1
-        }}
-      >
-        <motion.div variants={itemVars} style={{ marginBottom: 24 }}>
-          <div style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: 8,
-            padding: '8px 16px',
-            borderRadius: 99,
-            background: 'transparent',
-            border: '1px solid rgba(245,196,24,.45)',
-            color: '#f5c418',
-            fontSize: 11,
-            fontWeight: 800,
-            textTransform: 'uppercase',
-            letterSpacing: 1.5
-          }}>
-            <Ic.Sparkle /> Nearby queues
-          </div>
-        </motion.div>
+				<section id="categories" className="marketing-section" aria-labelledby="category-title">
+					<div className="section-kicker">Find your next stop</div>
+					<h2 id="category-title">Start with what you need.</h2>
+					<div className="categories-grid">{categories.map(([label, Icon, copy]) => <button className="category-card" key={label} onClick={start}><Icon size={20} /><span><h3>{label}</h3><p>{copy}</p></span></button>)}</div>
+				</section>
 
-        <motion.h2 variants={itemVars} style={{
-          fontSize: 'clamp(42px, 7vw, 76px)',
-          fontWeight: 800,
-          lineHeight: 1.02,
-          letterSpacing: -2.5,
-          marginBottom: 24,
-          maxWidth: 820
-        }}>
-          Skip the line.<br />
-          <span style={{ color: '#f5c418' }}>Reclaim your time.</span>
-        </motion.h2>
+				<section className="marketing-section">
+					<div className="marketing-callout"><div><div className="section-kicker">For walk-in businesses</div><h2>Run a better queue.</h2><p>Accept requests, call the next customer, and keep your front desk focused.</p></div><a className="button-primary" href={env.NEXT_PUBLIC_MERCHANT_URL}>For businesses <Ic.Arrow /></a></div>
+				</section>
 
-        <motion.p variants={itemVars} style={{
-          fontSize: 'clamp(17px, 2vw, 21px)',
-          color: 'rgba(255,255,255,.35)',
-          maxWidth: 640,
-          lineHeight: 1.6,
-          marginBottom: 48,
-          fontWeight: 500
-        }}>
-          Find a nearby business, join its queue, and get on with your day until it’s your turn.
-        </motion.p>
+				<footer className="marketing-footer"><span>spotly. © {new Date().getFullYear()}</span><nav><a href="#how">How it works</a><a href={env.NEXT_PUBLIC_MERCHANT_URL}>For businesses</a></nav></footer>
+			</main>
+			<ConsumerAuthModal isOpen={open} onClose={() => setOpen(false)} title="Continue to Spotly" />
+		</div>
+	)
+}
 
-        <motion.div variants={itemVars}>
-          <motion.button
-            whileHover={{ y: -2, backgroundColor: '#ffd83d' }}
-            whileTap={{ scale: 0.95 }}
-            onClick={() => setIsAuthModalOpen(true)}
-            style={{
-              background: '#f5c418',
-              color: '#000',
-              padding: '16px 28px',
-              borderRadius: 12,
-              fontSize: 16,
-              fontWeight: 800,
-              border: 'none',
-              cursor: 'pointer',
-              boxShadow: 'none',
-            }}
-          >
-            Start Discovering
-          </motion.button>
-        </motion.div>
-      </motion.main>
+function QueuePreview({ audience }: { audience: "consumer" }) {
+	return <div className="queue-demo" aria-label="Example queue, not live data"><div className="queue-demo-head"><div><div className="queue-demo-title">Example queue</div><div className="queue-demo-meta">The Corner Table · Walk-ins</div></div><span className="status-chip is-live">Open now</span></div><div className="queue-demo-list"><QueueRow token="A12" name="Your spot" detail="Request accepted" status="Waiting" live /><QueueRow token="A11" name="Guest before you" detail="Being called" status="Called" /><QueueRow token="A13" name="Next request" detail="Pending review" status="Pending" /></div><div className="queue-demo-meta" style={{ marginTop: 18 }}>This preview is illustrative, not live activity.</div></div>
+}
 
-      <ConsumerAuthModal
-        isOpen={isAuthModalOpen}
-        onClose={() => setIsAuthModalOpen(false)}
-        title="Elevate your experience"
-      />
-    </div>
-  )
+function QueueRow({ token, name, detail, status, live = false }: { token: string; name: string; detail: string; status: string; live?: boolean }) {
+	return <div className="queue-demo-row"><span className="queue-token">{token}</span><span className="queue-person"><strong>{name}</strong><small>{detail}</small></span><span className={`status-chip${live ? " is-live" : ""}`}>{status}</span></div>
 }

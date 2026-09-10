@@ -1,189 +1,63 @@
 "use client"
 
-import React, { useState, useEffect } from "react"
-import { motion } from "framer-motion"
-import { Ic, AuthModal } from "@spotly/ui"
-import { useAuthStore } from "@/store/auth.store"
+import { useEffect, useState } from "react"
+import type { ComponentType } from "react"
 import { useRouter } from "next/navigation"
+import { AuthModal, Ic, ThemeToggle } from "@spotly/ui"
+import { useAuthStore } from "@/store/auth.store"
 import { env } from "@/lib/env"
 
+const steps = [
+	["01", "Set up your outlet", "Add your business, hours and the services customers come in for."],
+	["02", "Accept requests", "Review incoming requests and decide who is ready to join the live queue."],
+	["03", "Call and complete", "Call the next customer, mark the visit complete, and keep the room moving."],
+] as const
+
 export default function MerchantLandingPage() {
-  const { user, signInWithGoogle, signInWithEmail, signUpWithEmail, loading: authLoading } = useAuthStore()
-  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false)
-  const [mounted, setMounted] = useState(false)
-  const router = useRouter()
+	const router = useRouter()
+	const { user, signInWithGoogle, signInWithEmail, signUpWithEmail, loading } = useAuthStore()
+	const [open, setOpen] = useState(false)
 
-  useEffect(() => {
-    setMounted(true)
-    if (!authLoading && user) router.push('/dashboard')
-  }, [user, authLoading, router])
+	useEffect(() => {
+		if (!loading && user) router.replace("/dashboard")
+	}, [loading, router, user])
 
-  if (!mounted) return (
-    <div style={{ height: '100vh', background: '#0b0d10', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-      <motion.div 
-        animate={{ rotate: 360 }}
-        transition={{ duration: 1.2, repeat: Infinity, ease: 'linear' }}
-        style={{ width: 44, height: 44, border: '3px solid rgba(255,255,255,.05)', borderTopColor: '#1fd97c', borderRadius: '50%' }} 
-      />
-    </div>
-  )
+	if (loading) return <div className="marketing-page" aria-label="Loading Spotly" />
 
-  const containerVars = {
-    hidden: { opacity: 0 },
-    visible: { 
-      opacity: 1,
-      transition: { staggerChildren: 0.1, delayChildren: 0.2 }
-    }
-  }
+	return (
+		<div className="marketing-page">
+			<header className="marketing-header">
+				<a href="#top" className="brand-lockup" aria-label="Spotly for businesses home"><span className="brand-mark"><Ic.Store size={17} /></span><span className="brand-name">spotly. / business</span></a>
+				<nav className="marketing-nav" aria-label="Primary navigation"><a href="#how">How it works</a><a href="#capabilities">Capabilities</a><a href={env.NEXT_PUBLIC_CONSUMER_URL}>For customers</a></nav>
+				<div className="marketing-actions"><ThemeToggle /><button className="button-secondary" onClick={() => setOpen(true)}>Sign in</button></div>
+			</header>
 
-  const itemVars = {
-    hidden: { opacity: 0, y: 15 },
-    visible: { opacity: 1, y: 0, transition: { duration: 0.7, ease: [0.16, 1, 0.3, 1] as any } }
-  }
+			<main id="top" className="marketing-main">
+				<section className="marketing-hero" aria-labelledby="merchant-title">
+					<div><div className="eyebrow">A clearer front desk</div><h1 id="merchant-title">Keep your queue <span>moving.</span></h1><p>Accept requests, call the next customer, and manage walk-ins from one calm operator view. Your team stays present; Spotly handles the line.</p><div className="marketing-cta"><button className="button-primary" onClick={() => setOpen(true)}>Set up your business <Ic.Arrow /></button><a className="button-secondary" href="#how">See how it works</a></div></div>
+					<OperatorPreview />
+				</section>
 
-  return (
-    <div style={{ 
-      minHeight: '100vh', 
-      background: '#0b0d10',
-      color: '#fff', 
-      position: 'relative', 
-      overflow: 'hidden',
-      display: 'flex',
-      flexDirection: 'column'
-    }}>
-      {/* NAV */}
-      <nav style={{ 
-        padding: '24px clamp(24px, 5vw, 64px)', 
-        display: 'flex', 
-        justifyContent: 'space-between', 
-        alignItems: 'center',
-        position: 'relative',
-        zIndex: 10
-      }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          <div style={{ width: 36, height: 36, borderRadius: 10, background: '#1fd97c', color: '#07160f', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <Ic.Zap />
-          </div>
-          <div>
-            <div style={{ fontWeight: 900, fontSize: 18, letterSpacing: -1 }}>spotly.</div>
-            <div style={{ fontSize: 9, color: '#1fd97c', fontWeight: 800, textTransform: 'uppercase', letterSpacing: 1.5 }}>Business</div>
-          </div>
-        </div>
-        <button 
-          onClick={() => {
-            const consumerUrl = env.NEXT_PUBLIC_CONSUMER_URL;
-            window.open(consumerUrl, '_blank');
-          }}
-          style={{ 
-            background: 'transparent',
-            border: '1px solid rgba(255,255,255,.2)',
-            padding: '10px 22px', 
-            borderRadius: 12, 
-            color: 'rgba(255,255,255,.5)', 
-            fontSize: 14, 
-            fontWeight: 700,
-            cursor: 'pointer'
-          }}
-        >
-          Consumer View
-        </button>
-      </nav>
+				<section id="how" className="marketing-section" aria-labelledby="merchant-how-title"><div className="section-kicker">Built for the operator</div><h2 id="merchant-how-title">A short line is a better experience for everyone.</h2><div className="steps-grid">{steps.map(([number, title, copy]) => <article className="step-card" key={number}><span className="step-number">{number}</span><h3>{title}</h3><p>{copy}</p></article>)}</div></section>
 
-      {/* HERO */}
-      <motion.main 
-        variants={containerVars}
-        initial="hidden"
-        animate="visible"
-        style={{ 
-          flex: 1, 
-          display: 'flex', 
-          flexDirection: 'column', 
-          alignItems: 'center', 
-          justifyContent: 'center',
-          padding: '0 24px',
-          textAlign: 'center',
-          position: 'relative',
-          zIndex: 1
-        }}
-      >
-        <motion.div variants={itemVars} style={{ marginBottom: 28 }}>
-          <div style={{ 
-            display: 'inline-flex', 
-            alignItems: 'center', 
-            gap: 10, 
-            padding: '8px 20px', 
-            borderRadius: 99, 
-            background: 'transparent',
-            border: '1px solid rgba(31,217,124,.45)',
-            color: '#1fd97c',
-            fontSize: 11,
-            fontWeight: 800,
-            textTransform: 'uppercase',
-            letterSpacing: 2
-          }}>
-            <Ic.Activity /> For walk-in businesses
-          </div>
-        </motion.div>
+				<section id="capabilities" className="marketing-section" aria-labelledby="capabilities-title"><div className="section-kicker">One working surface</div><h2 id="capabilities-title">The tools your team uses every day.</h2><div className="categories-grid"><Capability icon={Ic.Clock} title="Outlet hours" copy="Keep availability and open or closed state visible." /><Capability icon={Ic.Tag} title="Services" copy="Organize the menu or services customers request." /><Capability icon={Ic.Activity} title="Live queue" copy="See pending, waiting and called customers as they change." /><Capability icon={Ic.Bar} title="Daily analytics" copy="Review served, missed and waiting activity by outlet." /></div></section>
 
-        <motion.h2 variants={itemVars} style={{ 
-          fontSize: 'clamp(42px, 7vw, 76px)',
-          fontWeight: 800,
-          lineHeight: 1.02,
-          letterSpacing: -2.5,
-          marginBottom: 24,
-          maxWidth: 820
-        }}>
-          Manage your queue.<br/>
-          <span style={{ color: '#1fd97c' }}>Keep customers moving.</span>
-        </motion.h2>
+				<section className="marketing-section"><div className="marketing-callout"><div><div className="section-kicker">Ready when you are</div><h2>Make the next visit easier.</h2><p>Create your business profile and invite customers to use a queue they can understand.</p></div><button className="button-primary" onClick={() => setOpen(true)}>Create your profile <Ic.Arrow /></button></div></section>
+				<footer className="marketing-footer"><span>spotly. / business © {new Date().getFullYear()}</span><nav><a href="#how">How it works</a><a href={env.NEXT_PUBLIC_CONSUMER_URL}>For customers</a></nav></footer>
+			</main>
+			<AuthModal isOpen={open} onClose={() => setOpen(false)} onGoogleAuth={signInWithGoogle} onEmailAuth={async (email, password, mode, name) => mode === "sign-up" ? (!await signUpWithEmail(email, password, name) ? "Check your email to confirm your account, then sign in." : undefined) : signInWithEmail(email, password)} isLoading={loading} title="Set up your business" variant="merchant" />
+		</div>
+	)
+}
 
-        <motion.p variants={itemVars} style={{ 
-          fontSize: 'clamp(18px, 1.8vw, 22px)', 
-          color: 'rgba(255,255,255,0.4)', 
-          maxWidth: 680, 
-          lineHeight: 1.6,
-          marginBottom: 56,
-          fontWeight: 500
-        }}>
-          See who is waiting, call the next customer, and keep the room moving without guesswork.
-        </motion.p>
+function OperatorPreview() {
+	return <div className="queue-demo" aria-label="Example merchant queue, not live data"><div className="queue-demo-head"><div><div className="queue-demo-title">Operator view</div><div className="queue-demo-meta">The Corner Table · Main outlet</div></div><span className="status-chip is-live">Open</span></div><div className="queue-demo-list"><QueueRow token="A12" name="Incoming request" detail="Waiting for acceptance" status="Review" /><QueueRow token="A11" name="Currently called" detail="Ready at the counter" status="Called" live /><QueueRow token="A10" name="Next in line" detail="Accepted · 4 min ago" status="Waiting" /></div><div className="queue-demo-meta" style={{ marginTop: 18 }}>A product preview, not live customer data.</div></div>
+}
 
-        <motion.div variants={itemVars}>
-          <motion.button 
-            whileHover={{ y: -2, backgroundColor: '#42e790' }}
-            whileTap={{ scale: 0.95 }}
-            onClick={() => setIsAuthModalOpen(true)}
-            style={{ 
-              background: '#1fd97c',
-              color: '#07160f',
-              padding: '16px 28px',
-              borderRadius: 12,
-              fontSize: 16,
-              fontWeight: 800,
-              border: 'none', 
-              cursor: 'pointer',
-              boxShadow: 'none',
-            }}
-          >
-            Launch Dashboard
-          </motion.button>
-        </motion.div>
-      </motion.main>
+function QueueRow({ token, name, detail, status, live = false }: { token: string; name: string; detail: string; status: string; live?: boolean }) {
+	return <div className="queue-demo-row"><span className="queue-token">{token}</span><span className="queue-person"><strong>{name}</strong><small>{detail}</small></span><span className={`status-chip${live ? " is-live" : ""}`}>{status}</span></div>
+}
 
-      <AuthModal 
-        isOpen={isAuthModalOpen} 
-        onClose={() => setIsAuthModalOpen(false)} 
-        onGoogleAuth={signInWithGoogle}
-        onEmailAuth={async (email, password, mode, name) => {
-          if (mode === 'sign-up') {
-            if (!await signUpWithEmail(email, password, name)) return 'Check your email to confirm your account, then sign in.'
-          }
-          else await signInWithEmail(email, password)
-        }}
-        isLoading={authLoading}
-        title="Welcome, Partner"
-        variant="merchant"
-      />
-    </div>
-  )
+function Capability({ icon: Icon, title, copy }: { icon: ComponentType<{ size?: number }>; title: string; copy: string }) {
+	return <article className="category-card"><Icon size={20} /><span><h3>{title}</h3><p>{copy}</p></span></article>
 }

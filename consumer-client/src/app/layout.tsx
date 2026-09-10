@@ -1,11 +1,12 @@
-import { Outfit } from "next/font/google"
+import { Inter, Montserrat } from "next/font/google"
 import type { Metadata } from "next"
 import "./globals.css"
 import { AuthProvider } from "@/components/AuthProvider"
 import { OnboardingModal } from "@/components/OnboardingModal"
 import { ErrorBoundary } from "@/components/ErrorBoundary"
 
-const outfit = Outfit({ subsets: ["latin"], variable: "--font-sans" })
+const montserrat = Montserrat({ subsets: ["latin"], variable: "--font-body", display: "swap" })
+const inter = Inter({ subsets: ["latin"], variable: "--font-display", display: "swap" })
 
 export const metadata: Metadata = {
 	title: "Spotly Consumer",
@@ -19,10 +20,9 @@ export default function RootLayout({
 	children: React.ReactNode
 }) {
 	return (
-		<html lang="en" className="dark">
-			<body
-				className={`${outfit.variable} font-sans bg-background text-white min-h-screen`}
-			>
+		<html lang="en" suppressHydrationWarning>
+			<head><script dangerouslySetInnerHTML={{ __html: `(()=>{const m=localStorage.getItem('spotly-theme');const d=m==='dark'||(m!=='light'&&matchMedia('(prefers-color-scheme: dark)').matches);document.documentElement.dataset.theme=d?'dark':'light'})()` }} /></head>
+			<body className={`${montserrat.variable} ${inter.variable} spotly-app`}>
 				<ErrorBoundary>
 					<AuthProvider>
 						<OnboardingModal />

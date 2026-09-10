@@ -7,64 +7,54 @@ import React from 'react';
  */
 
 export const THEME = {
-  // Common Colors & Gradients
+  // Semantic tokens are defined by each app's global stylesheet.
   colors: {
-    bg: '#050509',
-    s1: '#0c0c12',
-    s2: '#12121a',
-    s3: '#1a1a24',
-    gold: '#f5c418',
-    orange: '#ff6316',
-    emerald: '#1fd97c',
-    teal: '#00cfff',
-    red: '#ff4d6d',
-    t1: '#fff',
-    t2: 'rgba(255,255,255,.6)',
-    t3: 'rgba(255,255,255,.35)',
-    t4: 'rgba(255,255,255,.15)',
-    border: 'rgba(255,255,255,.06)',
-    borderStrong: 'rgba(255,255,255,.12)',
+    bg: 'var(--page-bg)',
+    s1: 'var(--surface)',
+    s2: 'var(--surface-raised)',
+    s3: 'var(--surface-strong)',
+    gold: 'var(--brand)',
+    orange: 'var(--brand-strong)',
+    emerald: 'var(--success)',
+    teal: 'var(--info)',
+    red: 'var(--danger)',
+    t1: 'var(--text-primary)',
+    t2: 'var(--text-secondary)',
+    t3: 'var(--text-muted)',
+    t4: 'var(--text-subtle)',
+    border: 'var(--border)',
+    borderStrong: 'var(--border-strong)',
   },
 
   gradients: {
-    consumer: 'linear-gradient(135deg,#f5c418 0%,#ff6316 100%)',
-    merchant: 'linear-gradient(135deg,#1fd97c,#0ea860)',
+    consumer: 'var(--brand)',
+    merchant: 'var(--brand)',
     consumerText: {
-      background: 'linear-gradient(135deg,#f5c418,#ff6316)',
-      WebkitBackgroundClip: 'text',
-      WebkitTextFillColor: 'transparent',
-      backgroundClip: 'text',
+      color: 'var(--brand-strong)',
     } as React.CSSProperties,
     merchantText: {
-      background: 'linear-gradient(135deg,#1fd97c,#0ea860)',
-      WebkitBackgroundClip: 'text',
-      WebkitTextFillColor: 'transparent',
-      backgroundClip: 'text',
+      color: 'var(--brand-strong)',
     } as React.CSSProperties,
   },
 
   // Shared Style Objects
   styles: {
     glass: {
-      background: 'rgba(255,255,255,.035)',
-      backdropFilter: 'blur(24px)',
-      WebkitBackdropFilter: 'blur(24px)',
-      border: '1px solid rgba(255,255,255,.06)',
+      background: 'var(--surface)',
+      border: '1px solid var(--border)',
     } as React.CSSProperties,
 
     glassStrong: {
-      background: 'rgba(255,255,255,.07)',
-      backdropFilter: 'blur(32px)',
-      WebkitBackdropFilter: 'blur(32px)',
-      border: '1px solid rgba(255,255,255,.12)',
+      background: 'var(--surface-raised)',
+      border: '1px solid var(--border-strong)',
     } as React.CSSProperties,
 
     card: {
-      background: '#0c0c12',
-      border: '1px solid rgba(255,255,255,.06)',
-      borderRadius: 18,
+      background: 'var(--surface)',
+      border: '1px solid var(--border)',
+      borderRadius: 12,
       padding: 22,
-      transition: 'all .3s cubic-bezier(.25,.46,.45,.94)',
+      transition: 'border-color .18s ease, background .18s ease',
     } as React.CSSProperties,
   },
 
@@ -78,8 +68,8 @@ export const THEME = {
     fontSize: 11,
     fontWeight: 700,
     letterSpacing: 0.3,
-    background: type === 'consumer' ? 'rgba(245,196,24,.12)' : 'rgba(31,217,124,.12)',
-    color: type === 'consumer' ? '#f5c418' : '#1fd97c',
-    border: `1px solid ${type === 'consumer' ? 'rgba(245,196,24,.22)' : 'rgba(31,217,124,.22)'}`,
+    background: 'var(--surface-raised)',
+    color: type === 'consumer' ? 'var(--brand-strong)' : 'var(--success)',
+    border: '1px solid var(--border-strong)',
   } as React.CSSProperties),
 };

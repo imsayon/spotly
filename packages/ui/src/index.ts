@@ -8,3 +8,4 @@ export * from "./components/Icons";
 export * from "./components/Toast";
 export * from "./components/Orb";
 export * from './styles/theme';
+export * from './components/ThemeToggle';

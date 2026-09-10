@@ -4,24 +4,24 @@ import React, { useState, useEffect } from "react"
 import { usePathname, useRouter } from "next/navigation"
 import { useAuthStore } from "@/store/auth.store"
 import { useQueueStore } from "@/store/queue.store"
-import { Ic, useToasts, ToastContainer } from "@spotly/ui"
+import { Ic, useToasts, ToastContainer, ThemeToggle } from "@spotly/ui"
 import Link from "next/link"
 import { useLiveLocation } from "@/lib/useLiveLocation"
 
 const s = {
 	glass: {
-		background: "rgba(255,255,255,.035)",
+		background: "var(--surface)",
 		backdropFilter: "blur(24px)",
 		WebkitBackdropFilter: "blur(24px)",
-		border: "1px solid var(--bdr)",
+		border: "1px solid var(--border)",
 	},
 	glassStrong: {
-		background: "rgba(255,255,255,.07)",
+		background: "var(--surface-raised)",
 		backdropFilter: "blur(32px)",
 		WebkitBackdropFilter: "blur(32px)",
-		border: "1px solid var(--bdr2)",
+		border: "1px solid var(--border-strong)",
 	},
-	gradC: { background: "linear-gradient(135deg,#f5c418,#ff6316)" },
+	gradC: { background: "var(--brand)" },
 	badge: (c: string) => ({
 		display: "inline-flex",
 		alignItems: "center",
@@ -32,14 +32,14 @@ const s = {
 		fontWeight: 700,
 		letterSpacing: 0.3,
 		...(c === "yellow" && {
-			background: "rgba(245,196,24,.12)",
-			color: "#f5c418",
-			border: "1px solid rgba(245,196,24,.22)",
+			background: "color-mix(in srgb,var(--brand) 12%,var(--surface))",
+			color: "var(--brand-strong)",
+			border: "1px solid color-mix(in srgb,var(--brand) 35%,var(--border))",
 		}),
 		...(c === "green" && {
-			background: "rgba(31,217,124,.12)",
-			color: "#1fd97c",
-			border: "1px solid rgba(31,217,124,.22)",
+			background: "color-mix(in srgb,var(--success) 12%,var(--surface))",
+			color: "var(--success)",
+			border: "1px solid color-mix(in srgb,var(--success) 35%,var(--border))",
 		}),
 	}),
 }
@@ -88,9 +88,9 @@ export default function ConsumerLayout({
 	}
 
 	return (
-		<div className="consumer-shell min-h-screen text-white bg-[var(--bg)] font-sans">
+		<div className="consumer-shell min-h-screen font-sans">
 			{/* SIDEBAR (Desktop) */}
-			<aside className="consumer-sidebar hidden md:flex flex-col border-r border-[#ffffff10] w-[240px] bg-[#0c0c12] p-5 h-screen fixed left-0 top-0">
+			<aside className="consumer-sidebar hidden md:flex flex-col border-r w-[240px] p-5 h-screen fixed left-0 top-0">
 				<div className="consumer-brand flex items-center gap-3 mb-10">
 					<div
 						style={{
@@ -128,7 +128,7 @@ export default function ConsumerLayout({
 						<Link
 							key={n.id}
 							href={n.id}
-							className={`flex items-center gap-3 p-3 rounded-xl transition-all duration-200 font-bold text-sm ${pathname === n.id ? "bg-[#f5c4181a] text-[#f5c418]" : "text-[#ffffffb3] hover:bg-[#ffffff0a] hover:text-white"}`}
+							className={`consumer-nav-link flex items-center gap-3 p-3 rounded-xl transition-all duration-200 font-bold text-sm ${pathname === n.id ? "is-active" : ""}`}
 						>
 							<span className="flex items-center justify-center w-6">
 								{n.icon}
@@ -150,8 +150,7 @@ export default function ConsumerLayout({
 					))}
 				</nav>
 
-				<div className="consumer-sidebar-card bg-[#ffffff05] border border-[#ffffff10] rounded-[18px] p-[18px] mt-auto relative overflow-hidden group">
-					<div className="absolute inset-0 bg-gradient-to-br from-[#f5c4180a] to-[#ff63160a] opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+				<div className="consumer-sidebar-card rounded-[18px] p-[18px] mt-auto relative overflow-hidden group">
 					<div
 						style={{
 							display: "flex",
@@ -160,6 +159,7 @@ export default function ConsumerLayout({
 							marginBottom: 12,
 						}}
 					>
+						<ThemeToggle />
 						<div
 							style={{
 								width: 36,
@@ -223,9 +223,9 @@ export default function ConsumerLayout({
 							onClick={handleLogout}
 							style={{
 								...(s.badge("yellow") as React.CSSProperties),
-								background: "rgba(255,77,109,.12)",
-								color: "#ff4d6d",
-								border: "1px solid rgba(255,77,109,.22)",
+								background: "color-mix(in srgb,var(--danger) 12%,var(--surface))",
+								color: "var(--danger)",
+								border: "1px solid color-mix(in srgb,var(--danger) 35%,var(--border))",
 								cursor: "pointer",
 							}}
 						>
@@ -238,7 +238,7 @@ export default function ConsumerLayout({
 			{/* MAIN CONTENT AREA */}
 			<div className="consumer-main md:ml-[240px] flex flex-col min-h-screen relative pb-[80px] md:pb-0">
 				{/* TOPBAR */}
-				<div className="consumer-topbar h-[70px] border-b border-[#ffffff10] bg-[#0c0c12e6] backdrop-blur-[24px] sticky top-0 z-40 flex items-center justify-between px-5 md:px-8">
+				<div className="consumer-topbar h-[70px] border-b sticky top-0 z-40 flex items-center justify-between px-5 md:px-8">
 					<button
 						onClick={() => router.push("/")}
 						style={{
@@ -253,7 +253,7 @@ export default function ConsumerLayout({
 							fontFamily: "var(--font-sans)",
 							fontWeight: 600,
 						}}
-						className="hover:text-white transition-colors"
+					className="consumer-back-link"
 					>
 						<Ic.ChevL /> Home
 					</button>
@@ -285,11 +285,12 @@ export default function ConsumerLayout({
 							gap: 12,
 						}}
 					>
+						<ThemeToggle />
 						<div
 							style={{ position: "relative", cursor: "pointer" }}
 							onClick={() => setShowNotif(!showNotif)}
 						>
-							<div className="w-10 h-10 rounded-xl bg-[#ffffff0a] border border-[#ffffff1a] flex items-center justify-center text-[#ffffffb3] hover:bg-[#ffffff1a] hover:text-white transition-all">
+						<div className="consumer-notification-button w-10 h-10 rounded-xl flex items-center justify-center transition-all">
 								<Ic.Bell />
 							</div>
 							{notifCount > 0 && (
@@ -307,7 +308,7 @@ export default function ConsumerLayout({
 										display: "flex",
 										alignItems: "center",
 										justifyContent: "center",
-										border: "2px solid var(--bg)",
+										border: "2px solid var(--page-bg)",
 									}}
 								>
 									{notifCount}
@@ -425,12 +426,12 @@ export default function ConsumerLayout({
 				</div>
 
 				{/* MOBILE NAV */}
-				<div className="consumer-mobile-nav md:hidden flex items-center justify-around fixed bottom-0 left-0 right-0 h-[72px] bg-[#0c0c12f2] backdrop-blur-[24px] border-t border-[#ffffff10] z-50 px-2 pb-safe">
+				<div className="consumer-mobile-nav md:hidden flex items-center justify-around fixed bottom-0 left-0 right-0 h-[72px] backdrop-blur-[24px] z-50 px-2 pb-safe">
 					{navItems.map((n) => (
 						<Link
 							key={n.id}
 							href={n.id}
-							className={`flex flex-col items-center gap-1 p-2 rounded-xl transition-all duration-200 ${pathname === n.id ? "text-[#f5c418]" : "text-[#ffffff50]"}`}
+							className={`consumer-mobile-link flex flex-col items-center gap-1 p-2 rounded-xl transition-all duration-200 ${pathname === n.id ? "is-active" : ""}`}
 						>
 							<div style={{ position: "relative" }}>
 								<div

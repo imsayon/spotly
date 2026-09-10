@@ -8,8 +8,9 @@ export class PrismaService
   implements OnModuleInit, OnModuleDestroy
 {
   constructor() {
-    const connectionString =
-      process.env.DATABASE_URL;
+    // Supabase's direct URL is the verified runtime connection. Keep DATABASE_URL
+    // for pooler/migration tooling, but don't let a stale pooler tenant break the API.
+    const connectionString = process.env.DIRECT_URL ?? process.env.DATABASE_URL;
 
     if (!connectionString) {
       throw new Error(
