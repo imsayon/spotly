@@ -1,7 +1,7 @@
 {
   "name": "spotly",
   "private": true,
-  "packageManager": "pnpm@12.3.4",
+  "packageManager": "pnpm@11.21.0",
   "scripts": {
     "build": "pnpm --filter @spotly/types build && pnpm --filter @spotly/database build && pnpm --filter @spotly/server build && pnpm --filter @spotly/consumer build && pnpm --filter @spotly/merchant build",
     "type-check": "pnpm --filter @spotly/types build && pnpm --filter @spotly/server type-check && pnpm --filter @spotly/consumer type-check && pnpm --filter @spotly/merchant type-check",

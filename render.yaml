@@ -7,8 +7,8 @@ projects:
             name: spotly-api
             runtime: node
             plan: free
-            buildCommand: corepack pnpm@12.3.4 install --frozen-lockfile && corepack pnpm@12.3.4 --filter @spotly/types build && corepack pnpm@12.3.4 --filter @spotly/database build && corepack pnpm@12.3.4 --filter @spotly/server build
-            startCommand: corepack pnpm@12.3.4 --filter @spotly/server start
+            buildCommand: corepack pnpm@11.21.0 install --frozen-lockfile && corepack pnpm@11.21.0 --filter @spotly/types build && corepack pnpm@11.21.0 --filter @spotly/database build && corepack pnpm@11.21.0 --filter @spotly/server build
+            startCommand: corepack pnpm@11.21.0 --filter @spotly/server start
             healthCheckPath: /api/v1/health
             envVars:
               - key: NODE_VERSION
@@ -31,7 +31,7 @@ projects:
           - type: web
             name: spotly-consumer
             runtime: static
-            buildCommand: corepack pnpm@12.3.4 install --frozen-lockfile && corepack pnpm@12.3.4 --filter @spotly/types build && corepack pnpm@12.3.4 --filter @spotly/consumer build
+            buildCommand: corepack pnpm@11.21.0 install --frozen-lockfile && corepack pnpm@11.21.0 --filter @spotly/types build && corepack pnpm@11.21.0 --filter @spotly/consumer build
             staticPublishPath: consumer-client/out
             envVars:
               - key: NODE_VERSION
@@ -50,7 +50,7 @@ projects:
           - type: web
             name: spotly-merchant
             runtime: static
-            buildCommand: corepack pnpm@12.3.4 install --frozen-lockfile && corepack pnpm@12.3.4 --filter @spotly/types build && corepack pnpm@12.3.4 --filter @spotly/merchant build
+            buildCommand: corepack pnpm@11.21.0 install --frozen-lockfile && corepack pnpm@11.21.0 --filter @spotly/types build && corepack pnpm@11.21.0 --filter @spotly/merchant build
             staticPublishPath: merchant-client/out
             envVars:
               - key: NODE_VERSION
