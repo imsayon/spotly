@@ -1,0 +1,11 @@
+packages:
+  - server
+  - consumer-client
+  - merchant-client
+  - packages/*
+allowBuilds:
+  '@prisma/engines': true
+  prisma: true
+  sharp: true
+  esbuild: true
+  '@scarf/scarf': false

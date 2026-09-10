@@ -1,6 +1,7 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  output: "standalone",
+  output: "export",
+  images: { unoptimized: true },
   transpilePackages: ["@spotly/types", "@spotly/ui"],
   experimental: {
     optimizePackageImports: ["@spotly/ui"],

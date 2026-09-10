@@ -120,7 +120,7 @@ export default function MerchantBusiness() {
         ? await api.patch('/merchant/me', data)
         : await api.post('/merchant', data)
       
-      if (res.data.success) {
+      if (res.data.data) {
         await fetchMerchantProfile()
         addToast(profile ? 'Business profile updated!' : 'Business profile created!', 'success')
       }

@@ -1,14 +1,14 @@
 "use client"
 
 import React, { useState, useEffect } from "react"
-import { motion, AnimatePresence } from "framer-motion"
-import { Ic, AuthModal, THEME, Orb } from "@spotly/ui"
+import { motion } from "framer-motion"
+import { Ic, AuthModal } from "@spotly/ui"
 import { useAuthStore } from "@/store/auth.store"
 import { useRouter } from "next/navigation"
 import { env } from "@/lib/env"
 
 export default function MerchantLandingPage() {
-  const { user, signInWithGoogle, loading: authLoading } = useAuthStore()
+  const { user, signInWithGoogle, signInWithEmail, signUpWithEmail, loading: authLoading } = useAuthStore()
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false)
   const [mounted, setMounted] = useState(false)
   const router = useRouter()
@@ -19,7 +19,7 @@ export default function MerchantLandingPage() {
   }, [user, authLoading, router])
 
   if (!mounted) return (
-    <div style={{ height: '100vh', background: '#050509', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+    <div style={{ height: '100vh', background: '#0b0d10', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
       <motion.div 
         animate={{ rotate: 360 }}
         transition={{ duration: 1.2, repeat: Infinity, ease: 'linear' }}
@@ -44,20 +44,13 @@ export default function MerchantLandingPage() {
   return (
     <div style={{ 
       minHeight: '100vh', 
-      background: '#040407', 
+      background: '#0b0d10',
       color: '#fff', 
       position: 'relative', 
       overflow: 'hidden',
       display: 'flex',
       flexDirection: 'column'
     }}>
-      {/* AMBIENCE */}
-      <div style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, overflow: 'hidden', pointerEvents: 'none' }}>
-        <Orb x="-15%" y="-15%" size="85%" color="rgba(31,217,124,.07)" anim="orb1 22s infinite" />
-        <Orb x="75%" y="25%" size="65%" color="rgba(0,207,255,.05)" anim="orb2 28s infinite" />
-        <div style={{ position: 'absolute', inset: 0, background: 'radial-gradient(circle at 50% 50%, transparent, #040407 98%)' }} />
-      </div>
-
       {/* NAV */}
       <nav style={{ 
         padding: '24px clamp(24px, 5vw, 64px)', 
@@ -68,7 +61,7 @@ export default function MerchantLandingPage() {
         zIndex: 10
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          <div style={{ width: 36, height: 36, borderRadius: 10, background: THEME.gradients.merchant, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <div style={{ width: 36, height: 36, borderRadius: 10, background: '#1fd97c', color: '#07160f', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             <Ic.Zap />
           </div>
           <div>
@@ -82,8 +75,8 @@ export default function MerchantLandingPage() {
             window.open(consumerUrl, '_blank');
           }}
           style={{ 
-            background: 'rgba(255,255,255,.03)', 
-            border: '1px solid rgba(255,255,255,.08)', 
+            background: 'transparent',
+            border: '1px solid rgba(255,255,255,.2)',
             padding: '10px 22px', 
             borderRadius: 12, 
             color: 'rgba(255,255,255,.5)', 
@@ -120,28 +113,28 @@ export default function MerchantLandingPage() {
             gap: 10, 
             padding: '8px 20px', 
             borderRadius: 99, 
-            background: 'rgba(31,217,124,.06)', 
-            border: '1px solid rgba(31,217,124,.15)',
+            background: 'transparent',
+            border: '1px solid rgba(31,217,124,.45)',
             color: '#1fd97c',
             fontSize: 11,
             fontWeight: 800,
             textTransform: 'uppercase',
             letterSpacing: 2
           }}>
-            <Ic.Activity /> Professional Queue Intelligence
+            <Ic.Activity /> For walk-in businesses
           </div>
         </motion.div>
 
         <motion.h2 variants={itemVars} style={{ 
-          fontSize: 'clamp(44px, 8vw, 84px)', 
-          fontWeight: 900, 
-          lineHeight: 1.05, 
-          letterSpacing: -3,
-          marginBottom: 32,
-          maxWidth: 960
+          fontSize: 'clamp(42px, 7vw, 76px)',
+          fontWeight: 800,
+          lineHeight: 1.02,
+          letterSpacing: -2.5,
+          marginBottom: 24,
+          maxWidth: 820
         }}>
           Manage your queue.<br/>
-          <span style={{ background: THEME.gradients.merchant, WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>Master your efficiency.</span>
+          <span style={{ color: '#1fd97c' }}>Keep customers moving.</span>
         </motion.h2>
 
         <motion.p variants={itemVars} style={{ 
@@ -152,25 +145,24 @@ export default function MerchantLandingPage() {
           marginBottom: 56,
           fontWeight: 500
         }}>
-          The industry leading platform for walk-in management. Eliminate overhead, 
-          reduce physical crowds, and delight your customers with precision timing.
+          See who is waiting, call the next customer, and keep the room moving without guesswork.
         </motion.p>
 
         <motion.div variants={itemVars}>
           <motion.button 
-            whileHover={{ scale: 1.05, y: -4, boxShadow: '0 25px 50px rgba(31,217,124,.25)' }}
+            whileHover={{ y: -2, backgroundColor: '#42e790' }}
             whileTap={{ scale: 0.95 }}
             onClick={() => setIsAuthModalOpen(true)}
             style={{ 
-              background: THEME.gradients.merchant, 
-              color: '#fff', 
-              padding: '20px 64px', 
-              borderRadius: 20, 
-              fontSize: 18, 
-              fontWeight: 900, 
+              background: '#1fd97c',
+              color: '#07160f',
+              padding: '16px 28px',
+              borderRadius: 12,
+              fontSize: 16,
+              fontWeight: 800,
               border: 'none', 
               cursor: 'pointer',
-              boxShadow: '0 15px 35px rgba(31,217,124,.2)',
+              boxShadow: 'none',
             }}
           >
             Launch Dashboard
@@ -182,6 +174,10 @@ export default function MerchantLandingPage() {
         isOpen={isAuthModalOpen} 
         onClose={() => setIsAuthModalOpen(false)} 
         onGoogleAuth={signInWithGoogle}
+        onEmailAuth={async (email, password, mode, name) => {
+          if (mode === 'sign-up') await signUpWithEmail(email, password, name)
+          else await signInWithEmail(email, password)
+        }}
         isLoading={authLoading}
         title="Welcome, Partner"
         variant="merchant"

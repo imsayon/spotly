@@ -1,4 +1,6 @@
-import { Controller, Get, Post, Patch, Param, Body, UseGuards } from "@nestjs/common";
+import { CreateMerchantDtoSchema, UpdateMerchantDtoSchema } from "@spotly/types";
+import { ZodValidationPipe } from "../../shared/pipes/zod-validation.pipe";
+import { Controller, NotFoundException, Get, Post, Patch, Param, Body, UseGuards } from "@nestjs/common";
 import { ApiTags, ApiOperation, ApiBearerAuth } from "@nestjs/swagger";
 import { MerchantService } from "./merchant.service";
 import { JwtAuthGuard } from "../../infra/auth/jwt-auth.guard";
@@ -36,16 +38,24 @@ export class MerchantController {
   @ApiOperation({ summary: "Create new merchant profile" })
   async create(
     @CurrentUser("id") userId: string,
-    @Body() dto: CreateMerchantDto,
+    @Body(new ZodValidationPipe(CreateMerchantDtoSchema)) dto: CreateMerchantDto,
   ) {
     return this.merchantService.create(userId, dto);
+  }
+
+  @Patch("me")
+  @UseGuards(JwtAuthGuard)
+  async updateMe(@CurrentUser("id") userId: string, @Body(new ZodValidationPipe(UpdateMerchantDtoSchema)) dto: UpdateMerchantDto) {
+    const merchant = await this.merchantService.findByOwner(userId);
+    if (!merchant) throw new NotFoundException("Business not found");
+    return this.merchantService.update(merchant.id, dto, userId);
   }
 
   @Patch(":id")
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: "Update merchant profile" })
-  async update(@Param("id") id: string, @Body() dto: UpdateMerchantDto) {
-    return this.merchantService.update(id, dto);
+  async update(@CurrentUser("id") userId: string, @Param("id") id: string, @Body(new ZodValidationPipe(UpdateMerchantDtoSchema)) dto: UpdateMerchantDto) {
+    return this.merchantService.update(id, dto, userId);
   }
 }

@@ -43,7 +43,7 @@ export default function InventoryPage() {
     const fetchMenu = async () => {
       if (!selectedOutlet) return
       try {
-        const res = await api.get(`/menu/${selectedOutlet}`)
+        const res = await api.get(`/menu/outlet/${selectedOutlet}`)
         setCategories(res.data.data)
       } catch (err) {
         addToast('Failed to load inventory', 'error')
@@ -54,7 +54,7 @@ export default function InventoryPage() {
 
   const fetchMenu = async () => {
     if (!selectedOutlet) return
-    const res = await api.get(`/menu/${selectedOutlet}`)
+    const res = await api.get(`/menu/outlet/${selectedOutlet}`)
     setCategories(res.data.data)
   }
 
@@ -62,7 +62,7 @@ export default function InventoryPage() {
     let general = categories.find((c: any) => c.name === 'General')
     if (general) return general.id
 
-    const res = await api.post(`/menu/${selectedOutlet}/category`, { name: 'General' })
+    const res = await api.post(`/menu/category`, { outletId: selectedOutlet, name: 'General' })
     return res.data.data.id
   }
 
@@ -73,7 +73,7 @@ export default function InventoryPage() {
     }
     try {
       const catId = await getOrCreateGeneralCategory()
-      await api.post(`/menu/category/${catId}/item`, {
+      await api.post(`/menu/item`, { categoryId: catId,
         name: newName.trim(),
         price: parseFloat(newPrice),
         description: ''
@@ -90,7 +90,7 @@ export default function InventoryPage() {
 
   const toggleAvailability = async (item: any) => {
     try {
-      await api.patch(`/menu/item/${item.id}`, { isAvailable: !item.isAvailable })
+      await api.patch(`/menu/item/${item.id}/availability?available=${!item.isAvailable}`)
       fetchMenu()
       addToast(`${item.name} marked as ${item.isAvailable ? 'unavailable' : 'available'}`, 'info')
     } catch {

@@ -1,71 +1,67 @@
-services:
-  # ─── 1. NestJS Backend API ───────────────────────────────────────────────────
-  - type: web
-    name: spotly-api
-    plan: free
-    runtime: node
-    rootDir: server
-    buildCommand: cd ../packages/types && npm install && npm run build && cd ../database && npm install && npx prisma generate && npm run build && cd ../../server && npm install && npm run build
-    startCommand: npm run start
-    healthCheckPath: /api/v1/health
-    envVars:
-      - key: NODE_VERSION
-        value: "24"
-      - key: PORT
-        value: "3001"
-      - key: DATABASE_URL
-        sync: false
-      - key: DIRECT_URL
-        sync: false
-      - key: SUPABASE_URL
-        sync: false
-      - key: SUPABASE_ANON_KEY
-        sync: false
-      - key: CONSUMER_URL
-        sync: false
-      - key: MERCHANT_URL
-        sync: false
+projects:
+  - name: spotly
+    environments:
+      - name: production
+        services:
+          - type: web
+            name: spotly-api
+            runtime: node
+            plan: free
+            buildCommand: corepack pnpm@12.3.4 install --frozen-lockfile && corepack pnpm@12.3.4 --filter @spotly/types build && corepack pnpm@12.3.4 --filter @spotly/database build && corepack pnpm@12.3.4 --filter @spotly/server build
+            startCommand: corepack pnpm@12.3.4 --filter @spotly/server start
+            healthCheckPath: /api/v1/health
+            envVars:
+              - key: NODE_VERSION
+                value: "24"
+              - key: PORT
+                value: "10000"
+              - key: DATABASE_URL
+                sync: false
+              - key: DIRECT_URL
+                sync: false
+              - key: SUPABASE_URL
+                value: https://gakryaaqvjkxmhfuueuu.supabase.co
+              - key: SUPABASE_ANON_KEY
+                sync: false
+              - key: CONSUMER_URL
+                sync: false
+              - key: MERCHANT_URL
+                sync: false
 
-  # ─── 2. Consumer Web App (Next.js) ──────────────────────────────────────────
-  - type: web
-    name: spotly-consumer
-    plan: free
-    runtime: node
-    rootDir: consumer-client
-    buildCommand: cd ../packages/types && npm install && npm run build && cd ../ui && npm install && npm run build && cd ../../consumer-client && npm install && npm run build
-    startCommand: npm run start
-    envVars:
-      - key: NODE_VERSION
-        value: "24"
-      - key: NEXT_PUBLIC_API_URL
-        sync: false
-      - key: NEXT_PUBLIC_WS_URL
-        sync: false
-      - key: NEXT_PUBLIC_SUPABASE_URL
-        sync: false
-      - key: NEXT_PUBLIC_SUPABASE_ANON_KEY
-        sync: false
-      - key: NEXT_PUBLIC_MERCHANT_URL
-        sync: false
+          - type: web
+            name: spotly-consumer
+            runtime: static
+            buildCommand: corepack pnpm@12.3.4 install --frozen-lockfile && corepack pnpm@12.3.4 --filter @spotly/consumer build
+            staticPublishPath: consumer-client/out
+            envVars:
+              - key: NODE_VERSION
+                value: "24"
+              - key: NEXT_PUBLIC_API_URL
+                sync: false
+              - key: NEXT_PUBLIC_WS_URL
+                sync: false
+              - key: NEXT_PUBLIC_SUPABASE_URL
+                value: https://gakryaaqvjkxmhfuueuu.supabase.co
+              - key: NEXT_PUBLIC_SUPABASE_ANON_KEY
+                sync: false
+              - key: NEXT_PUBLIC_MERCHANT_URL
+                sync: false
 
-  # ─── 3. Merchant Web App (Next.js) ──────────────────────────────────────────
-  - type: web
-    name: spotly-merchant
-    plan: free
-    runtime: node
-    rootDir: merchant-client
-    buildCommand: cd ../packages/types && npm install && npm run build && cd ../ui && npm install && npm run build && cd ../../merchant-client && npm install && npm run build
-    startCommand: npm run start
-    envVars:
-      - key: NODE_VERSION
-        value: "24"
-      - key: NEXT_PUBLIC_API_URL
-        sync: false
-      - key: NEXT_PUBLIC_WS_URL
-        sync: false
-      - key: NEXT_PUBLIC_SUPABASE_URL
-        sync: false
-      - key: NEXT_PUBLIC_SUPABASE_ANON_KEY
-        sync: false
-      - key: NEXT_PUBLIC_CONSUMER_URL
-        sync: false
+          - type: web
+            name: spotly-merchant
+            runtime: static
+            buildCommand: corepack pnpm@12.3.4 install --frozen-lockfile && corepack pnpm@12.3.4 --filter @spotly/merchant build
+            staticPublishPath: merchant-client/out
+            envVars:
+              - key: NODE_VERSION
+                value: "24"
+              - key: NEXT_PUBLIC_API_URL
+                sync: false
+              - key: NEXT_PUBLIC_WS_URL
+                sync: false
+              - key: NEXT_PUBLIC_SUPABASE_URL
+                value: https://gakryaaqvjkxmhfuueuu.supabase.co
+              - key: NEXT_PUBLIC_SUPABASE_ANON_KEY
+                sync: false
+              - key: NEXT_PUBLIC_CONSUMER_URL
+                sync: false

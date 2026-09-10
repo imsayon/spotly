@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from "@nestjs/common";
+import { Injectable, ForbiddenException, NotFoundException } from "@nestjs/common";
 import { PrismaService } from "../../infra/prisma/prisma.service";
 import { CreateOutletDto, UpdateOutletDto } from "@spotly/types";
 
@@ -33,23 +33,32 @@ export class OutletService {
     });
   }
 
-  async create(dto: CreateOutletDto) {
+  async create(dto: CreateOutletDto, userId: string) {
+    const owned = await this.prisma.merchant.findFirst({ where: { id: dto.merchantId, ownerId: userId } });
+    if (!owned) throw new ForbiddenException("You do not own this business");
     return this.prisma.outlet.create({
       data: dto,
     });
   }
 
-  async update(id: string, dto: UpdateOutletDto) {
+  async update(id: string, dto: UpdateOutletDto, userId: string) {
+    await this.prisma.assertOutletOwner(id, userId);
     return this.prisma.outlet.update({
       where: { id },
       data: dto,
     });
   }
 
-  async toggleActive(id: string, isActive: boolean) {
+  async toggleActive(id: string, isActive: boolean, userId: string) {
+    await this.prisma.assertOutletOwner(id, userId);
     return this.prisma.outlet.update({
       where: { id },
       data: { isActive },
     });
+  }
+
+  async remove(id: string, userId: string) {
+    await this.prisma.assertOutletOwner(id, userId);
+    return this.prisma.outlet.delete({ where: { id } });
   }
 }

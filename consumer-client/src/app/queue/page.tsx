@@ -1,7 +1,7 @@
 "use client"
 
 import React, { useEffect, useState } from "react"
-import { useParams, useRouter } from "next/navigation"
+import { useRouter } from "next/navigation"
 import { motion, AnimatePresence } from "framer-motion"
 import { Ic, useToasts, THEME, Orb } from "@spotly/ui"
 import { useAuthStore } from "@/store/auth.store"
@@ -42,8 +42,8 @@ const s = {
 }
 
 export default function ConsumerQueuePage() {
-	const { entryId } = useParams()
 	const router = useRouter()
+	const [entryId, setEntryId] = useState("")
 	const { user } = useAuthStore()
 	const { add: addToast } = useToasts()
 	const { entries, handleQueueUpdate, handleTokenCalled } = useQueueStore()
@@ -51,6 +51,10 @@ export default function ConsumerQueuePage() {
 	const [entry, setEntry] = useState<QueueEntry | null>(null)
 	const [loading, setLoading] = useState(true)
 	const [ahead, setAhead] = useState(0)
+
+	useEffect(() => {
+		setEntryId(new URLSearchParams(window.location.search).get("entryId") ?? "")
+	}, [])
 
 	// 1. Initial Data Fetch
 	useEffect(() => {
@@ -62,7 +66,7 @@ export default function ConsumerQueuePage() {
 
 				// Fetch full queue to calculate initial ahead
 				const queueRes = await api.get(
-					`/queue/${currentEntry.outletId}`,
+					`/queue/outlet/${currentEntry.outletId}`,
 				)
 				const queueEntries = queueRes.data.data
 				const waitingAhead = queueEntries.filter(
@@ -88,7 +92,7 @@ export default function ConsumerQueuePage() {
 			onQueueUpdate: (payload) => {
 				handleQueueUpdate({ ...payload, outletId: entry.outletId })
 				const updated = payload.entries.find((e: any) => e.id === entryId)
-				if (updated) setEntry(updated)
+				if (updated) setEntry((prev) => prev ? { ...prev, ...updated } : null)
 
 				const waitingAhead = payload.entries.filter(
 					(e: any) =>
@@ -114,13 +118,11 @@ export default function ConsumerQueuePage() {
 	}, [entry?.outletId, entryId, handleQueueUpdate, handleTokenCalled])
 
 	const { leaveQueue: leaveQueueStore } = useQueueStore()
-	const entryIdStr = (Array.isArray(entryId) ? entryId[0] : entryId) ?? ""
-
 	const handleLeave = async () => {
 		if (!confirm("Abandon your spot in the queue? This cannot be undone."))
 			return
 		try {
-			await leaveQueueStore(entryIdStr)
+			await leaveQueueStore(entryId)
 			addToast("Reservation cancelled", "info")
 			router.push("/home")
 		} catch (err) {

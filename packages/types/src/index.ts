@@ -244,7 +244,7 @@ export type ApiErrorResponse = z.infer<typeof ApiErrorResponseSchema>;
 
 export const QueueUpdatePayloadSchema = z.object({
   outletId: z.string().uuid(),
-  entries: z.array(QueueEntrySchema),
+  entries: z.array(QueueEntrySchema.omit({ userId: true })),
   currentToken: z.number().int(),
 });
 export type QueueUpdatePayload = z.infer<typeof QueueUpdatePayloadSchema>;

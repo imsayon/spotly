@@ -43,7 +43,7 @@ const playNotificationSound = () => {
 }
 
 interface QueueState {
-	entries: QueueEntry[]
+	entries: QueueUpdatePayload["entries"]
 	currentToken: number
 	myEntry: QueueEntry | null
 	loading: boolean
@@ -65,8 +65,8 @@ export const useQueueStore = create<QueueState>()((set, get) => ({
 	fetchQueue: async (outletId: string) => {
 		set({ loading: true })
 		try {
-			const res = await api.get(`/queue/${outletId}`)
-			const entries: QueueEntry[] = res.data.data || []
+			const res = await api.get(`/queue/outlet/${outletId}`)
+			const entries: QueueUpdatePayload["entries"] = res.data.data || []
 			const called = entries.find((entry) => entry.status === "CALLED")
 			set({
 				entries,
@@ -108,7 +108,7 @@ export const useQueueStore = create<QueueState>()((set, get) => ({
 	handleQueueUpdate: (payload: QueueUpdatePayload) => {
 		const { myEntry } = get()
 		const updatedMyEntry = myEntry
-			? (payload.entries.find((e) => e.id === myEntry.id) ?? myEntry)
+			? ({ ...myEntry, ...payload.entries.find((e) => e.id === myEntry.id) })
 			: null
 		set({
 			entries: payload.entries,

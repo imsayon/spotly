@@ -492,7 +492,7 @@ export default function ConsumerHome() {
 									gap: 18,
 									cursor: "pointer",
 								}}
-								onClick={() => router.push(`/merchant/${m.id}`)}
+								onClick={() => router.push(`/merchant?id=${encodeURIComponent(m.id)}`)}
 							>
 								<div
 									style={{

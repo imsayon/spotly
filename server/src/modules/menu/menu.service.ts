@@ -6,6 +6,12 @@ import { CreateMenuCategoryDto, CreateMenuItemDto } from "@spotly/types";
 export class MenuService {
   constructor(private readonly prisma: PrismaService) {}
 
+  private async assertItemOwner(itemId: string, userId: string) {
+    const item = await this.prisma.menuItem.findUnique({ where: { id: itemId }, include: { category: true } });
+    if (!item) throw new NotFoundException("Item not found");
+    await this.prisma.assertOutletOwner(item.category.outletId, userId);
+  }
+
   async getOutletMenu(outletId: string) {
     return this.prisma.menuCategory.findMany({
       where: { outletId },
@@ -18,15 +24,20 @@ export class MenuService {
     });
   }
 
-  async createCategory(dto: CreateMenuCategoryDto) {
+  async createCategory(dto: CreateMenuCategoryDto, userId: string) {
+    await this.prisma.assertOutletOwner(dto.outletId, userId);
     return this.prisma.menuCategory.create({ data: dto });
   }
 
-  async createItem(dto: CreateMenuItemDto) {
+  async createItem(dto: CreateMenuItemDto, userId: string) {
+    const category = await this.prisma.menuCategory.findUnique({ where: { id: dto.categoryId } });
+    if (!category) throw new NotFoundException("Category not found");
+    await this.prisma.assertOutletOwner(category.outletId, userId);
     return this.prisma.menuItem.create({ data: dto });
   }
 
-  async toggleItemAvailability(itemId: string, isAvailable: boolean) {
+  async toggleItemAvailability(itemId: string, isAvailable: boolean, userId: string) {
+    await this.assertItemOwner(itemId, userId);
     const item = await this.prisma.menuItem.findUnique({ where: { id: itemId } });
     if (!item) throw new NotFoundException(`Menu item ${itemId} not found`);
 
@@ -36,7 +47,8 @@ export class MenuService {
     });
   }
 
-  async deleteItem(itemId: string) {
+  async deleteItem(itemId: string, userId: string) {
+    await this.assertItemOwner(itemId, userId);
     return this.prisma.menuItem.delete({ where: { id: itemId } });
   }
 }

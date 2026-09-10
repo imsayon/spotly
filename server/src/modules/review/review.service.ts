@@ -27,15 +27,24 @@ export class ReviewService {
 		})
 	}
 
-	async getOutletReviews(outletId: string) {
+  async getOutletReviews(outletId: string) {
 		return this.prisma.review.findMany({
 			where: { outletId },
 			include: {
 				user: {
-					select: { name: true, email: true },
+					select: { name: true },
 				},
 			},
 			orderBy: { createdAt: "desc" },
 		})
-	}
+  }
+
+  async getOutletStats(outletId: string) {
+    const aggregate = await this.prisma.review.aggregate({
+      where: { outletId },
+      _avg: { rating: true },
+      _count: { _all: true },
+    });
+    return { avgRating: aggregate._avg.rating ?? 0, count: aggregate._count._all };
+  }
 }

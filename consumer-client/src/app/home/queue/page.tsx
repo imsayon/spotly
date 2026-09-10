@@ -71,7 +71,7 @@ export default function ConsumerQueue() {
 			const entry = await fetchActiveEntry()
 			// If user has an active entry, redirect them to the real live queue page
 			if (entry) {
-				router.replace(`/queue/${entry.id}`)
+				router.replace(`/queue?entryId=${encodeURIComponent(entry.id)}`)
 				return
 			}
 			setLoading(false)

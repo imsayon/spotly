@@ -6,6 +6,16 @@ import { UpdateUserProfileDto } from "@spotly/types"
 export class UserService {
 	constructor(private readonly prisma: PrismaService) {}
 
+  async register(user: import("@supabase/supabase-js").User) {
+    const name = typeof user.user_metadata?.full_name === "string"
+      ? user.user_metadata.full_name.trim().slice(0, 120) : null;
+    return this.prisma.user.upsert({
+      where: { id: user.id },
+      create: { id: user.id, email: user.email ?? null, name },
+      update: { email: user.email ?? null },
+    });
+  }
+
 	async findById(id: string) {
 		const user = await this.prisma.user.findUnique({
 			where: { id },

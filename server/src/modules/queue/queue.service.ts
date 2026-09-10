@@ -1,226 +1,135 @@
-import {
-  Injectable,
-  BadRequestException,
-  ConflictException,
-  NotFoundException,
-  ForbiddenException,
-} from "@nestjs/common";
-import { Prisma } from "@prisma/client";
+import { Injectable, BadRequestException, ConflictException, NotFoundException, ForbiddenException } from "@nestjs/common";
+import { Prisma, QueueStatus } from "@prisma/client";
 import { PrismaService } from "../../infra/prisma/prisma.service";
 import { AppEventsService } from "../../shared/events/app-events.service";
-import { QueueEntry, QueueUpdatePayload } from "@spotly/types";
+import { QueueUpdatePayload } from "@spotly/types";
+
+const active: QueueStatus[] = ["PENDING_ACCEPTANCE", "WAITING", "CALLED"];
+const pendingCutoff = () => new Date(Date.now() - 10 * 60 * 1000);
 
 @Injectable()
 export class QueueService {
-  constructor(
-    private readonly prisma: PrismaService,
-    private readonly appEvents: AppEventsService,
-  ) {}
+  constructor(private readonly prisma: PrismaService, private readonly appEvents: AppEventsService) {}
 
-  async joinQueue(userId: string, outletId: string): Promise<QueueEntry> {
-    const outlet = await this.prisma.outlet.findUnique({ where: { id: outletId } });
-    if (!outlet || !outlet.isActive) {
-      throw new BadRequestException("This outlet is not accepting queue entries right now");
+  private async transaction<T>(work: (tx: Prisma.TransactionClient) => Promise<T>): Promise<T> {
+    for (let attempt = 0; ; attempt++) {
+      try {
+        return await this.prisma.$transaction(work, { isolationLevel: "Serializable" });
+      } catch (error) {
+        if (error instanceof Prisma.PrismaClientKnownRequestError) {
+          if (error.code === "P2034" && attempt < 3) continue;
+          if (["P2002", "P2034"].includes(error.code)) {
+            throw new ConflictException("The queue changed. Refresh and try again.");
+          }
+        }
+        throw error;
+      }
     }
+  }
 
-    // Single active queue constraint check
-    const existingActive = await this.prisma.queueEntry.findFirst({
-      where: {
-        userId,
-        status: { in: ["WAITING", "CALLED", "PENDING_ACCEPTANCE"] },
-      },
-    });
-
-    if (existingActive) {
-      throw new ConflictException("You already have an active queue entry at another outlet");
-    }
-
-    const todayStr = new Date().toISOString().split("T")[0]!;
-    const today = new Date(todayStr);
-
-    // Atomic transaction for counter increment and queue entry creation
-    const entry = await this.prisma.$transaction(async (tx: Prisma.TransactionClient) => {
-      const counterRecord = await tx.outletDailyCounter.upsert({
-        where: { outletId_date: { outletId, date: today } },
-        update: { counter: { increment: 1 } },
-        create: { outletId, date: today, counter: 1 },
+  async joinQueue(userId: string, outletId: string) {
+    await this.cleanupStalePendingEntries();
+    const entry = await this.transaction(async (tx) => {
+      const outlet = await tx.outlet.findUnique({ where: { id: outletId } });
+      if (!outlet?.isActive) throw new BadRequestException("This outlet is not accepting customers");
+      if (await tx.queueEntry.findFirst({ where: { userId, status: { in: active } } })) {
+        throw new ConflictException("You already have an active queue entry");
+      }
+      const parts = new Intl.DateTimeFormat("en-US", {
+        timeZone: outlet.timezone, year: "numeric", month: "2-digit", day: "2-digit",
+      }).formatToParts(new Date());
+      const part = (type: string) => parts.find((p) => p.type === type)!.value;
+      const date = new Date(`${part("year")}-${part("month")}-${part("day")}T00:00:00Z`);
+      const counter = await tx.outletDailyCounter.upsert({
+        where: { outletId_date: { outletId, date } },
+        update: { counter: { increment: 1 } }, create: { outletId, date, counter: 1 },
       });
-
-      return tx.queueEntry.create({
-        data: {
-          userId,
-          outletId,
-          tokenNumber: counterRecord.counter,
-          status: "PENDING_ACCEPTANCE",
-        },
-      });
+      return tx.queueEntry.create({ data: { userId, outletId, tokenNumber: counter.counter, status: "PENDING_ACCEPTANCE" } });
     });
-
     await this.emitQueueUpdate(outletId);
-    return entry as QueueEntry;
+    return entry;
   }
 
-  async getQueue(outletId: string): Promise<QueueEntry[]> {
-    const entries = await this.prisma.queueEntry.findMany({
-      where: {
-        outletId,
-        status: { in: ["WAITING", "CALLED", "PENDING_ACCEPTANCE"] },
-      },
-      orderBy: { tokenNumber: "asc" },
+  private async entries(outletId: string) {
+    return this.prisma.queueEntry.findMany({
+      where: { outletId, status: { in: active } }, orderBy: [{ createdAt: "asc" }, { id: "asc" }],
+      select: { id: true, outletId: true, tokenNumber: true, status: true, createdAt: true, updatedAt: true, calledAt: true, servedAt: true },
     });
-    return entries as QueueEntry[];
   }
 
-  async getEntry(entryId: string): Promise<QueueEntry> {
-    const entry = await this.prisma.queueEntry.findUnique({ where: { id: entryId } });
-    if (!entry) throw new NotFoundException(`Queue entry ${entryId} not found`);
-    return entry as QueueEntry;
+  async getQueue(outletId: string) {
+    await this.cleanupStalePendingEntries();
+    return this.entries(outletId);
   }
 
-  async getActiveEntry(userId: string): Promise<QueueEntry | null> {
-    const entry = await this.prisma.queueEntry.findFirst({
-      where: {
-        userId,
-        status: { in: ["WAITING", "CALLED", "PENDING_ACCEPTANCE"] },
-      },
-      include: { outlet: true },
-    });
-    return entry as QueueEntry | null;
+  async getEntry(entryId: string, userId: string) {
+    await this.cleanupStalePendingEntries();
+    const entry = await this.prisma.queueEntry.findUnique({ where: { id: entryId }, include: { outlet: true } });
+    if (!entry) throw new NotFoundException("Queue entry not found");
+    if (entry.userId !== userId) throw new ForbiddenException("You can only view your own queue entry");
+    return entry;
   }
 
-  async getHistory(userId: string, limit = 20): Promise<QueueEntry[]> {
-    const entries = await this.prisma.queueEntry.findMany({
-      where: { userId },
-      orderBy: { createdAt: "desc" },
-      take: limit,
-      include: { outlet: true },
-    });
-    return entries as QueueEntry[];
+  async getActiveEntry(userId: string) {
+    await this.cleanupStalePendingEntries();
+    return this.prisma.queueEntry.findFirst({ where: { userId, status: { in: active } }, include: { outlet: true } });
   }
 
-  async advanceQueue(outletId: string): Promise<QueueEntry | null> {
-    const nextEntry = await this.prisma.queueEntry.findFirst({
-      where: { outletId, status: "WAITING" },
-      orderBy: { tokenNumber: "asc" },
+  async getHistory(userId: string) {
+    await this.cleanupStalePendingEntries();
+    return this.prisma.queueEntry.findMany({ where: { userId }, orderBy: { createdAt: "desc" }, take: 20, include: { outlet: true } });
+  }
+
+  async advanceQueue(outletId: string, userId: string) {
+    await this.prisma.assertOutletOwner(outletId, userId);
+    const entry = await this.transaction(async (tx) => {
+      if (await tx.queueEntry.findFirst({ where: { outletId, status: "CALLED" } })) {
+        throw new ConflictException("Complete the called customer before calling another");
+      }
+      const next = await tx.queueEntry.findFirst({ where: { outletId, status: "WAITING" }, orderBy: [{ createdAt: "asc" }, { id: "asc" }] });
+      if (!next) return null;
+      return tx.queueEntry.update({ where: { id: next.id }, data: { status: "CALLED", calledAt: new Date() } });
     });
-
-    if (!nextEntry) return null;
-
-    const updated = await this.prisma.queueEntry.update({
-      where: { id: nextEntry.id },
-      data: { status: "CALLED", calledAt: new Date() },
-    });
-
-    this.appEvents.emit("token:called", {
-      outletId,
-      payload: { outletId, tokenNumber: updated.tokenNumber },
-    });
-
+    if (entry) this.appEvents.emit("token:called", { outletId, payload: { outletId, tokenNumber: entry.tokenNumber } });
     await this.emitQueueUpdate(outletId);
-    return updated as QueueEntry;
+    return entry;
   }
 
-  async leaveQueue(entryId: string, userId: string): Promise<void> {
-    const entry = await this.getEntry(entryId);
-    if (entry.userId !== userId) {
-      throw new BadRequestException("You can only leave your own queue entry");
-    }
-
-    await this.prisma.queueEntry.update({
-      where: { id: entryId },
-      data: { status: "CANCELLED" },
-    });
-
+  async leaveQueue(entryId: string, userId: string) {
+    const entry = await this.getEntry(entryId, userId);
+    if (entry.userId !== userId) throw new ForbiddenException("You can only leave your own queue");
+    const result = await this.prisma.queueEntry.updateMany({ where: { id: entryId, userId, status: { in: active } }, data: { status: "CANCELLED" } });
+    if (!result.count) throw new ConflictException("This entry is no longer active");
     await this.emitQueueUpdate(entry.outletId);
   }
 
-  async markServed(entryId: string, outletId: string): Promise<void> {
-    const entry = await this.getEntry(entryId);
-    if (entry.outletId !== outletId) {
-      throw new ForbiddenException("Entry does not belong to this outlet");
-    }
-
-    await this.prisma.queueEntry.update({
-      where: { id: entryId },
-      data: { status: "SERVED", servedAt: new Date() },
+  private async transition(entryId: string, outletId: string, userId: string, from: QueueStatus[], status: QueueStatus) {
+    await this.prisma.assertOutletOwner(outletId, userId);
+    await this.cleanupStalePendingEntries();
+    const result = await this.prisma.queueEntry.updateMany({
+      where: { id: entryId, outletId, status: { in: from } },
+      data: { status, ...(status === "SERVED" ? { servedAt: new Date() } : {}) },
     });
-
+    if (!result.count) throw new ConflictException("This queue action is no longer available");
     await this.emitQueueUpdate(outletId);
   }
 
-  async markMissed(entryId: string, outletId: string): Promise<void> {
-    const entry = await this.getEntry(entryId);
-    if (entry.outletId !== outletId) {
-      throw new ForbiddenException("Entry does not belong to this outlet");
-    }
+  acceptEntry(id: string, outletId: string, userId: string) { return this.transition(id, outletId, userId, ["PENDING_ACCEPTANCE"], "WAITING"); }
+  rejectEntry(id: string, outletId: string, userId: string) { return this.transition(id, outletId, userId, ["PENDING_ACCEPTANCE", "WAITING"], "MISSED"); }
+  markServed(id: string, outletId: string, userId: string) { return this.transition(id, outletId, userId, ["CALLED"], "SERVED"); }
+  markMissed(id: string, outletId: string, userId: string) { return this.transition(id, outletId, userId, ["CALLED"], "MISSED"); }
 
-    await this.prisma.queueEntry.update({
-      where: { id: entryId },
-      data: { status: "MISSED" },
-    });
-
-    await this.emitQueueUpdate(outletId);
+  async cleanupStalePendingEntries() {
+    const cutoff = pendingCutoff();
+    const stale = await this.prisma.queueEntry.findMany({ where: { status: "PENDING_ACCEPTANCE", createdAt: { lt: cutoff } }, select: { outletId: true } });
+    if (!stale.length) return;
+    await this.prisma.queueEntry.updateMany({ where: { status: "PENDING_ACCEPTANCE", createdAt: { lt: cutoff } }, data: { status: "MISSED" } });
+    for (const outletId of new Set(stale.map((entry) => entry.outletId))) await this.emitQueueUpdate(outletId);
   }
 
-  async acceptEntry(entryId: string, outletId: string): Promise<void> {
-    const entry = await this.getEntry(entryId);
-    if (entry.outletId !== outletId) {
-      throw new ForbiddenException("Entry does not belong to this outlet");
-    }
-
-    await this.prisma.queueEntry.update({
-      where: { id: entryId },
-      data: { status: "WAITING" },
-    });
-
-    await this.emitQueueUpdate(outletId);
-  }
-
-  async rejectEntry(entryId: string, outletId: string): Promise<void> {
-    const entry = await this.getEntry(entryId);
-    if (entry.outletId !== outletId) {
-      throw new ForbiddenException("Entry does not belong to this outlet");
-    }
-
-    await this.prisma.queueEntry.update({
-      where: { id: entryId },
-      data: { status: "MISSED" },
-    });
-
-    await this.emitQueueUpdate(outletId);
-  }
-
-  async cleanupStalePendingEntries(): Promise<void> {
-    const cutoff = new Date(Date.now() - 10 * 60 * 1000);
-    const stale = await this.prisma.queueEntry.findMany({
-      where: { status: "PENDING_ACCEPTANCE", createdAt: { lt: cutoff } },
-    });
-
-    if (stale.length === 0) return;
-
-    await this.prisma.queueEntry.updateMany({
-      where: { status: "PENDING_ACCEPTANCE", createdAt: { lt: cutoff } },
-      data: { status: "MISSED" },
-    });
-
-    const uniqueOutletIds: string[] = Array.from(new Set(stale.map((s: { outletId: string }) => s.outletId)));
-    for (const outletId of uniqueOutletIds) {
-      await this.emitQueueUpdate(outletId);
-    }
-  }
-
-  private async emitQueueUpdate(outletId: string): Promise<void> {
-    const entries = await this.getQueue(outletId);
-    const currentCalled = entries.find((e) => e.status === "CALLED");
-
-    const sanitized = entries.map(({ userId: _userId, ...rest }) => rest);
-
-    const payload: QueueUpdatePayload = {
-      outletId,
-      entries: sanitized as QueueEntry[],
-      currentToken: currentCalled?.tokenNumber ?? 0,
-    };
-
+  private async emitQueueUpdate(outletId: string) {
+    const entries = await this.entries(outletId);
+    const payload: QueueUpdatePayload = { outletId, entries, currentToken: entries.find((entry) => entry.status === "CALLED")?.tokenNumber ?? 0 };
     this.appEvents.emit("queue:update", { outletId, payload });
   }
 }

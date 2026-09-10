@@ -213,7 +213,7 @@ function OnboardingFlow() {
         lng: location?.lng,
       });
 
-      if (!merchantRes.data.success) {
+      if (!merchantRes.data.data) {
         throw new Error(merchantRes.data.message || 'Failed to create merchant');
       }
 
@@ -225,6 +225,7 @@ function OnboardingFlow() {
       // 3. Create outlet with location + hours
       try {
         const outletRes = await api.post('/outlet', {
+          merchantId: merchant.id,
           name: outletName,
           address: outletAddress,
           lat: location?.lat,
@@ -234,18 +235,18 @@ function OnboardingFlow() {
         });
 
         // 4. Persist inventory to the real API
-        if (outletRes.data.success && inventoryItems.length > 0) {
+        if (outletRes.data.data && inventoryItems.length > 0) {
           const outlet = outletRes.data.data;
           // Create General category
-          const catRes = await api.post(`/menu/${outlet.id}/category`, {
+          const catRes = await api.post(`/menu/category`, { outletId: outlet.id,
             name: 'General'
           });
           
-          if (catRes.data.success) {
+          if (catRes.data.data) {
             const categoryId = catRes.data.data.id;
             // Create items in parallel
             await Promise.all(inventoryItems.map(name => 
-              api.post(`/menu/category/${categoryId}/item`, {
+              api.post(`/menu/item`, { categoryId: categoryId,
                 name,
                 price: 0,
                 isAvailable: true
@@ -255,7 +256,7 @@ function OnboardingFlow() {
         }
       } catch (outletErr: any) {
         // Outlet creation failure is non-fatal — merchant is created, redirect anyway
-        console.warn('[Onboarding] Outlet or inventory creation failed (non-fatal):', outletErr?.message);
+        throw outletErr;
       }
 
       // 5. Update auth store so RouteGuard won't redirect back to onboarding

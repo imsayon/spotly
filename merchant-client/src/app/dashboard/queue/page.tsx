@@ -217,12 +217,12 @@ export default function MerchantQueuePage() {
                       display: 'flex', alignItems: 'center', justifyContent: 'center',
                       fontSize: 12, fontWeight: 900, color: '#fff',
                     }}>
-                      {entry.userId?.slice(0, 2)?.toUpperCase() ?? '?'}
+                      {String(entry.tokenNumber) ?? '?'}
                     </div>
 
                     <div style={{ flex: 1 }}>
                       <div style={{ fontWeight: 700, fontSize: 14, color: '#fff' }}>
-                        Customer {entry.userId?.slice(0, 8)}…
+                        Customer {entry.tokenNumber}…
                       </div>
                       <div style={{ fontSize: 12, color: 'rgba(255,255,255,.35)' }}>
                         Joined {new Date(entry.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
@@ -394,7 +394,7 @@ export default function MerchantQueuePage() {
                           display: 'flex', alignItems: 'center', justifyContent: 'center',
                           fontSize: 11, fontWeight: 900, color: '#fff',
                         }}>
-                          {entry.userId?.slice(0, 2)?.toUpperCase()}
+                          {String(entry.tokenNumber)}
                         </div>
 
                         <StatusBadge status={entry.status} />

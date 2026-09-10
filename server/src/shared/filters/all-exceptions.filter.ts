@@ -39,8 +39,6 @@ export class AllExceptionsFilter implements ExceptionFilter {
 				details = obj.details
 			}
 		} else if (exception instanceof Error) {
-			message = exception.message
-			errorCode = exception.name
 			this.logger.error(`[${requestId}] ${exception.stack}`)
 		}
 

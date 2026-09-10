@@ -19,8 +19,6 @@ interface AuthState {
 		password: string,
 		name?: string,
 	) => Promise<void>
-	sendOtp: (phone: string) => Promise<void>
-	verifyOtp: (phone: string, token: string) => Promise<void>
 	signOut: () => Promise<void>
 	fetchProfile: () => Promise<BackendUser | null>
 	updateProfile: (data: Partial<BackendUser>) => Promise<void>
@@ -83,30 +81,6 @@ export const useAuthStore = create<AuthState>()((set, get) => ({
 			if (error) throw error
 		} catch (error) {
 			console.error("Email Sign-Up Error:", error)
-			throw error
-		}
-	},
-
-	sendOtp: async (phone) => {
-		try {
-			const { error } = await supabase.auth.signInWithOtp({ phone })
-			if (error) throw error
-		} catch (error) {
-			console.error("Send OTP Error:", error)
-			throw error
-		}
-	},
-
-	verifyOtp: async (phone, token) => {
-		try {
-			const { error } = await supabase.auth.verifyOtp({
-				phone,
-				token,
-				type: "sms",
-			})
-			if (error) throw error
-		} catch (error) {
-			console.error("Verify OTP Error:", error)
 			throw error
 		}
 	},

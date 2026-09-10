@@ -1,3 +1,5 @@
+import { JoinQueueDtoSchema } from "@spotly/types";
+import { ZodValidationPipe } from "../../shared/pipes/zod-validation.pipe";
 import {
 	Controller,
 	Get,
@@ -22,9 +24,15 @@ export class QueueController {
 	@UseGuards(JwtAuthGuard)
 	@ApiBearerAuth()
 	@ApiOperation({ summary: "Consumer joins an outlet queue" })
-	async join(@CurrentUser("id") userId: string, @Body() dto: JoinQueueDto) {
+	async join(@CurrentUser("id") userId: string, @Body(new ZodValidationPipe(JoinQueueDtoSchema)) dto: JoinQueueDto) {
 		return this.queueService.joinQueue(userId, dto.outletId)
 	}
+
+  @Get("entry/:id")
+  @UseGuards(JwtAuthGuard)
+  async getEntry(@Param("id") id: string, @CurrentUser("id") userId: string) {
+    return this.queueService.getEntry(id, userId);
+  }
 
 	@Get("active")
 	@UseGuards(JwtAuthGuard)
@@ -52,8 +60,8 @@ export class QueueController {
 	@UseGuards(JwtAuthGuard)
 	@ApiBearerAuth()
 	@ApiOperation({ summary: "Merchant calls next waiting token" })
-	async advanceQueue(@Param("outletId") outletId: string) {
-		return this.queueService.advanceQueue(outletId)
+	async advanceQueue(@CurrentUser("id") userId: string, @Param("outletId") outletId: string) {
+		return this.queueService.advanceQueue(outletId, userId)
 	}
 
 	@Patch("entry/:id/leave")
@@ -74,9 +82,10 @@ export class QueueController {
 	@ApiOperation({ summary: "Merchant accepts pending queue entry" })
 	async acceptEntry(
 		@Param("id") entryId: string,
-		@Body("outletId") outletId: string,
+		@Body(new ZodValidationPipe(JoinQueueDtoSchema)) dto: JoinQueueDto,
+    @CurrentUser("id") userId: string,
 	) {
-		await this.queueService.acceptEntry(entryId, outletId)
+		await this.queueService.acceptEntry(entryId, dto.outletId, userId)
 		return { success: true }
 	}
 
@@ -86,9 +95,10 @@ export class QueueController {
 	@ApiOperation({ summary: "Merchant rejects pending queue entry" })
 	async rejectEntry(
 		@Param("id") entryId: string,
-		@Body("outletId") outletId: string,
+		@Body(new ZodValidationPipe(JoinQueueDtoSchema)) dto: JoinQueueDto,
+    @CurrentUser("id") userId: string,
 	) {
-		await this.queueService.rejectEntry(entryId, outletId)
+		await this.queueService.rejectEntry(entryId, dto.outletId, userId)
 		return { success: true }
 	}
 
@@ -98,9 +108,10 @@ export class QueueController {
 	@ApiOperation({ summary: "Merchant marks token as served" })
 	async markServed(
 		@Param("id") entryId: string,
-		@Body("outletId") outletId: string,
+		@Body(new ZodValidationPipe(JoinQueueDtoSchema)) dto: JoinQueueDto,
+    @CurrentUser("id") userId: string,
 	) {
-		await this.queueService.markServed(entryId, outletId)
+		await this.queueService.markServed(entryId, dto.outletId, userId)
 		return { success: true }
 	}
 
@@ -110,9 +121,10 @@ export class QueueController {
 	@ApiOperation({ summary: "Merchant marks token as missed" })
 	async markMissed(
 		@Param("id") entryId: string,
-		@Body("outletId") outletId: string,
+		@Body(new ZodValidationPipe(JoinQueueDtoSchema)) dto: JoinQueueDto,
+    @CurrentUser("id") userId: string,
 	) {
-		await this.queueService.markMissed(entryId, outletId)
+		await this.queueService.markMissed(entryId, dto.outletId, userId)
 		return { success: true }
 	}
 }

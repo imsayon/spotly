@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from "@nestjs/common";
+import { Injectable, ForbiddenException, NotFoundException } from "@nestjs/common";
 import { PrismaService } from "../../infra/prisma/prisma.service";
 import { CreateMerchantDto, UpdateMerchantDto } from "@spotly/types";
 
@@ -56,13 +56,15 @@ export class MerchantService {
   async create(ownerId: string, dto: CreateMerchantDto) {
     return this.prisma.merchant.create({
       data: {
-        ownerId,
         ...dto,
+        ownerId,
       },
     });
   }
 
-  async update(id: string, dto: UpdateMerchantDto) {
+  async update(id: string, dto: UpdateMerchantDto, userId: string) {
+    const owned = await this.prisma.merchant.findFirst({ where: { id, ownerId: userId } });
+    if (!owned) throw new ForbiddenException("You do not own this business");
     return this.prisma.merchant.update({
       where: { id },
       data: dto,

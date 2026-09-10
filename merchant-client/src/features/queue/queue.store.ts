@@ -10,7 +10,7 @@ export type ExtendedQueueStatus =
 	| "PENDING_ACCEPTANCE"
 	| "CANCELLED"
 
-export type ExtendedQueueEntry = Omit<QueueEntry, "status"> & {
+export type ExtendedQueueEntry = Omit<QueueEntry, "status" | "userId"> & {
 	status: ExtendedQueueStatus
 	userName?: string
 }
@@ -93,7 +93,7 @@ export const useQueueStore = create<QueueStore>((set, get) => ({
 		const { selectedOutletId } = get()
 		if (!selectedOutletId) return
 		try {
-			const res = await api.get(`/queue/${selectedOutletId}`)
+			const res = await api.get(`/queue/outlet/${selectedOutletId}`)
 			const data: ExtendedQueueEntry[] = res.data.data || []
 			set({ entries: data })
 		} catch {

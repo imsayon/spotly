@@ -1,4 +1,7 @@
-import { Controller, Get, Post, Patch, Delete, Param, Body, Query, UseGuards } from "@nestjs/common";
+import { CurrentUser } from "../../infra/auth/current-user.decorator";
+import { CreateMenuCategoryDtoSchema, CreateMenuItemDtoSchema } from "@spotly/types";
+import { ZodValidationPipe } from "../../shared/pipes/zod-validation.pipe";
+import { Controller, ParseBoolPipe, Get, Post, Patch, Delete, Param, Body, Query, UseGuards } from "@nestjs/common";
 import { ApiTags, ApiOperation, ApiBearerAuth } from "@nestjs/swagger";
 import { MenuService } from "./menu.service";
 import { JwtAuthGuard } from "../../infra/auth/jwt-auth.guard";
@@ -19,16 +22,16 @@ export class MenuController {
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: "Create menu category" })
-  async createCategory(@Body() dto: CreateMenuCategoryDto) {
-    return this.menuService.createCategory(dto);
+  async createCategory(@CurrentUser("id") userId: string, @Body(new ZodValidationPipe(CreateMenuCategoryDtoSchema)) dto: CreateMenuCategoryDto) {
+    return this.menuService.createCategory(dto, userId);
   }
 
   @Post("item")
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: "Create menu item" })
-  async createItem(@Body() dto: CreateMenuItemDto) {
-    return this.menuService.createItem(dto);
+  async createItem(@CurrentUser("id") userId: string, @Body(new ZodValidationPipe(CreateMenuItemDtoSchema)) dto: CreateMenuItemDto) {
+    return this.menuService.createItem(dto, userId);
   }
 
   @Patch("item/:id/availability")
@@ -36,18 +39,19 @@ export class MenuController {
   @ApiBearerAuth()
   @ApiOperation({ summary: "Toggle menu item availability" })
   async toggleAvailability(
+    @CurrentUser("id") userId: string,
     @Param("id") itemId: string,
-    @Query("available") available: string,
+    @Query("available", ParseBoolPipe) available: boolean,
   ) {
-    const isAvailable = available === "true";
-    return this.menuService.toggleItemAvailability(itemId, isAvailable);
+    const isAvailable = available;
+    return this.menuService.toggleItemAvailability(itemId, isAvailable, userId);
   }
 
   @Delete("item/:id")
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: "Delete menu item" })
-  async deleteItem(@Param("id") itemId: string) {
-    return this.menuService.deleteItem(itemId);
+  async deleteItem(@CurrentUser("id") userId: string, @Param("id") itemId: string) {
+    return this.menuService.deleteItem(itemId, userId);
   }
 }

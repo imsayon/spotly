@@ -89,14 +89,14 @@ export default function MerchantOutlets() {
     try {
       setLoading(true)
       const res = await api.get(`/outlet/merchant/${merchantProfile?.id}`)
-      if (res.data.success) {
+      if (res.data.data) {
         const raw = res.data.data || []
         // Fetch queue counts in parallel for each outlet
         const withCounts = await Promise.all(
           raw.map(async (o: any) => {
             let queueCount = 0
             try {
-              const qRes = await api.get(`/queue/${o.id}`)
+              const qRes = await api.get(`/queue/outlet/${o.id}`)
               queueCount = (qRes.data.data || []).filter(
                 (e: any) => e.status === 'WAITING' || e.status === 'PENDING_ACCEPTANCE'
               ).length
@@ -130,7 +130,7 @@ export default function MerchantOutlets() {
         lng: newLng
       })
       
-      if (res.data.success) {
+      if (res.data.data) {
         addToast(`${newName} outlet created!`, 'success')
         setNewName('')
         setNewAddr('')
@@ -155,7 +155,7 @@ export default function MerchantOutlets() {
         isActive: newStatus
       })
       
-      if (res.data.success) {
+      if (res.data.data) {
         setOutlets(p => p.map(o => o.id === id ? { ...o, open: newStatus } : o))
         addToast('Status updated', 'info')
       }
@@ -264,7 +264,7 @@ export default function MerchantOutlets() {
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(340px,1fr))', gap: 16 }}>
         {outlets.map((o: any) => (
           <div key={o.id} style={{ ...s.card, padding: '24px', cursor: 'pointer', position: 'relative' }}
-            onClick={() => router.push(`/dashboard/outlets/${o.id}`)}
+			onClick={() => router.push(`/dashboard/outlets/detail?id=${encodeURIComponent(o.id)}`)}
             onMouseEnter={e => { e.currentTarget.style.borderColor = 'rgba(31,217,124,.28)'; e.currentTarget.style.transform = 'translateY(-4px)' }}
             onMouseLeave={e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,.06)'; e.currentTarget.style.transform = '' }}>
             
@@ -296,7 +296,7 @@ export default function MerchantOutlets() {
             </div>
 
             <button style={{ ...s.btnM, width: '100%', padding: '11px', fontSize: 13, gap: 7, background: 'rgba(255,255,255,.05)', border: '1px solid rgba(255,255,255,.1)', color: 'rgba(255,255,255,.7)' }} 
-              onClick={e => { e.stopPropagation(); router.push(`/dashboard/outlets/${o.id}`) }}>
+				onClick={e => { e.stopPropagation(); router.push(`/dashboard/outlets/detail?id=${encodeURIComponent(o.id)}`) }}>
               <Ic.Settings />Configure Settings
             </button>
           </div>

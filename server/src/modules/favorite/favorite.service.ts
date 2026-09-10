@@ -5,6 +5,15 @@ import { PrismaService } from "../../infra/prisma/prisma.service";
 export class FavoriteService {
   constructor(private readonly prisma: PrismaService) {}
 
+  async add(userId: string, outletId: string) {
+    return this.prisma.favorite.upsert({ where: { userId_outletId: { userId, outletId } }, create: { userId, outletId }, update: {} });
+  }
+
+  async remove(userId: string, outletId: string) {
+    await this.prisma.favorite.deleteMany({ where: { userId, outletId } });
+    return { isFavorite: false };
+  }
+
   async toggleFavorite(userId: string, outletId: string) {
     const existing = await this.prisma.favorite.findUnique({
       where: {

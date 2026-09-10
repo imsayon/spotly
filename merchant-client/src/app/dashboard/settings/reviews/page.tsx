@@ -157,9 +157,9 @@ export default function ReviewsPage() {
               <div key={r.id} style={{ ...s.card, padding: '20px' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                    <div style={{ width: 36, height: 36, borderRadius: '50%', background: 'linear-gradient(45deg, #1fd97c, #0d1117)', border: '1px solid rgba(255,255,255,.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 900, color: '#fff', fontSize: 12 }}>{r.userId[0]?.toUpperCase() || 'U'}</div>
+                    <div style={{ width: 36, height: 36, borderRadius: '50%', background: 'linear-gradient(45deg, #1fd97c, #0d1117)', border: '1px solid rgba(255,255,255,.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 900, color: '#fff', fontSize: 12 }}>U</div>
                     <div>
-                      <div style={{ fontWeight: 700, fontSize: 14 }}>Customer {r.userId.slice(0, 6)}</div>
+                      <div style={{ fontWeight: 700, fontSize: 14 }}>Customer</div>
                       <div style={{ fontSize: 11, color: 'var(--t4)' }}>{formatDate(r.createdAt)}</div>
                     </div>
                   </div>

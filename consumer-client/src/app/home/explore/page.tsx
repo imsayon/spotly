@@ -141,7 +141,7 @@ export default function ConsumerExplore() {
 
 	const openMerchant = (merchant: any) => {
 		if (isConnectableMerchant(merchant)) {
-			router.push(`/merchant/${merchant.id}`)
+			router.push(`/merchant?id=${encodeURIComponent(merchant.id)}`)
 			return
 		}
 		addToast("This nearby place is not yet managed on Spotly", "info")
@@ -207,10 +207,8 @@ export default function ConsumerExplore() {
 	const loadFavorites = async () => {
 		try {
 			const res = await api.get("/favorite")
-			if (res.data.success && res.data.data) {
-				const favIds = res.data.data.map((f: any) => f.outletId)
-				setFavorites(new Set(favIds))
-			}
+			const favIds = (res.data.data || []).map((f: any) => f.outletId)
+			setFavorites(new Set(favIds))
 		} catch (err) {
 			console.warn("Failed to load favorites")
 		}
@@ -224,7 +222,7 @@ export default function ConsumerExplore() {
 				? `?lat=${location.latitude}&lng=${location.longitude}`
 				: ""
 			const res = await api.get(`/merchant${params}`)
-			if (res.data.success) {
+			if (res.data.data) {
 				setMerchants(res.data.data)
 			}
 		} catch (err) {

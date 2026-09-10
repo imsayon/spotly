@@ -29,6 +29,8 @@ interface AuthState {
 	setUser: (user: SupabaseUser | null) => Promise<void>
 	registerOnBackend: () => Promise<void>
 	signInWithGoogle: () => Promise<void>
+	signInWithEmail: (email: string, password: string) => Promise<void>
+	signUpWithEmail: (email: string, password: string, name?: string) => Promise<void>
 	signOut: () => Promise<void>
 	fetchMerchantProfile: () => Promise<MerchantProfile | null>
 	setMerchantProfile: (profile: MerchantProfile) => void
@@ -103,6 +105,20 @@ export const useAuthStore = create<AuthState>()((set, get) => ({
 			console.error("Merchant Google Sign-In Error:", error)
 			throw error
 		}
+	},
+
+	signInWithEmail: async (email, password) => {
+		const { error } = await supabase.auth.signInWithPassword({ email, password })
+		if (error) throw error
+	},
+
+	signUpWithEmail: async (email, password, name) => {
+		const { error } = await supabase.auth.signUp({
+			email,
+			password,
+			options: { data: { full_name: name?.trim() || "" } },
+		})
+		if (error) throw error
 	},
 
 	signOut: async () => {

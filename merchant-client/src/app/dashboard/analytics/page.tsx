@@ -55,7 +55,7 @@ export default function MerchantAnalytics() {
 				const queueResults = await Promise.all(
 					outlets.map((outlet: any) =>
 						api
-							.get(`/queue/${outlet.id}/history`)
+                    .get(`/queue/outlet/${outlet.id}`)
 							.catch(() => ({ data: { data: [] } })),
 					),
 				)

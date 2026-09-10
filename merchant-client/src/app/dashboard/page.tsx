@@ -275,7 +275,7 @@ function QueueRow({
 					color: "#fff",
 				}}
 			>
-				{entry.userId?.slice(0, 2)?.toUpperCase() ?? "?"}
+				{String(entry.tokenNumber) ?? "?"}
 			</div>
 
 			{/* Status */}
@@ -1056,7 +1056,7 @@ export default function MerchantDashboard() {
 										marginBottom: 20,
 									}}
 								>
-									User: {called.userId?.slice(0, 8)}…
+									User: {called.tokenNumber}…
 								</div>
 							)}
 							{called ? (

@@ -1,4 +1,6 @@
-import { Controller, Get, Patch, Body, Param, UseGuards } from "@nestjs/common"
+import { UpdateUserProfileDtoSchema } from "@spotly/types";
+import { ZodValidationPipe } from "../../shared/pipes/zod-validation.pipe";
+import { Controller, Post, Get, Patch, Body, Param, UseGuards } from "@nestjs/common"
 import { ApiTags, ApiOperation, ApiBearerAuth } from "@nestjs/swagger"
 import { UserService } from "./user.service"
 import { JwtAuthGuard } from "../../infra/auth/jwt-auth.guard"
@@ -18,11 +20,11 @@ export class UserController {
 		return this.userService.findById(userId)
 	}
 
-	@Get(":id")
-	@ApiOperation({ summary: "Get user by ID" })
-	async getById(@Param("id") id: string) {
-		return this.userService.findById(id)
-	}
+  @Post("register")
+  @UseGuards(JwtAuthGuard)
+  async register(@CurrentUser() user: import("@supabase/supabase-js").User) {
+    return this.userService.register(user);
+  }
 
 	@Patch("me")
 	@UseGuards(JwtAuthGuard)
@@ -30,7 +32,7 @@ export class UserController {
 	@ApiOperation({ summary: "Update current user profile" })
 	async updateMe(
 		@CurrentUser("id") userId: string,
-		@Body() dto: UpdateUserProfileDto,
+		@Body(new ZodValidationPipe(UpdateUserProfileDtoSchema)) dto: UpdateUserProfileDto,
 	) {
 		return this.userService.updateProfile(userId, dto)
 	}

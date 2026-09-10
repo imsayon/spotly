@@ -1,7 +1,7 @@
 "use client"
 
 import React, { useState, useEffect, useCallback } from "react"
-import { useParams, useRouter } from "next/navigation"
+import { useRouter } from "next/navigation"
 import { Ic, useToasts, THEME } from "@spotly/ui"
 import api from "@/lib/api"
 
@@ -53,13 +53,14 @@ const s = {
 
 const TABS = [
   { id: 'info', label: 'General Info', ic: <Ic.Building /> },
+  { id: 'inventory', label: 'Inventory', ic: <Ic.Tag /> },
   { id: 'hours', label: 'Business Hours', ic: <Ic.Activity /> },
   { id: 'settings', label: 'Advance Settings', ic: <Ic.Settings /> },
 ];
 
 export default function OutletDetails() {
-  const { id } = useParams()
   const router = useRouter()
+  const [id, setId] = useState("")
   const { add: addToast } = useToasts()
   const [activeTab, setActiveTab] = useState('info')
   
@@ -76,6 +77,10 @@ export default function OutletDetails() {
   const [newCatName, setNewCatName] = useState('')
   const [showItemForm, setShowItemForm] = useState<string | null>(null) // categoryId
   const [itemForm, setItemForm] = useState({ name: '', price: '', description: '' })
+
+  useEffect(() => {
+    setId(new URLSearchParams(window.location.search).get("id") ?? "")
+  }, [])
 
   const fetchOutlet = useCallback(async () => {
     setLoadingOutlet(true)
@@ -98,7 +103,7 @@ export default function OutletDetails() {
   const fetchMenu = useCallback(async () => {
     setLoadingMenu(true)
     try {
-      const res = await api.get(`/menu/${id}`)
+      const res = await api.get(`/menu/outlet/${id}`)
       setCategories(res.data.data)
     } catch {
       addToast('Failed to load menu', 'error')
@@ -108,11 +113,11 @@ export default function OutletDetails() {
   }, [id, addToast])
 
   useEffect(() => {
-    fetchOutlet()
+    if (id) fetchOutlet()
   }, [fetchOutlet])
 
   useEffect(() => {
-    if (activeTab === 'inventory') fetchMenu()
+    if (id && activeTab === 'inventory') fetchMenu()
   }, [activeTab, fetchMenu])
 
   const handleUpdateOutlet = async () => {
@@ -139,7 +144,7 @@ export default function OutletDetails() {
   const addCategory = async () => {
     if (!newCatName) return
     try {
-      await api.post(`/menu/${id}/category`, { name: newCatName })
+      await api.post(`/menu/category`, { outletId: id, name: newCatName })
       setNewCatName('')
       fetchMenu()
       addToast('Category created', 'success')
@@ -151,7 +156,7 @@ export default function OutletDetails() {
   const addItem = async (catId: string) => {
     if (!itemForm.name || !itemForm.price) return
     try {
-      await api.post(`/menu/category/${catId}/item`, {
+      await api.post(`/menu/item`, { categoryId: catId,
         ...itemForm,
         price: parseFloat(itemForm.price)
       })
@@ -166,7 +171,7 @@ export default function OutletDetails() {
 
   const toggleAvailability = async (item: any) => {
     try {
-      await api.patch(`/menu/item/${item.id}`, { isAvailable: !item.isAvailable })
+      await api.patch(`/menu/item/${item.id}/availability?available=${!item.isAvailable}`)
       fetchMenu()
     } catch {
       addToast('Update failed', 'error')

@@ -1,7 +1,7 @@
 "use client"
 
 import React, { useEffect, useMemo, useState } from "react"
-import { useParams, useRouter } from "next/navigation"
+import { useRouter } from "next/navigation"
 import { motion, AnimatePresence } from "framer-motion"
 import { Ic, useToasts, THEME, Orb } from "@spotly/ui"
 import { useAuthStore } from "@/store/auth.store"
@@ -62,8 +62,8 @@ interface OutletWithQueue extends Outlet {
 }
 
 export default function ConsumerMerchantPage() {
-  const { id } = useParams()
   const router = useRouter()
+  const [id, setId] = useState("")
   const { user } = useAuthStore()
   const { joinQueue, myEntry } = useQueueStore()
   const { add: addToast } = useToasts()
@@ -73,6 +73,10 @@ export default function ConsumerMerchantPage() {
   const [loading, setLoading] = useState(true)
   const [joiningId, setJoiningId] = useState<string | null>(null)
   const outletIdsKey = useMemo(() => outlets.map((outlet) => outlet.id).join(','), [outlets])
+
+  useEffect(() => {
+    setId(new URLSearchParams(window.location.search).get("id") ?? "")
+  }, [])
 
   useEffect(() => {
     const loadData = async () => {
@@ -86,7 +90,7 @@ export default function ConsumerMerchantPage() {
         const outletList: Outlet[] = oRes.data.data || [];
         const enriched = await Promise.all(outletList.map(async (o) => {
           try {
-            const qRes = await api.get(`/queue/${o.id}`);
+            const qRes = await api.get(`/queue/outlet/${o.id}`);
             const entries: QueueEntry[] = qRes.data.data || [];
             const waittime = entries.length * 5; // Simple heuristic
             return { 
@@ -152,7 +156,7 @@ export default function ConsumerMerchantPage() {
     
     if (myEntry) {
       if (myEntry.outletId === outletId) {
-        router.push(`/queue/${myEntry.id}`);
+        router.push(`/queue?entryId=${encodeURIComponent(myEntry.id)}`);
         return;
       }
       if (!confirm('You are already in another queue. Leave that and join this one?')) return;
@@ -168,7 +172,7 @@ export default function ConsumerMerchantPage() {
     try {
       const entry = await joinQueue(outletId);
       addToast('Joined queue successfully!', 'success');
-      router.push(`/queue/${entry.id}`);
+      router.push(`/queue?entryId=${encodeURIComponent(entry.id)}`);
     } catch (err: any) {
       addToast(err.message || 'Failed to join', 'error');
     } finally {

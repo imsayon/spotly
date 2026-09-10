@@ -194,7 +194,7 @@ export default function ConsumerFavorites() {
 							}}
 							onClick={() =>
 								router.push(
-									`/merchant/${f.outlet.merchant?.id ?? f.outlet.merchantId}`,
+									`/merchant?id=${encodeURIComponent(f.outlet.merchant?.id ?? f.outlet.merchantId)}`,
 								)
 							}
 						>
