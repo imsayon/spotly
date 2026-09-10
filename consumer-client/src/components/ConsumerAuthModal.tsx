@@ -42,6 +42,7 @@ export function ConsumerAuthModal({
 	const [password, setPassword] = useState("")
 	const [loading, setLoading] = useState(false)
 	const [error, setError] = useState("")
+	const [notice, setNotice] = useState("")
 
 	if (!isOpen) return null
 
@@ -65,10 +66,14 @@ export function ConsumerAuthModal({
 		event.preventDefault()
 		setLoading(true)
 		setError("")
+		setNotice("")
 		try {
 			const normalizedEmail = email.trim()
 			if (mode === "sign-up") {
-				await signUpWithEmail(normalizedEmail, password, name)
+				if (!await signUpWithEmail(normalizedEmail, password, name)) {
+					setNotice("Check your email to confirm your account, then sign in.")
+					return
+				}
 			} else {
 				await signInWithEmail(normalizedEmail, password)
 			}
@@ -79,6 +84,7 @@ export function ConsumerAuthModal({
 				authError?.message ||
 					"Email authentication failed. Please try again.",
 			)
+		} finally {
 			setLoading(false)
 		}
 	}
@@ -222,6 +228,7 @@ export function ConsumerAuthModal({
 					</div>
 				)}
 
+				{notice && <p role="status" style={{ color: "#fff", marginBottom: 20 }}>{notice}</p>}
 				{/* Google OAuth */}
 				<button
 					onClick={handleGoogleAuth}

@@ -175,7 +175,9 @@ export default function MerchantLandingPage() {
         onClose={() => setIsAuthModalOpen(false)} 
         onGoogleAuth={signInWithGoogle}
         onEmailAuth={async (email, password, mode, name) => {
-          if (mode === 'sign-up') await signUpWithEmail(email, password, name)
+          if (mode === 'sign-up') {
+            if (!await signUpWithEmail(email, password, name)) return 'Check your email to confirm your account, then sign in.'
+          }
           else await signInWithEmail(email, password)
         }}
         isLoading={authLoading}

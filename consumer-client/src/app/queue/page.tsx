@@ -93,6 +93,11 @@ export default function ConsumerQueuePage() {
 				handleQueueUpdate({ ...payload, outletId: entry.outletId })
 				const updated = payload.entries.find((e: any) => e.id === entryId)
 				if (updated) setEntry((prev) => prev ? { ...prev, ...updated } : null)
+				else {
+					api.get(`/queue/entry/${entryId}`)
+						.then((res) => setEntry(res.data.data))
+						.catch(() => addToast("Could not refresh your queue status", "error"))
+				}
 
 				const waitingAhead = payload.entries.filter(
 					(e: any) =>

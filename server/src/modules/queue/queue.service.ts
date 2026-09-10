@@ -70,6 +70,17 @@ export class QueueService {
     return entry;
   }
 
+  async getOutletHistory(outletId: string, userId: string) {
+    await this.prisma.assertOutletOwner(outletId, userId);
+    await this.cleanupStalePendingEntries();
+    return this.prisma.$queryRaw`
+      SELECT q."id", q."tokenNumber", q."status", q."createdAt", q."calledAt", q."servedAt"
+      FROM "QueueEntry" q JOIN "Outlet" o ON o."id" = q."outletId"
+      WHERE q."outletId" = ${outletId}
+        AND q."createdAt" >= (date_trunc('day', now() AT TIME ZONE o."timezone") AT TIME ZONE o."timezone") AT TIME ZONE 'UTC'
+      ORDER BY q."createdAt"`;
+  }
+
   async getActiveEntry(userId: string) {
     await this.cleanupStalePendingEntries();
     return this.prisma.queueEntry.findFirst({ where: { userId, status: { in: active } }, include: { outlet: true } });

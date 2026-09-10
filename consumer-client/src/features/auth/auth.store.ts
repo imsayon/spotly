@@ -18,7 +18,7 @@ interface AuthState {
 		email: string,
 		password: string,
 		name?: string,
-	) => Promise<void>
+	) => Promise<boolean>
 	signOut: () => Promise<void>
 	fetchProfile: () => Promise<BackendUser | null>
 	updateProfile: (data: Partial<BackendUser>) => Promise<void>
@@ -69,7 +69,7 @@ export const useAuthStore = create<AuthState>()((set, get) => ({
 
 	signUpWithEmail: async (email, password, name) => {
 		try {
-			const { error } = await supabase.auth.signUp({
+			const { data, error } = await supabase.auth.signUp({
 				email,
 				password,
 				options: {
@@ -79,6 +79,7 @@ export const useAuthStore = create<AuthState>()((set, get) => ({
 				},
 			})
 			if (error) throw error
+			return !!data.session
 		} catch (error) {
 			console.error("Email Sign-Up Error:", error)
 			throw error

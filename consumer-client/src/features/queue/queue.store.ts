@@ -107,9 +107,10 @@ export const useQueueStore = create<QueueState>()((set, get) => ({
 
 	handleQueueUpdate: (payload: QueueUpdatePayload) => {
 		const { myEntry } = get()
-		const updatedMyEntry = myEntry
-			? ({ ...myEntry, ...payload.entries.find((e) => e.id === myEntry.id) })
-			: null
+		const update = payload.entries.find((e) => e.id === myEntry?.id)
+		const updatedMyEntry = myEntry?.outletId === payload.outletId
+			? (update ? { ...myEntry, ...update } : null)
+			: myEntry
 		set({
 			entries: payload.entries,
 			currentToken: payload.currentToken,

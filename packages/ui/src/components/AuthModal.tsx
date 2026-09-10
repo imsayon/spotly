@@ -7,7 +7,7 @@ export interface AuthModalProps {
   isOpen: boolean;
   onClose: () => void;
   onGoogleAuth: () => Promise<void>;
-  onEmailAuth?: (email: string, password: string, mode: 'sign-in' | 'sign-up', name?: string) => Promise<void>;
+  onEmailAuth?: (email: string, password: string, mode: 'sign-in' | 'sign-up', name?: string) => Promise<void | string>;
   isLoading?: boolean;
   title?: string;
   variant?: 'consumer' | 'merchant';
@@ -15,6 +15,7 @@ export interface AuthModalProps {
 
 export function AuthModal({ isOpen, onClose, onGoogleAuth, onEmailAuth, isLoading: externalLoading, title = 'Welcome to Spotly', variant = 'consumer' }: AuthModalProps) {
   const [error, setError] = useState('');
+  const [notice, setNotice] = useState('');
   const [internalLoading, setInternalLoading] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -40,11 +41,14 @@ export function AuthModal({ isOpen, onClose, onGoogleAuth, onEmailAuth, isLoadin
     event.preventDefault();
     if (!onEmailAuth) return;
     setError('');
+    setNotice('');
     setInternalLoading(true);
     try {
-      await onEmailAuth(email.trim(), password, mode, name.trim() || undefined);
+      const message = await onEmailAuth(email.trim(), password, mode, name.trim() || undefined);
+      if (message) setNotice(message);
     } catch (err: any) {
       setError(err?.message || 'Email authentication failed. Please try again.');
+    } finally {
       setInternalLoading(false);
     }
   };
@@ -76,6 +80,7 @@ export function AuthModal({ isOpen, onClose, onGoogleAuth, onEmailAuth, isLoadin
           <div style={{ marginBottom: 24, padding: '14px 18px', background: 'rgba(255,77,109,.1)', border: '1px solid rgba(255,77,109,.2)', borderRadius: 14, color: '#ff4d6d', fontSize: 13, fontWeight: 600, textAlign: 'center', animation: 'shake 0.5s' }}>{error}</div>
         )}
 
+        {notice && <p role="status" style={{ color: '#fff', marginBottom: 20 }}>{notice}</p>}
         {/* Google Button */}
         <button 
           onClick={handleGoogleAuth} 

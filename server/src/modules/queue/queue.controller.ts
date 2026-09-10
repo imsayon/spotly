@@ -56,6 +56,12 @@ export class QueueController {
 		return this.queueService.getQueue(outletId)
 	}
 
+	@Get("outlet/:outletId/history")
+	@UseGuards(JwtAuthGuard)
+	async getOutletHistory(@Param("outletId") outletId: string, @CurrentUser("id") userId: string) {
+		return this.queueService.getOutletHistory(outletId, userId)
+	}
+
 	@Post("outlet/:outletId/advance")
 	@UseGuards(JwtAuthGuard)
 	@ApiBearerAuth()

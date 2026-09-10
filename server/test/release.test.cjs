@@ -51,3 +51,13 @@ test('calling next refuses to replace an already called customer', async () => {
   } };
   await assert.rejects(new QueueService(db, { emit() {} }).advanceQueue('outlet', 'owner'), /Complete the called/);
 });
+
+test('outlet history requires ownership before querying customer activity', async () => {
+  let queried = false;
+  const service = new QueueService({
+    assertOutletOwner: async () => { throw Error('Forbidden'); },
+    $queryRaw: async () => { queried = true; },
+  }, {});
+  await assert.rejects(service.getOutletHistory('outlet', 'intruder'), /Forbidden/);
+  assert.equal(queried, false);
+});

@@ -34,6 +34,7 @@ export default function MerchantAnalytics() {
 	const { merchantProfile } = useAuthStore()
 	const [data, setData] = useState<AnalyticsData | null>(null)
 	const [loading, setLoading] = useState(true)
+	const [error, setError] = useState(false)
 
 	useEffect(() => {
 		const fetchAnalytics = async () => {
@@ -55,8 +56,7 @@ export default function MerchantAnalytics() {
 				const queueResults = await Promise.all(
 					outlets.map((outlet: any) =>
 						api
-                    .get(`/queue/outlet/${outlet.id}`)
-							.catch(() => ({ data: { data: [] } })),
+                    .get(`/queue/outlet/${outlet.id}/history`),
 					),
 				)
 
@@ -73,7 +73,7 @@ export default function MerchantAnalytics() {
 					).length
 				})
 
-				// Build hourly distribution (group by hour of joinedAt)
+				// Build hourly distribution (group by hour of createdAt)
 				const hourlyMap = new Array(24).fill(0)
 				const completedEntries = allEntries.filter(
 					(entry: any) =>
@@ -83,20 +83,20 @@ export default function MerchantAnalytics() {
 				)
 
 				completedEntries.forEach((entry: any) => {
-					if (entry.joinedAt) {
-						const hour = new Date(entry.joinedAt).getHours()
+					if (entry.createdAt) {
+						const hour = new Date(entry.createdAt).getHours()
 						hourlyMap[hour]++
 					}
 				})
 
 				// Calculate real average wait time
 				const entriesWithWaitTime = allEntries.filter(
-					(e: any) => e.calledAt && e.joinedAt
+					(e: any) => e.calledAt && e.createdAt
 				)
 				let avgWaitTime = "—"
 				if (entriesWithWaitTime.length > 0) {
 					const totalWaitMs = entriesWithWaitTime.reduce((sum: number, e: any) => {
-						const waitMs = new Date(e.calledAt).getTime() - new Date(e.joinedAt).getTime()
+						const waitMs = new Date(e.calledAt).getTime() - new Date(e.createdAt).getTime()
 						return sum + Math.max(0, waitMs)
 					}, 0)
 					const avgWaitMin = Math.round(totalWaitMs / entriesWithWaitTime.length / 60000)
@@ -111,14 +111,7 @@ export default function MerchantAnalytics() {
 					hourlyData: hourlyMap,
 				})
 			} catch {
-				// Use empty state
-				setData({
-					totalTokens: 0,
-					avgWaitTime: "—",
-					servedToday: 0,
-					missedToday: 0,
-					hourlyData: new Array(24).fill(0),
-				})
+				setError(true)
 			} finally {
 				setLoading(false)
 			}
@@ -152,7 +145,8 @@ export default function MerchantAnalytics() {
 		)
 	}
 
-	const analytics = data!
+	if (error || !data) return <p role="alert">Could not load analytics. Please refresh to try again.</p>
+	const analytics = data
 	const maxH = Math.max(...analytics.hourlyData, 1)
 
 	const metrics = [
