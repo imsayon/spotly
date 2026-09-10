@@ -24,9 +24,9 @@ projects:
               - key: SUPABASE_ANON_KEY
                 sync: false
               - key: CONSUMER_URL
-                sync: false
+                value: https://spotly-consumer-q21p.onrender.com
               - key: MERCHANT_URL
-                sync: false
+                value: https://spotly-merchant-ob90.onrender.com
 
           - type: web
             name: spotly-consumer
@@ -37,15 +37,15 @@ projects:
               - key: NODE_VERSION
                 value: "24"
               - key: NEXT_PUBLIC_API_URL
-                sync: false
+                value: https://spotly-api-d1dr.onrender.com
               - key: NEXT_PUBLIC_WS_URL
-                sync: false
+                value: https://spotly-api-d1dr.onrender.com
               - key: NEXT_PUBLIC_SUPABASE_URL
                 value: https://gakryaaqvjkxmhfuueuu.supabase.co
               - key: NEXT_PUBLIC_SUPABASE_ANON_KEY
                 sync: false
               - key: NEXT_PUBLIC_MERCHANT_URL
-                sync: false
+                value: https://spotly-merchant-ob90.onrender.com
 
           - type: web
             name: spotly-merchant
@@ -56,12 +56,12 @@ projects:
               - key: NODE_VERSION
                 value: "24"
               - key: NEXT_PUBLIC_API_URL
-                sync: false
+                value: https://spotly-api-d1dr.onrender.com
               - key: NEXT_PUBLIC_WS_URL
-                sync: false
+                value: https://spotly-api-d1dr.onrender.com
               - key: NEXT_PUBLIC_SUPABASE_URL
                 value: https://gakryaaqvjkxmhfuueuu.supabase.co
               - key: NEXT_PUBLIC_SUPABASE_ANON_KEY
                 sync: false
               - key: NEXT_PUBLIC_CONSUMER_URL
-                sync: false
+                value: https://spotly-consumer-q21p.onrender.com
