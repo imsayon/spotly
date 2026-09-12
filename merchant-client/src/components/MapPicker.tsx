@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useEffect, useState } from "react"
+import { useEffect, useState } from "react"
 import { MapContainer, TileLayer, Marker, useMapEvents } from "react-leaflet"
 import "leaflet/dist/leaflet.css"
 import L from "leaflet"
@@ -28,7 +28,7 @@ interface MapPickerProps {
 
 function LocationMarker({ lat, lng, onSelect }: MapPickerProps) {
 	const [position, setPosition] = useState<L.LatLng | null>(
-		lat && lng ? L.latLng(lat, lng) : null,
+		lat != null && lng != null ? L.latLng(lat, lng) : null,
 	)
 
 	useMapEvents({
@@ -73,7 +73,7 @@ export default function MapPicker({
 		)
 
 	const center: L.LatLngExpression =
-		lat && lng ? [lat, lng] : [12.9716, 77.5946] // Default to Bengaluru
+		lat != null && lng != null ? [lat, lng] : [12.9716, 77.5946] // Default to Bengaluru
 
 	return (
 		<div

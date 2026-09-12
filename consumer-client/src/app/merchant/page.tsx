@@ -1,310 +1,618 @@
-"use client"
+"use client";
 
-import React, { useEffect, useMemo, useState } from "react"
-import { useRouter } from "next/navigation"
-import { motion, AnimatePresence } from "framer-motion"
-import { Ic, useToasts, THEME, Orb } from "@spotly/ui"
-import { useAuthStore } from "@/store/auth.store"
-import { useQueueStore } from "@/store/queue.store"
-import api from "@/lib/api"
-import { subscribeToOutlet } from "@/lib/socket"
-import { Merchant, Outlet, QueueEntry } from "@spotly/types"
+import { useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
+import { Ic, useToasts } from "@spotly/ui";
+import type {
+  Merchant,
+  Outlet,
+  MenuCategory,
+  Review,
+  QueueEntry,
+} from "@spotly/types";
+import { useAuthStore } from "@/store/auth.store";
+import { useQueueStore } from "@/store/queue.store";
+import ConsumerLayout from "../home/layout";
+import api from "@/lib/api";
 
-const s = {
-  ...THEME.styles,
-  banner: {
-    height: 240,
-    borderRadius: 28,
-    background: 'rgba(255,255,255,.02)',
-    border: '1px solid rgba(255,255,255,.05)',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    position: 'relative',
-    overflow: 'hidden',
-    marginBottom: 32,
-    boxShadow: 'inset 0 0 60px rgba(245,196,24,.03)'
-  } as React.CSSProperties,
-  outletCard: {
-    ...THEME.styles.card,
-    display: 'flex',
-    alignItems: 'center',
-    gap: 18,
-    padding: '24px',
-    cursor: 'pointer',
-    transition: 'all .3s ease',
-    marginBottom: 14,
-    borderRadius: 22,
-    background: 'rgba(255,255,255,.01)',
-    backdropFilter: 'blur(10px)',
-  } as React.CSSProperties,
-  btnJoin: {
-    display: 'inline-flex',
-    alignItems: 'center',
-    gap: 8,
-    padding: '12px 24px',
-    borderRadius: 14,
-    background: THEME.gradients.consumer,
-    color: '#000',
-    fontWeight: 900,
-    fontSize: 14,
-    border: 'none',
-    cursor: 'pointer',
-    transition: 'all .25s ease',
-    boxShadow: '0 8px 20px rgba(245,196,24,.2)'
-  } as React.CSSProperties,
-  badge: THEME.badge,
+type ReviewWithAuthor = Review & { user?: { name?: string | null } };
+type ReviewStats = { avgRating: number; count: number };
+type SectionErrors = {
+  details?: boolean;
+  menu?: boolean;
+  reviews?: boolean;
+  reviewStats?: boolean;
+  queue?: boolean;
 };
 
-interface OutletWithQueue extends Outlet {
-  queueLength: number;
-  estimatedWait: string;
+export default function ConsumerMerchantPage() {
+  return (
+    <ConsumerLayout>
+      <MerchantDetail />
+    </ConsumerLayout>
+  );
 }
 
-export default function ConsumerMerchantPage() {
-  const router = useRouter()
-  const [id, setId] = useState("")
-  const { user } = useAuthStore()
-  const { joinQueue, myEntry } = useQueueStore()
-  const { add: addToast } = useToasts()
-
-  const [merchant, setMerchant] = useState<Merchant | null>(null)
-  const [outlets, setOutlets] = useState<OutletWithQueue[]>([])
-  const [loading, setLoading] = useState(true)
-  const [joiningId, setJoiningId] = useState<string | null>(null)
-  const outletIdsKey = useMemo(() => outlets.map((outlet) => outlet.id).join(','), [outlets])
-
-  useEffect(() => {
-    setId(new URLSearchParams(window.location.search).get("id") ?? "")
-  }, [])
-
-  useEffect(() => {
-    const loadData = async () => {
-      try {
-        const [mRes, oRes] = await Promise.all([
-          api.get(`/merchant/${id}`),
-          api.get(`/outlet/merchant/${id}`)
-        ]);
-        setMerchant(mRes.data.data);
-        
-        const outletList: Outlet[] = oRes.data.data || [];
-        const enriched = await Promise.all(outletList.map(async (o) => {
-          try {
-            const qRes = await api.get(`/queue/outlet/${o.id}`);
-            const entries: QueueEntry[] = qRes.data.data || [];
-            const waittime = entries.length * 5; // Simple heuristic
-            return { 
-              ...o, 
-              queueLength: entries.length, 
-              estimatedWait: waittime > 0 ? `${waittime}m` : 'No wait' 
-            };
-          } catch {
-            return { ...o, queueLength: 0, estimatedWait: '??' };
-          }
-        }));
-        setOutlets(enriched);
-      } catch (err) {
-        addToast('Failed to load merchant details', 'error');
-      } finally {
-        setLoading(false);
-      }
-    };
-    if (id) loadData();
-  }, [id, addToast]);
+function MerchantDetail() {
+  const router = useRouter();
+  const { user, loading: authLoading, identityError } = useAuthStore();
+  const { myEntry, joinQueue } = useQueueStore();
+  const { add } = useToasts();
+  const [revision, setRevision] = useState(0);
+  const [merchantId, setMerchantId] = useState("");
+  const [requestedOutletId, setRequestedOutletId] = useState("");
+  const [merchant, setMerchant] = useState<Merchant | null>(null);
+  const [outlets, setOutlets] = useState<Outlet[]>([]);
+  const [selectedOutletId, setSelectedOutletId] = useState("");
+  const [invalidOutlet, setInvalidOutlet] = useState(false);
+  const [menu, setMenu] = useState<MenuCategory[]>([]);
+  const [reviews, setReviews] = useState<ReviewWithAuthor[]>([]);
+  const [reviewStats, setReviewStats] = useState<ReviewStats>({
+    avgRating: 0,
+    count: 0,
+  });
+  const [queueWaiting, setQueueWaiting] = useState<number | null>(null);
+  const [queueCalled, setQueueCalled] = useState<number | null>(null);
+  const [saved, setSaved] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [sectionError, setSectionError] = useState<SectionErrors>({});
+  const [joining, setJoining] = useState(false);
+  const [savingFavorite, setSavingFavorite] = useState(false);
+  const [reviewRating, setReviewRating] = useState(5);
+  const [reviewComment, setReviewComment] = useState("");
+  const [reviewSaving, setReviewSaving] = useState(false);
+  const [reviewNotice, setReviewNotice] = useState("");
 
   useEffect(() => {
-    if (!user || !outletIdsKey) return;
+    const params = new URLSearchParams(window.location.search);
+    setMerchantId(params.get("id") || "");
+    if (!params.get("id")) setLoading(false);
+    setRequestedOutletId(params.get("outletId") || "");
+  }, []);
 
-    const outletIds = outletIdsKey.split(',').filter(Boolean);
-    const cleanups: (() => void)[] = [];
-
-    outletIds.forEach((outletId) => {
-      const cleanup = subscribeToOutlet(outletId, {
-        onQueueUpdate: (payload) => {
-          // Update live queue count per outlet from queue update broadcasts
-          const activeCount = payload.entries.filter(
-            (e) => e.status === "WAITING" || e.status === "CALLED"
-          ).length;
-          setOutlets((current) =>
-            current.map((outlet) =>
-              outlet.id === outletId
-                ? { ...outlet, queueLength: activeCount }
-                : outlet,
-            ),
-          );
-        },
+  useEffect(() => {
+    if (!merchantId) return;
+    let mounted = true;
+    setLoading(true);
+    setSectionError({});
+    Promise.all([
+      api.get(`/merchant/${encodeURIComponent(merchantId)}`),
+      api.get(`/outlet/merchant/${encodeURIComponent(merchantId)}`),
+    ])
+      .then(([merchantResponse, outletsResponse]) => {
+        if (!mounted) return;
+        const nextOutlets: Outlet[] = outletsResponse.data.data || [];
+        const requested = nextOutlets.find(
+          (outlet) => outlet.id === requestedOutletId,
+        );
+        setMerchant(merchantResponse.data.data);
+        setOutlets(nextOutlets);
+        setInvalidOutlet(!!requestedOutletId && !requested);
+        setSelectedOutletId(
+          requested?.id || (requestedOutletId ? "" : nextOutlets[0]?.id || ""),
+        );
+      })
+      .catch(() => {
+        if (mounted) {
+          setSectionError({ details: true });
+          add("Business details could not be loaded", "error");
+        }
+      })
+      .finally(() => {
+        if (mounted) setLoading(false);
       });
-      cleanups.push(cleanup);
-    });
-
     return () => {
-      cleanups.forEach((fn) => fn());
+      mounted = false;
     };
-  }, [outletIdsKey, user]);
+  }, [add, merchantId, requestedOutletId, revision]);
 
-  const handleJoin = async (outletId: string) => {
-    const outlet = outlets.find((item) => item.id === outletId);
-    if (outlet && outlet.isActive === false) {
-      addToast('This outlet is currently closed', 'info');
+  useEffect(() => {
+    if (!selectedOutletId) return;
+    let mounted = true;
+    setMenu([]);
+    setReviews([]);
+    setReviewStats({ avgRating: 0, count: 0 });
+    setQueueWaiting(null);
+    setQueueCalled(null);
+    setReviewComment("");
+    setReviewRating(5);
+    setSectionError((value) => ({
+      ...value,
+      menu: false,
+      reviews: false,
+      reviewStats: false,
+      queue: false,
+    }));
+    Promise.allSettled([
+      api.get(`/menu/outlet/${selectedOutletId}`),
+      api.get(`/review/outlet/${selectedOutletId}`),
+      api.get(`/review/outlet/${selectedOutletId}/stats`),
+      api.get(`/queue/outlet/${selectedOutletId}`),
+    ]).then(([menuResult, reviewsResult, statsResult, queueResult]) => {
+      if (!mounted) return;
+      if (menuResult.status === "fulfilled")
+        setMenu(menuResult.value.data.data || []);
+      else setSectionError((value) => ({ ...value, menu: true }));
+      if (reviewsResult.status === "fulfilled")
+        setReviews(reviewsResult.value.data.data || []);
+      else setSectionError((value) => ({ ...value, reviews: true }));
+      if (statsResult.status === "fulfilled")
+        setReviewStats(
+          statsResult.value.data.data || { avgRating: 0, count: 0 },
+        );
+      else setSectionError((value) => ({ ...value, reviewStats: true }));
+      if (queueResult.status === "fulfilled") {
+        const entries: QueueEntry[] = queueResult.value.data.data || [];
+        setQueueWaiting(
+          entries.filter((entry) => entry.status === "WAITING").length,
+        );
+        setQueueCalled(
+          entries.filter((entry) => entry.status === "CALLED").length,
+        );
+      } else setSectionError((value) => ({ ...value, queue: true }));
+    });
+    return () => {
+      mounted = false;
+    };
+  }, [selectedOutletId, revision]);
+
+  useEffect(() => {
+    if (!selectedOutletId || !user) {
+      setSaved(false);
       return;
     }
+    api
+      .get("/favorite")
+      .then(({ data }) =>
+        setSaved(
+          (data.data || []).some(
+            (favorite: { outletId: string }) =>
+              favorite.outletId === selectedOutletId,
+          ),
+        ),
+      )
+      .catch(() => {});
+  }, [selectedOutletId, user]);
 
-    if (!user) {
-      addToast('Please sign in to join the queue', 'info');
-      return;
+  const outlet = outlets.find((item) => item.id === selectedOutletId);
+  const services = useMemo(
+    () =>
+      menu.flatMap((category) =>
+        (category.items || []).map((item) => ({
+          ...item,
+          category: category.name,
+        })),
+      ),
+    [menu],
+  );
+  const directions =
+    outlet?.lat != null && outlet.lng != null
+      ? `https://www.google.com/maps/dir/?api=1&destination=${outlet.lat},${outlet.lng}`
+      : outlet?.address
+        ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(outlet.address)}`
+        : "";
+  const website =
+    merchant?.website && /^https?:\/\//i.test(merchant.website)
+      ? merchant.website
+      : "";
+  const currentReview = reviews.find((review) => review.userId === user?.id);
+
+  useEffect(() => {
+    if (currentReview) {
+      setReviewRating(currentReview.rating);
+      setReviewComment(currentReview.comment || "");
     }
-    
+  }, [currentReview?.id, currentReview?.rating, currentReview?.comment]);
+
+  const selectOutlet = (id: string) => {
+    setInvalidOutlet(false);
+    setSelectedOutletId(id);
+    router.replace(
+      `/merchant?id=${encodeURIComponent(merchantId)}&outletId=${encodeURIComponent(id)}`,
+    );
+  };
+  const requestSpot = async () => {
+    if (!outlet || invalidOutlet || authLoading || identityError || joining)
+      return;
     if (myEntry) {
-      if (myEntry.outletId === outletId) {
-        router.push(`/queue?entryId=${encodeURIComponent(myEntry.id)}`);
-        return;
-      }
-      if (!confirm('You are already in another queue. Leave that and join this one?')) return;
-      try {
-        await useQueueStore.getState().leaveQueue(myEntry.id);
-      } catch (error) {
-        addToast('Could not leave your current queue. Please try again before joining another.', 'error');
-        return;
-      }
+      router.push(`/home/queue?entryId=${encodeURIComponent(myEntry.id)}`);
+      return;
     }
-
-    setJoiningId(outletId);
+    if (!outlet.isActive) return;
+    if (!user) {
+      router.push(
+        `/auth/sign-in?returnTo=${encodeURIComponent(`/merchant?id=${merchantId}&outletId=${outlet.id}`)}`,
+      );
+      return;
+    }
+    setJoining(true);
     try {
-      const entry = await joinQueue(outletId);
-      addToast('Joined queue successfully!', 'success');
-      router.push(`/queue?entryId=${encodeURIComponent(entry.id)}`);
-    } catch (err: any) {
-      addToast(err.message || 'Failed to join', 'error');
+      const entry = await joinQueue(outlet.id);
+      add(
+        "Request sent. The business will accept it before you enter the queue.",
+        "success",
+      );
+      router.push(`/home/queue?entryId=${encodeURIComponent(entry.id)}`);
+    } catch (error: any) {
+      add(error?.message || "This request could not be sent.", "error");
     } finally {
-      setJoiningId(null);
+      setJoining(false);
+    }
+  };
+  const toggleSaved = async () => {
+    if (!outlet) return;
+    if (!user) {
+      router.push(
+        `/auth/sign-in?returnTo=${encodeURIComponent(`/merchant?id=${merchantId}&outletId=${outlet.id}`)}`,
+      );
+      return;
+    }
+    setSavingFavorite(true);
+    try {
+      if (saved) await api.delete(`/favorite/${outlet.id}`);
+      else await api.post("/favorite", { outletId: outlet.id });
+      setSaved(!saved);
+      add(saved ? "Removed from saved places" : "Saved this outlet", "success");
+    } catch {
+      add("Saved place could not be updated", "error");
+    } finally {
+      setSavingFavorite(false);
+    }
+  };
+  const submitReview = async (event: React.FormEvent) => {
+    event.preventDefault();
+    if (!user || !outlet) return;
+    setReviewSaving(true);
+    setReviewNotice("");
+    try {
+      await api.post("/review", {
+        outletId: outlet.id,
+        rating: reviewRating,
+        comment: reviewComment.trim() || undefined,
+      });
+      const [reviewsResponse, statsResponse] = await Promise.all([
+        api.get(`/review/outlet/${outlet.id}`),
+        api.get(`/review/outlet/${outlet.id}/stats`),
+      ]);
+      setReviews(reviewsResponse.data.data || []);
+      setReviewStats(statsResponse.data.data || { avgRating: 0, count: 0 });
+      setReviewNotice("Your review is saved.");
+    } catch {
+      setReviewNotice("Your review could not be saved. Try again.");
+    } finally {
+      setReviewSaving(false);
     }
   };
 
-  if (loading) {
+  if (loading)
     return (
-      <div style={{ minHeight: '80vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        <div style={{ width: 44, height: 44, border: '3px solid rgba(255,255,255,.03)', borderTopColor: '#f5c418', borderRadius: '50%', animation: 'spin 1s linear infinite' }} />
+      <div className="consumer-empty-state">
+        <p>Loading business details…</p>
       </div>
     );
-  }
-
-  if (!merchant) return null;
+  if (!merchant)
+    return (
+      <div className="consumer-empty-state">
+        <h2>{sectionError.details ? "Business details unavailable" : "Business not found"}</h2>
+        <p>Check the link and try again.</p><button className="consumer-button" onClick={() => setRevision((value) => value + 1)}>Retry</button>
+        <button
+          className="consumer-button"
+          onClick={() => router.push("/home")}
+        >
+          Back to discover
+        </button>
+      </div>
+    );
 
   return (
-    <motion.div 
-      initial={{ opacity: 0, y: 10 }}
-      animate={{ opacity: 1, y: 0 }}
-      style={{ padding: '24px 20px 100px', maxWidth: 640, margin: '0 auto' }}
-    >
-      
-      {/* HEADER */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 28 }}>
-        <motion.button 
-          whileHover={{ scale: 1.05, background: 'rgba(255,255,255,.08)' }}
-          whileTap={{ scale: 0.95 }}
-          onClick={() => router.push('/home')} 
-          style={{ width: 44, height: 44, borderRadius: 14, background: 'rgba(255,255,255,.04)', border: '1px solid rgba(255,255,255,.1)', color: 'rgba(255,255,255,.6)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-        >
-          <Ic.ChevronLeft />
-        </motion.button>
-        <h1 style={{ fontFamily: 'var(--font-sans)', fontSize: 20, fontWeight: 900, letterSpacing: -0.5 }}>Branch Selection</h1>
-      </div>
-
-      {/* BANNER */}
-      <div style={s.banner}>
-        <Orb x="-10%" y="-10%" size="80%" color="rgba(245,196,24,.1)" anim="orb1 15s infinite" />
-        <Orb x="60%" y="40%" size="60%" color="rgba(255,99,22,.05)" anim="orb2 20s infinite" />
-        <div style={{ position: 'relative', zIndex: 1, textAlign: 'center' }}>
-          <div style={{ width: 80, height: 80, borderRadius: 24, background: 'rgba(255,255,255,.03)', border: '1px solid rgba(255,255,255,.08)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 36, marginBottom: 16, margin: '0 auto', color: '#f5c418' }}>
-            {merchant.category?.toLowerCase()?.includes('coffee') ? <Ic.Clock /> : <Ic.Store />}
+    <div className="consumer-page">
+      <button
+        className="consumer-button quiet"
+        onClick={() => router.push("/home")}
+      >
+        <Ic.ChevL size={15} /> Back to discover
+      </button>
+      {Object.values(sectionError).some(Boolean) ? <div role="alert" className="consumer-inline-error">Some outlet information could not be loaded. <button className="consumer-button quiet" onClick={() => setRevision((value) => value + 1)}>Retry</button></div> : null}<div className="consumer-detail-grid" style={{ marginTop: 16 }}>
+        <section className="consumer-card consumer-detail-main">
+          <div className="consumer-kicker">
+            {merchant.category || "Business"}
           </div>
-          <div style={{ ...s.badge('consumer'), fontSize: 11, background: 'rgba(255,255,255,.05)', padding: '5px 14px', border: '1px solid rgba(255,255,255,0.08)' }}>{merchant.category}</div>
-        </div>
-      </div>
-
-      {/* INFO */}
-      <div style={{ marginBottom: 44 }}>
-        <h2 style={{ fontSize: 34, fontWeight: 900, marginBottom: 12, letterSpacing: -1.2, color: '#fff' }}>{merchant.name}</h2>
-        <p style={{ color: 'rgba(255,255,255,.4)', fontSize: 16, lineHeight: 1.6, fontWeight: 500 }}>{merchant.description || 'Welcome to our premium outlet. Join the queue digitally and save your time.'}</p>
-      </div>
-
-      {/* OUTLETS */}
-      <div style={{ marginBottom: 48 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 20 }}>
-          <div style={{ width: 4, height: 16, borderRadius: 2, background: '#f5c418' }} />
-          <h3 style={{ fontSize: 16, fontWeight: 800, color: 'rgba(255,255,255,.7)', letterSpacing: 1, textTransform: 'uppercase' }}>Active Branches</h3>
-        </div>
-        
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-          {outlets.map((o, i) => (
-            <motion.div 
-              key={o.id} 
-              initial={{ opacity: 0, x: -10 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: i * 0.1 }}
-              whileHover={{ scale: 1.01, border: '1px solid rgba(255,255,255,.12)' }}
-              style={s.outletCard}
-            >
-              <div style={{ flex: 1 }}>
-                <div style={{ fontWeight: 800, fontSize: 19, marginBottom: 6, color: '#fff' }}>{o.name}</div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 6, color: 'rgba(255,255,255,.3)', fontSize: 13, fontWeight: 600 }}>
-                  <Ic.MapPin /><span>{o.address || 'Location unavailable'}</span>
-                </div>
-                <div style={{ display: 'flex', gap: 16, marginTop: 18 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, fontWeight: 700, color: 'rgba(255,255,255,.5)' }}>
-                    <div style={{ width: 6, height: 6, borderRadius: '50%', background: o.isActive === false ? '#ff4d6d' : '#1fd97c' }} />
-                    {o.isActive === false ? 'Closed' : `${o.queueLength} People`}
+          <h1 className="consumer-editorial">{merchant.name}</h1>
+          <p>
+            {merchant.description ||
+              "Choose an outlet to see its queue, services and customer feedback."}
+          </p>
+          <div className="consumer-section">
+            <div className="consumer-section-heading">
+              <h2>Choose an outlet</h2>
+              <span>{outlets.length} locations</span>
+            </div>
+            {invalidOutlet ? (
+              <div className="consumer-inline-error" role="alert">
+                That outlet is no longer part of this business. Choose a current
+                outlet below.
+              </div>
+            ) : null}
+            {outlets.length === 0 ? (
+              <div className="consumer-empty-state">
+                <h2>No outlets are published yet.</h2>
+                <p>Try again later or return to discover.</p>
+              </div>
+            ) : (
+              <div className="consumer-outlet-list">
+                {outlets.map((item) => (
+                  <div
+                    className="consumer-outlet"
+                    key={item.id}
+                    style={
+                      item.id === selectedOutletId
+                        ? {
+                            borderColor: "var(--brand)",
+                            background: "var(--brand-soft)",
+                          }
+                        : undefined
+                    }
+                  >
+                    <div>
+                      <h3>{item.name}</h3>
+                      <p>{item.address || "Address unavailable"}</p>
+                      <span
+                        className={`consumer-status ${item.isActive ? "called" : "terminal"}`}
+                        style={{ marginTop: 9 }}
+                      >
+                        {item.isActive ? "Requests enabled" : "Requests paused"}
+                      </span>
+                    </div>
+                    <div className="consumer-outlet-actions">
+                      <button
+                        className="consumer-button secondary"
+                        onClick={() => selectOutlet(item.id)}
+                      >
+                        {item.id === selectedOutletId
+                          ? "Selected"
+                          : "View outlet"}
+                      </button>
+                    </div>
                   </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, fontWeight: 800, color: '#f5c418' }}>
-                    <Ic.Clock /> {o.estimatedWait} wait
+                ))}
+              </div>
+            )}
+          </div>
+          {outlet ? (
+            <>
+              <div className="consumer-section">
+                <div className="consumer-section-heading">
+                  <h2>{outlet.name}</h2>
+                  <span>
+                    {sectionError.queue
+                      ? "Queue unavailable"
+                      : queueWaiting === null
+                        ? "Checking queue"
+                        : `${queueWaiting} waiting · ${queueCalled ?? 0} called`}
+                  </span>
+                </div>
+                <div
+                  className="consumer-card"
+                  style={{ padding: 18, background: "var(--surface-raised)" }}
+                >
+                  <p style={{ margin: 0 }}>
+                    {outlet.isActive
+                      ? "Request a spot when you are ready. The business accepts requests before the waiting line is confirmed."
+                      : "Requests are paused at this outlet. Existing customers can still be served."}
+                  </p>
+                  <div
+                    style={{
+                      display: "flex",
+                      gap: 10,
+                      flexWrap: "wrap",
+                      marginTop: 16,
+                    }}
+                  >
+                    <button
+                      className="consumer-button"
+                      disabled={
+                        (!outlet.isActive && !myEntry) ||
+                        joining ||
+                        invalidOutlet ||
+                        authLoading ||
+                        !!identityError
+                      }
+                      onClick={requestSpot}
+                    >
+                      {joining
+                        ? "Sending request…"
+                        : myEntry
+                          ? "View your turn"
+                          : "Request a spot"}
+                      <Ic.Arrow size={16} />
+                    </button>
+                    <button
+                      className="consumer-button secondary"
+                      disabled={savingFavorite}
+                      onClick={toggleSaved}
+                    >
+                      <Ic.Heart
+                        size={15}
+                        fill={saved ? "currentColor" : "none"}
+                      />{" "}
+                      {saved ? "Saved" : "Save outlet"}
+                    </button>
+                    {directions ? (
+                      <a
+                        className="consumer-button secondary"
+                        href={directions}
+                        target="_blank"
+                        rel="noreferrer"
+                      >
+                        Directions <Ic.MapPin size={15} />
+                      </a>
+                    ) : null}
+                    {merchant.phone ? (
+                      <a
+                        className="consumer-button quiet"
+                        href={`tel:${merchant.phone}`}
+                      >
+                        Call business
+                      </a>
+                    ) : null}
+                    {website ? (
+                      <a
+                        className="consumer-button quiet"
+                        href={website}
+                        target="_blank"
+                        rel="noreferrer"
+                      >
+                        Website
+                      </a>
+                    ) : null}
                   </div>
                 </div>
               </div>
-              <motion.button 
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-                onClick={() => handleJoin(o.id)}
-                disabled={joiningId === o.id || o.isActive === false}
-                style={{ 
-                  ...s.btnJoin, 
-                  background: o.isActive === false ? 'rgba(255,255,255,.05)' : myEntry?.outletId === o.id ? 'rgba(31,217,124,.1)' : THEME.gradients.consumer,
-                  color: o.isActive === false ? 'rgba(255,255,255,.35)' : myEntry?.outletId === o.id ? '#1fd97c' : '#000',
-                  border: o.isActive === false ? '1px solid rgba(255,255,255,.08)' : myEntry?.outletId === o.id ? '1px solid rgba(31,217,124,.2)' : 'none',
-                  boxShadow: o.isActive === false || myEntry?.outletId === o.id ? 'none' : s.btnJoin.boxShadow,
-                  cursor: o.isActive === false ? 'not-allowed' : 'pointer'
-                }}
-              >
-                {o.isActive === false ? 'Closed' : joiningId === o.id ? '...' : myEntry?.outletId === o.id ? 'Active' : 'Get Token'}
-                {!myEntry && o.isActive !== false && <Ic.ChevR />}
-              </motion.button>
-            </motion.div>
-          ))}
-          {outlets.length === 0 && (
-            <div style={{ ...s.card, padding: 60, textAlign: 'center', background: 'rgba(255,255,255,.01)', borderStyle: 'dashed' }}>
-              <div style={{ fontSize: 40, marginBottom: 16, color: 'rgba(255,255,255,0.4)', display: 'flex', justifyContent: 'center' }}>
-                <Ic.Store />
+              <div className="consumer-section">
+                <div className="consumer-section-heading">
+                  <h2>Services</h2>
+                  <span>
+                    {sectionError.menu
+                      ? "Unavailable"
+                      : `${services.length} listed`}
+                  </span>
+                </div>
+                {sectionError.menu ? (
+                  <p role="alert">Services could not be loaded.</p>
+                ) : services.length === 0 ? (
+                  <div className="consumer-empty-state">
+                    <p>No services have been added for this outlet.</p>
+                  </div>
+                ) : (
+                  <div className="consumer-place-list">
+                    {services.map((service) => (
+                      <div
+                        className="consumer-place-row"
+                        key={service.id}
+                        style={{ cursor: "default" }}
+                      >
+                        <span
+                          className="consumer-place-logo"
+                          style={{ width: 42, height: 42, fontSize: 16 }}
+                        >
+                          ₹
+                        </span>
+                        <span className="consumer-place-copy">
+                          <h2>{service.name}</h2>
+                          <p>{service.category}</p>
+                          {service.description ? (
+                            <small>{service.description}</small>
+                          ) : null}
+                        </span>
+                        <span className="consumer-place-meta">
+                          <strong>
+                            ₹
+                            {Number(service.price).toLocaleString("en-IN", {
+                              minimumFractionDigits: 2,
+                            })}
+                          </strong>
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
-              <p style={{ color: 'rgba(255,255,255,.6)', fontWeight: 700, fontSize: 16, marginBottom: 4 }}>No Active Branches</p>
-              <p style={{ color: 'rgba(255,255,255,.3)', fontSize: 13 }}>This merchant currently has no open outlets.</p>
+            </>
+          ) : null}
+        </section>
+        <aside id="reviews" className="consumer-card consumer-detail-side">
+          <div className="consumer-kicker">Customer feedback</div>
+          <h2>
+            {sectionError.reviewStats
+              ? "Review summary unavailable"
+              : reviewStats.count
+                ? `${reviewStats.avgRating.toFixed(1)} / 5`
+                : "No reviews yet"}
+          </h2>
+          <p>
+            {reviewStats.count
+              ? `Based on ${reviewStats.count} reviews for this outlet.`
+              : "Be the first to share your experience after a visit."}
+          </p>
+          {sectionError.reviews ? (
+            <p role="alert">Reviews could not be loaded.</p>
+          ) : reviews.length ? (
+            reviews.slice(0, 4).map((review) => (
+              <article className="consumer-review" key={review.id}>
+                <header>
+                  <span aria-label={`${review.rating} out of 5 stars`}>
+                    {"★".repeat(review.rating)}
+                  </span>
+                  <time dateTime={new Date(review.createdAt).toISOString()}>
+                    {new Intl.DateTimeFormat(undefined, {
+                      day: "numeric",
+                      month: "short",
+                      year: "numeric",
+                    }).format(new Date(review.createdAt))}
+                  </time>
+                </header>
+                <strong>{review.user?.name || "Customer"}</strong>
+                <p>{review.comment || "No written comment."}</p>
+              </article>
+            ))
+          ) : (
+            <div className="consumer-empty-state" style={{ minHeight: 120 }}>
+              No reviews yet.
             </div>
           )}
-        </div>
+          {user && outlet ? (
+            <form className="consumer-review-form" onSubmit={submitReview}>
+              <div className="consumer-kicker">
+                {currentReview ? "Update your review" : "Share your experience"}
+              </div>
+              <fieldset>
+                <legend>Rating</legend>
+                <div className="consumer-rating-options">
+                  {[1, 2, 3, 4, 5].map((rating) => (
+                    <label key={rating}>
+                      <input
+                        type="radio"
+                        name="rating"
+                        value={rating}
+                        checked={reviewRating === rating}
+                        onChange={() => setReviewRating(rating)}
+                      />
+                      {rating}★
+                    </label>
+                  ))}
+                </div>
+              </fieldset>
+              <label className="consumer-field">
+                <span>Comment (optional)</span>
+                <textarea
+                  value={reviewComment}
+                  onChange={(event) => setReviewComment(event.target.value)}
+                  rows={3}
+                />
+              </label>
+              {reviewNotice ? (
+                <div
+                  className="consumer-inline-error"
+                  role={
+                    reviewNotice.startsWith("Your review is")
+                      ? "status"
+                      : "alert"
+                  }
+                >
+                  {reviewNotice}
+                </div>
+              ) : null}
+              <button className="consumer-button" disabled={reviewSaving}>
+                {reviewSaving
+                  ? "Saving…"
+                  : currentReview
+                    ? "Update review"
+                    : "Submit review"}
+              </button>
+            </form>
+          ) : null}
+        </aside>
       </div>
-
-      {/* FOOTER TIPS */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
-        <motion.div whileHover={{ y: -2 }} style={{ ...s.card, padding: '20px', background: 'rgba(255,255,255,.02)', borderRadius: 22 }}>
-          <div style={{ color: '#f5c418', marginBottom: 12 }}><Ic.Bell /></div>
-          <div style={{ fontWeight: 800, fontSize: 14, marginBottom: 4 }}>Real-time Alerts</div>
-          <div style={{ fontSize: 12, color: 'rgba(255,255,255,.25)', lineHeight: 1.4 }}>Instant push notifications when your turn is approaching.</div>
-        </motion.div>
-        <motion.div whileHover={{ y: -2 }} style={{ ...s.card, padding: '20px', background: 'rgba(255,255,255,.02)', borderRadius: 22 }}>
-          <div style={{ color: '#1fd97c', marginBottom: 12 }}><Ic.Shield /></div>
-          <div style={{ fontWeight: 800, fontSize: 14, marginBottom: 4 }}>Secured Entry</div>
-          <div style={{ fontSize: 12, color: 'rgba(255,255,255,.25)', lineHeight: 1.4 }}>Verified tokens ensure a fair and organized experience.</div>
-        </motion.div>
-      </div>
-
-    </motion.div>
-  )
+    </div>
+  );
 }

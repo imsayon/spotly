@@ -1,474 +1,148 @@
-"use client"
+"use client";
 
-import React, { useState, useEffect } from "react"
-import { usePathname, useRouter } from "next/navigation"
-import { useAuthStore } from "@/store/auth.store"
-import { useQueueStore } from "@/store/queue.store"
-import { Ic, useToasts, ToastContainer, ThemeToggle } from "@spotly/ui"
-import Link from "next/link"
-import { useLiveLocation } from "@/lib/useLiveLocation"
+import React, { useEffect } from "react";
+import Link from "next/link";
+import { usePathname, useRouter } from "next/navigation";
+import { BrandMark, Ic, ToastContainer, useToasts } from "@spotly/ui";
+import { useAuthStore } from "@/store/auth.store";
+import { useQueueStore } from "@/store/queue.store";
 
-const s = {
-	glass: {
-		background: "var(--surface)",
-		backdropFilter: "blur(24px)",
-		WebkitBackdropFilter: "blur(24px)",
-		border: "1px solid var(--border)",
-	},
-	glassStrong: {
-		background: "var(--surface-raised)",
-		backdropFilter: "blur(32px)",
-		WebkitBackdropFilter: "blur(32px)",
-		border: "1px solid var(--border-strong)",
-	},
-	gradC: { background: "var(--brand)" },
-	badge: (c: string) => ({
-		display: "inline-flex",
-		alignItems: "center",
-		gap: 4,
-		padding: "3px 9px",
-		borderRadius: 999,
-		fontSize: 11,
-		fontWeight: 700,
-		letterSpacing: 0.3,
-		...(c === "yellow" && {
-			background: "color-mix(in srgb,var(--brand) 12%,var(--surface))",
-			color: "var(--brand-strong)",
-			border: "1px solid color-mix(in srgb,var(--brand) 35%,var(--border))",
-		}),
-		...(c === "green" && {
-			background: "color-mix(in srgb,var(--success) 12%,var(--surface))",
-			color: "var(--success)",
-			border: "1px solid color-mix(in srgb,var(--success) 35%,var(--border))",
-		}),
-	}),
-}
+const nav = [
+  { href: "/home", label: "Discover", icon: Ic.Search },
+  { href: "/home/queue", label: "Your turn", icon: Ic.Clock },
+  { href: "/home/favorites", label: "Saved", icon: Ic.Heart },
+  { href: "/home/profile", label: "Account", icon: Ic.User },
+];
 
 export default function ConsumerLayout({
-	children,
+  children,
 }: {
-	children: React.ReactNode
+  children: React.ReactNode;
 }) {
-	const pathname = usePathname()
-	const router = useRouter()
-	const { user, profile, signOut } = useAuthStore()
-	const { toasts, add: addToast } = useToasts()
-	const { label: liveLocationLabel } = useLiveLocation({
-		prompt: true,
-		watch: false,
-	})
+  const pathname = usePathname();
+  const router = useRouter();
+  const { user, profile, identityError, signOut } = useAuthStore();
+  const { toasts, add } = useToasts();
+  const myEntry = useQueueStore((state) => state.myEntry);
+  const fetchActiveEntry = useQueueStore((state) => state.fetchActiveEntry);
+  const clearActive = useQueueStore((state) => state.clearActive);
 
-	const { myEntry, fetchActiveEntry } = useQueueStore()
-	const [showNotif, setShowNotif] = useState(false)
+  useEffect(() => {
+    if (user) void fetchActiveEntry();
+    else clearActive();
+  }, [clearActive, fetchActiveEntry, user]);
 
-	// Check for active queue entry on mount
-	useEffect(() => {
-		fetchActiveEntry()
-	}, [fetchActiveEntry])
+  const firstName =
+    profile?.name?.split(" ")[0] || user?.email?.split("@")[0] || "there";
+  const isActive = (href: string) =>
+    href === "/home" ? pathname === "/home" : pathname.startsWith(href);
 
-	const inQueue = !!myEntry
-	const notifications: Array<{ id: string }> = []
-	const notifCount = notifications.length
+  const handleSignOut = async () => {
+    add("Signing out…", "info");
+    try {
+      await signOut();
+    } catch {
+      add("Sign out failed. Please try again.", "error");
+    }
+  };
 
-	const navItems = [
-		{ id: "/home", icon: <Ic.Home />, label: "Home" },
-		{ id: "/home/explore", icon: <Ic.Map />, label: "Explore" },
-		{ id: "/home/queue", icon: <Ic.Clock />, label: "Queue" },
-		{
-			id: "/home/favorites",
-			icon: <Ic.Heart fill="none" />,
-			label: "Saved",
-		},
-		{ id: "/home/profile", icon: <Ic.User />, label: "Profile" },
-	]
-
-	const handleLogout = async () => {
-		addToast("Signing out...", "info")
-		await signOut()
-	}
-
-	return (
-		<div className="consumer-shell min-h-screen font-sans">
-			{/* SIDEBAR (Desktop) */}
-			<aside className="consumer-sidebar hidden md:flex flex-col border-r w-[240px] p-5 h-screen fixed left-0 top-0">
-				<div className="consumer-brand flex items-center gap-3 mb-10">
-					<div
-						style={{
-							width: 34,
-							height: 34,
-							borderRadius: 10,
-							...s.gradC,
-							display: "flex",
-							alignItems: "center",
-							justifyContent: "center",
-							fontSize: 16,
-						}}
-					>
-						<Ic.Clock />
-					</div>
-					<div>
-						<h2 className="text-xl font-black font-syne uppercase tracking-tight m-0 leading-none">
-							spotly
-						</h2>
-						<div
-							style={{
-								fontSize: 10,
-								color: "var(--t4)",
-								fontWeight: 700,
-								letterSpacing: 0.5,
-							}}
-						>
-							CONSUMER DASHBOARD
-						</div>
-					</div>
-				</div>
-
-				<nav className="consumer-nav flex flex-col gap-2 flex-1">
-					{navItems.map((n) => (
-						<Link
-							key={n.id}
-							href={n.id}
-							className={`consumer-nav-link flex items-center gap-3 p-3 rounded-xl transition-all duration-200 font-bold text-sm ${pathname === n.id ? "is-active" : ""}`}
-						>
-							<span className="flex items-center justify-center w-6">
-								{n.icon}
-							</span>
-							<span className="flex-1">{n.label}</span>
-							{n.id === "/home/queue" && inQueue && (
-								<span
-									style={{
-										width: 8,
-										height: 8,
-										borderRadius: "50%",
-										background: "#1fd97c",
-										boxShadow:
-											"0 0 0 4px rgba(31,217,124,.12)",
-									}}
-								/>
-							)}
-						</Link>
-					))}
-				</nav>
-
-				<div className="consumer-sidebar-card rounded-[18px] p-[18px] mt-auto relative overflow-hidden group">
-					<div
-						style={{
-							display: "flex",
-							alignItems: "center",
-							gap: 10,
-							marginBottom: 12,
-						}}
-					>
-						<ThemeToggle />
-						<div
-							style={{
-								width: 36,
-								height: 36,
-								borderRadius: "50%",
-								...s.gradC,
-								display: "flex",
-								alignItems: "center",
-								justifyContent: "center",
-								fontSize: 14,
-								fontWeight: 800,
-								color: "#000",
-							}}
-						>
-							{profile?.name?.[0]?.toUpperCase() ||
-								user?.email?.[0]?.toUpperCase() ||
-								"C"}
-						</div>
-						<div
-							style={{
-								minWidth: 0,
-								position: "relative",
-								zIndex: 1,
-							}}
-						>
-							<div
-								style={{
-									fontWeight: 800,
-									fontSize: 13,
-									color: "#fff",
-								}}
-								className="truncate"
-							>
-								{profile?.name || user?.email?.split("@")[0]}
-							</div>
-							<div
-								style={{ fontSize: 11, color: "var(--t3)" }}
-								className="truncate"
-							>
-								{liveLocationLabel !== "Location unavailable"
-									? liveLocationLabel
-									: profile?.location ||
-										"Location unavailable"}
-							</div>
-						</div>
-					</div>
-					<div
-						style={{
-							display: "flex",
-							gap: 8,
-							flexWrap: "wrap",
-							position: "relative",
-							zIndex: 1,
-						}}
-					>
-						<span style={s.badge("green") as React.CSSProperties}>
-							Verified
-						</span>
-						<button
-							type="button"
-							onClick={handleLogout}
-							style={{
-								...(s.badge("yellow") as React.CSSProperties),
-								background: "color-mix(in srgb,var(--danger) 12%,var(--surface))",
-								color: "var(--danger)",
-								border: "1px solid color-mix(in srgb,var(--danger) 35%,var(--border))",
-								cursor: "pointer",
-							}}
-						>
-							<Ic.LogOut /> Logout
-						</button>
-					</div>
-				</div>
-			</aside>
-
-			{/* MAIN CONTENT AREA */}
-			<div className="consumer-main md:ml-[240px] flex flex-col min-h-screen relative pb-[80px] md:pb-0">
-				{/* TOPBAR */}
-				<div className="consumer-topbar h-[70px] border-b sticky top-0 z-40 flex items-center justify-between px-5 md:px-8">
-					<button
-						onClick={() => router.push("/")}
-						style={{
-							background: "none",
-							border: "none",
-							color: "var(--t3)",
-							cursor: "pointer",
-							fontSize: 12,
-							display: "flex",
-							alignItems: "center",
-							gap: 5,
-							fontFamily: "var(--font-sans)",
-							fontWeight: 600,
-						}}
-					className="consumer-back-link"
-					>
-						<Ic.ChevL /> Home
-					</button>
-
-					<div className="brand md:hidden flex items-center gap-2">
-						<div
-							style={{
-								width: 28,
-								height: 28,
-								borderRadius: 8,
-								...s.gradC,
-								display: "flex",
-								alignItems: "center",
-								justifyContent: "center",
-								fontSize: 14,
-							}}
-						>
-							<Ic.Clock />
-						</div>
-						<span className="font-black tracking-tight font-syne text-[17px]">
-							spotly
-						</span>
-					</div>
-
-					<div
-						style={{
-							display: "flex",
-							alignItems: "center",
-							gap: 12,
-						}}
-					>
-						<ThemeToggle />
-						<div
-							style={{ position: "relative", cursor: "pointer" }}
-							onClick={() => setShowNotif(!showNotif)}
-						>
-						<div className="consumer-notification-button w-10 h-10 rounded-xl flex items-center justify-center transition-all">
-								<Ic.Bell />
-							</div>
-							{notifCount > 0 && (
-								<div
-									style={{
-										position: "absolute",
-										top: -5,
-										right: -5,
-										width: 20,
-										height: 20,
-										borderRadius: "50%",
-										background: "#ff4d6d",
-										fontSize: 10,
-										fontWeight: 800,
-										display: "flex",
-										alignItems: "center",
-										justifyContent: "center",
-										border: "2px solid var(--page-bg)",
-									}}
-								>
-									{notifCount}
-								</div>
-							)}
-						</div>
-						<div className="w-10 h-10 rounded-full bg-gradient-to-br from-[#f5c418] to-[#ff6316] flex items-center justify-center cursor-pointer text-black font-black text-sm hover:scale-105 transition-transform md:hidden">
-							{profile?.name?.[0]?.toUpperCase() ||
-								user?.email?.[0]?.toUpperCase() ||
-								"C"}
-						</div>
-					</div>
-				</div>
-
-				{/* NOTIFICATION DROPDOWN */}
-				{showNotif && (
-					<div
-						style={{
-							position: "absolute",
-							top: 80,
-							right: 20,
-							width: 320,
-							zIndex: 200,
-							animation: "slideDown .25s ease",
-						}}
-					>
-						<div
-							style={{
-								...s.glassStrong,
-								borderRadius: 20,
-								overflow: "hidden",
-								boxShadow: "0 20px 40px rgba(0,0,0,0.5)",
-							}}
-						>
-							<div
-								style={{
-									padding: "16px 20px 12px",
-									borderBottom: "1px solid var(--bdr)",
-									display: "flex",
-									justifyContent: "space-between",
-									alignItems: "center",
-								}}
-							>
-								<span style={{ fontWeight: 800, fontSize: 15 }}>
-									Notifications
-								</span>
-								<button
-									style={{
-										background: "none",
-										border: "none",
-										color: "var(--t3)",
-										cursor: "pointer",
-										fontSize: 12,
-										fontWeight: 600,
-									}}
-									onClick={() => setShowNotif(false)}
-									className="hover:text-white transition-colors"
-								>
-									Clear all
-								</button>
-							</div>
-							<div
-								style={{
-									padding: "28px 20px",
-									textAlign: "center",
-								}}
-							>
-								<div
-									style={{
-										width: 36,
-										height: 36,
-										borderRadius: 12,
-										background: "rgba(255,255,255,.05)",
-										color: "var(--t3)",
-										display: "inline-flex",
-										alignItems: "center",
-										justifyContent: "center",
-										marginBottom: 12,
-									}}
-								>
-									<Ic.Bell />
-								</div>
-								<p
-									style={{
-										fontSize: 13,
-										lineHeight: 1.45,
-										marginBottom: 4,
-										fontWeight: 700,
-										color: "#e5e7eb",
-									}}
-								>
-									No notifications
-								</p>
-								<span
-									style={{
-										fontSize: 11,
-										color: "var(--t3)",
-										fontWeight: 600,
-									}}
-								>
-									Live alerts will appear here once
-									notification delivery is available.
-								</span>
-							</div>
-						</div>
-					</div>
-				)}
-
-				{/* PAGE CONTENT */}
-				<div
-					className="consumer-content flex-1 p-5 md:p-8"
-					onClick={() => showNotif && setShowNotif(false)}
-				>
-					{children}
-				</div>
-
-				{/* MOBILE NAV */}
-				<div className="consumer-mobile-nav md:hidden flex items-center justify-around fixed bottom-0 left-0 right-0 h-[72px] backdrop-blur-[24px] z-50 px-2 pb-safe">
-					{navItems.map((n) => (
-						<Link
-							key={n.id}
-							href={n.id}
-							className={`consumer-mobile-link flex flex-col items-center gap-1 p-2 rounded-xl transition-all duration-200 ${pathname === n.id ? "is-active" : ""}`}
-						>
-							<div style={{ position: "relative" }}>
-								<div
-									style={{
-										transition: "transform .2s",
-										transform:
-											pathname === n.id
-												? "scale(1.2)"
-												: "scale(1)",
-									}}
-								>
-									{n.icon}
-								</div>
-								{n.id === "/home/queue" && inQueue && (
-									<div
-										style={{
-											position: "absolute",
-											top: -4,
-											right: -4,
-											width: 8,
-											height: 8,
-											borderRadius: "50%",
-											background: "#1fd97c",
-											animation: "pulse 2s infinite",
-										}}
-									/>
-								)}
-							</div>
-							<span className="font-sans text-[9px] font-bold uppercase tracking-wider mt-1">
-								{n.label}
-							</span>
-						</Link>
-					))}
-				</div>
-			</div>
-
-			<ToastContainer toasts={toasts} />
-		</div>
-	)
+  return (
+    <div className="consumer-redesign-shell">
+      <header className="consumer-redesign-header">
+        <Link
+          className="consumer-redesign-brand"
+          href="/"
+          aria-label="Spotly home"
+        >
+          <span className="consumer-redesign-mark">
+            <BrandMark />
+          </span>
+          <span>spotly.</span>
+        </Link>
+        <nav className="consumer-redesign-nav" aria-label="Consumer navigation">
+          {nav.map(({ href, label }) => (
+            <Link
+              key={href}
+              aria-current={isActive(href) ? "page" : undefined}
+              className={isActive(href) ? "is-active" : ""}
+              href={href}
+            >
+              {label}
+              {href === "/home/queue" && myEntry ? (
+                <span
+                  aria-label="Active queue"
+                  style={{ marginLeft: 6, color: "var(--success)" }}
+                >
+                  ●
+                </span>
+              ) : null}
+            </Link>
+          ))}
+        </nav>
+        <div className="consumer-redesign-actions">
+          <span className="consumer-kicker" aria-live="polite">
+            {firstName}
+          </span>
+          <button
+            className="consumer-redesign-account"
+            onClick={() => router.push("/home/profile")}
+            aria-label="Open account"
+          >
+            {firstName[0]?.toUpperCase()}
+          </button>
+          {user ? (
+            <button className="consumer-button quiet" onClick={handleSignOut}>
+              Sign out
+            </button>
+          ) : (
+            <Link className="consumer-button quiet" href="/auth/sign-in">
+              Sign in
+            </Link>
+          )}
+        </div>
+      </header>
+      <main className="consumer-redesign-content">
+        {identityError ? (
+          <div role="alert" className="consumer-inline-error">
+            {identityError}{" "}
+            <button
+              className="consumer-button quiet"
+              onClick={() => window.location.reload()}
+            >
+              Retry account
+            </button>
+          </div>
+        ) : null}
+        {children}
+        <footer className="workspace-footer">
+          <div>
+            <span className="workspace-footer-kicker">
+              Good days happen locally
+            </span>
+            <p>
+              A little less waiting.
+              <br />A little more day.
+            </p>
+          </div>
+        </footer>
+      </main>
+      <nav
+        className="consumer-redesign-mobile-nav"
+        aria-label="Mobile navigation"
+      >
+        {nav.map(({ href, label, icon: Icon }) => (
+          <Link
+            key={href}
+            aria-current={isActive(href) ? "page" : undefined}
+            className={isActive(href) ? "is-active" : ""}
+            href={href}
+          >
+            <Icon size={18} />
+            <span>{label}</span>
+          </Link>
+        ))}
+      </nav>
+      <ToastContainer toasts={toasts} />
+    </div>
+  );
 }

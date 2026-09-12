@@ -11,14 +11,13 @@ export function Badge({ className, variant = "default", ...props }: BadgeProps) 
   return (
     <div
       className={cn(
-        "inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2",
+        "inline-flex items-center rounded-full border px-2.5 py-1 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-[var(--focus)] focus:ring-offset-2",
         {
-          "border-transparent bg-zinc-800 text-zinc-100": variant === "default",
-          "border-transparent bg-emerald-500/15 text-emerald-400": variant === "success",
-          "border-transparent bg-yellow-500/15 text-yellow-400": variant === "warning",
-          "border-transparent bg-red-500/15 text-red-400": variant === "destructive",
-          "border-emerald-500/30 bg-emerald-500/10 text-emerald-400 shadow-[0_0_10px_rgba(16,185,129,0.1)]": variant === "merchant",
-          "border-[#F5A623]/30 bg-[#F5A623]/10 text-[#F5A623] shadow-[0_0_10px_rgba(245,166,35,0.1)]": variant === "consumer",
+          "border-[var(--border)] bg-[var(--surface-raised)] text-[var(--text-secondary)]": variant === "default",
+          "border-[var(--success)]/30 bg-[var(--success-soft)] text-[var(--success)]": variant === "success" || variant === "merchant",
+          "border-[var(--warning)]/30 bg-[var(--warning-soft)] text-[var(--warning)]": variant === "warning",
+          "border-[var(--danger)]/30 bg-[var(--danger-soft)] text-[var(--danger)]": variant === "destructive",
+          "border-[var(--brand)]/30 bg-[var(--brand-soft)] text-[var(--brand-strong)]": variant === "consumer",
         },
         className
       )}

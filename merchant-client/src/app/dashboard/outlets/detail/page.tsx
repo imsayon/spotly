@@ -1,410 +1,411 @@
-"use client"
+"use client";
 
-import React, { useState, useEffect, useCallback } from "react"
-import { useRouter } from "next/navigation"
-import { Ic, useToasts, THEME } from "@spotly/ui"
-import api from "@/lib/api"
+import { useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
+import QRCode from "qrcode";
+import { Ic } from "@spotly/ui";
+import { useAuthStore } from "@/store/auth.store";
+import { useQueueStore } from "@/store/queue.store";
+import api from "@/lib/api";
+import { env } from "@/lib/env";
 
-const s = {
-  ...THEME.styles,
-  input: {
-    padding: '12px 14px',
-    borderRadius: 12,
-    background: 'rgba(255,255,255,.03)',
-    border: '1px solid rgba(255,255,255,.12)',
-    color: '#fff',
-    outline: 'none',
-    transition: 'all .2s',
-    width: '100%',
-    fontSize: 14
-  } as React.CSSProperties,
-  btnM: {
-    display: 'inline-flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    padding: '12px 24px',
-    borderRadius: 12,
-    background: THEME.gradients.merchant,
-    color: '#fff',
-    fontWeight: 700,
-    fontSize: 14,
-    border: 'none',
-    cursor: 'pointer',
-    transition: 'all .22s'
-  } as React.CSSProperties,
-  btnGhost: {
-    display: 'inline-flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    padding: '10px 18px',
-    borderRadius: 11,
-    background: 'rgba(255,255,255,.05)',
-    color: 'rgba(255,255,255,.7)',
-    fontWeight: 600,
-    fontSize: 13,
-    border: '1px solid rgba(255,255,255,.12)',
-    cursor: 'pointer',
-    transition: 'all .2s'
-  } as React.CSSProperties,
-  badge: THEME.badge,
+type OutletDetail = {
+  id: string;
+  merchantId: string;
+  name: string;
+  address?: string | null;
+  lat?: number | null;
+  lng?: number | null;
+  isActive: boolean;
+  openTime?: string;
+  closeTime?: string;
+  timezone?: string;
 };
 
-const TABS = [
-  { id: 'info', label: 'General Info', ic: <Ic.Building /> },
-  { id: 'inventory', label: 'Inventory', ic: <Ic.Tag /> },
-  { id: 'hours', label: 'Business Hours', ic: <Ic.Activity /> },
-  { id: 'settings', label: 'Advance Settings', ic: <Ic.Settings /> },
-];
-
-export default function OutletDetails() {
-  const router = useRouter()
-  const [id, setId] = useState("")
-  const { add: addToast } = useToasts()
-  const [activeTab, setActiveTab] = useState('info')
-  
-  // Outlet Info State
-  const [outlet, setOutlet] = useState<any>(null)
-  const [loadingOutlet, setLoadingOutlet] = useState(true)
-  const [outletForm, setOutletForm] = useState({ name: '', address: '', openTime: '09:00', closeTime: '21:00' })
-
-  // Menu State
-  const [categories, setCategories] = useState<any[]>([])
-  const [loadingMenu, setLoadingMenu] = useState(false)
-  
-  // Create State
-  const [newCatName, setNewCatName] = useState('')
-  const [showItemForm, setShowItemForm] = useState<string | null>(null) // categoryId
-  const [itemForm, setItemForm] = useState({ name: '', price: '', description: '' })
+export default function OutletDetailPage() {
+  const router = useRouter();
+  const merchantProfile = useAuthStore((state) => state.merchantProfile);
+  const [id, setId] = useState("");
+  const [outlet, setOutlet] = useState<OutletDetail | null>(null);
+  const [form, setForm] = useState({
+    name: "",
+    address: "",
+    lat: "",
+    lng: "",
+    openTime: "09:00",
+    closeTime: "21:00",
+  });
+  const [qr, setQr] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+  const [notice, setNotice] = useState("");
 
   useEffect(() => {
-    setId(new URLSearchParams(window.location.search).get("id") ?? "")
-  }, [])
-
-  const fetchOutlet = useCallback(async () => {
-    setLoadingOutlet(true)
-    try {
-      const res = await api.get(`/outlet/${id}`)
-      setOutlet(res.data.data)
-      setOutletForm({
-        name: res.data.data.name,
-        address: res.data.data.address,
-        openTime: res.data.data.openTime || '09:00',
-        closeTime: res.data.data.closeTime || '21:00'
+    const value = new URLSearchParams(window.location.search).get("id") || "";
+    setId(value);
+    if (!value) setLoading(false);
+  }, []);
+  const shareUrl = useMemo(
+    () =>
+      outlet
+        ? `${env.NEXT_PUBLIC_CONSUMER_URL}/merchant?id=${encodeURIComponent(outlet.merchantId)}&outletId=${encodeURIComponent(outlet.id)}`
+        : "",
+    [outlet],
+  );
+  useEffect(() => {
+    if (shareUrl)
+      void QRCode.toDataURL(shareUrl, { width: 220, margin: 1 })
+        .then(setQr)
+        .catch(() => setQr(""));
+  }, [shareUrl]);
+  useEffect(() => {
+    if (!id) return;
+    let mounted = true;
+    api
+      .get(`/outlet/${id}`)
+      .then((response) => {
+        if (!mounted) return;
+        const value = response.data.data;
+        if (value.merchantId !== merchantProfile?.id) throw new Error("Outlet not owned by this business");
+        setOutlet(value);
+        setForm({
+          name: value.name || "",
+          address: value.address || "",
+          lat: value.lat == null ? "" : String(value.lat),
+          lng: value.lng == null ? "" : String(value.lng),
+          openTime: value.openTime || "09:00",
+          closeTime: value.closeTime || "21:00",
+        });
       })
-    } catch {
-      addToast('Failed to load outlet details', 'error')
-    } finally {
-      setLoadingOutlet(false)
-    }
-  }, [id, addToast])
-
-  const fetchMenu = useCallback(async () => {
-    setLoadingMenu(true)
-    try {
-      const res = await api.get(`/menu/outlet/${id}`)
-      setCategories(res.data.data)
-    } catch {
-      addToast('Failed to load menu', 'error')
-    } finally {
-      setLoadingMenu(false)
-    }
-  }, [id, addToast])
-
-  useEffect(() => {
-    if (id) fetchOutlet()
-  }, [fetchOutlet])
-
-  useEffect(() => {
-    if (id && activeTab === 'inventory') fetchMenu()
-  }, [activeTab, fetchMenu])
-
-  const handleUpdateOutlet = async () => {
-    try {
-      await api.patch(`/outlet/${id}`, outletForm)
-      addToast('Outlet profile updated', 'success')
-      fetchOutlet()
-    } catch {
-      addToast('Failed to update outlet', 'error')
-    }
-  }
-
-  const deleteOutlet = async () => {
-    if (!confirm("Are you sure you want to delete this outlet? This action cannot be undone.")) return;
-    try {
-      await api.delete(`/outlet/${id}`)
-      addToast('Outlet deleted successfully', 'success')
-      router.push('/dashboard/outlets')
-    } catch {
-      addToast('Failed to delete outlet', 'error')
-    }
-  }
-
-  const addCategory = async () => {
-    if (!newCatName) return
-    try {
-      await api.post(`/menu/category`, { outletId: id, name: newCatName })
-      setNewCatName('')
-      fetchMenu()
-      addToast('Category created', 'success')
-    } catch {
-      addToast('Failed to create category', 'error')
-    }
-  }
-
-  const addItem = async (catId: string) => {
-    if (!itemForm.name || !itemForm.price) return
-    try {
-      await api.post(`/menu/item`, { categoryId: catId,
-        ...itemForm,
-        price: parseFloat(itemForm.price)
+      .catch(() => {
+        if (mounted) setError("Outlet could not be loaded");
       })
-      setItemForm({ name: '', price: '', description: '' })
-      setShowItemForm(null)
-      fetchMenu()
-      addToast('Item added', 'success')
-    } catch {
-      addToast('Failed to add item', 'error')
-    }
-  }
+      .finally(() => {
+        if (mounted) setLoading(false);
+      });
+    return () => {
+      mounted = false;
+    };
+  }, [id, merchantProfile?.id]);
 
-  const toggleAvailability = async (item: any) => {
+  const save = async (event: React.FormEvent) => {
+    event.preventDefault();
+    if (!outlet) return;
+    setSaving(true);
+    setError("");
+    setNotice("");
     try {
-      await api.patch(`/menu/item/${item.id}/availability?available=${!item.isAvailable}`)
-      fetchMenu()
-    } catch {
-      addToast('Update failed', 'error')
+      const response = await api.patch(`/outlet/${outlet.id}`, {
+        name: form.name.trim(),
+        address: form.address.trim(),
+        lat: form.lat === "" ? undefined : Number(form.lat),
+        lng: form.lng === "" ? undefined : Number(form.lng),
+        openTime: form.openTime,
+        closeTime: form.closeTime,
+      });
+      setOutlet((value) =>
+        value ? { ...value, ...response.data.data } : value,
+      );
+      setNotice("Outlet details saved");
+    } catch (cause: any) {
+      setError(cause?.message || "Outlet could not be saved");
+    } finally {
+      setSaving(false);
     }
-  }
-
-  const deleteItem = async (itemId: string) => {
+  };
+  const toggle = async () => {
+    if (!outlet || saving) return;
+    if (
+      outlet.isActive &&
+      !window.confirm(
+        "Pause new requests? Existing customers stay in the queue.",
+      )
+    )
+      return;
+    setSaving(true);
     try {
-      await api.delete(`/menu/item/${itemId}`)
-      fetchMenu()
-      addToast('Item deleted', 'info')
-    } catch {
-      addToast('Delete failed', 'error')
+      const next = !outlet.isActive;
+      await api.patch(`/outlet/${outlet.id}/active?active=${next}`);
+      setOutlet({ ...outlet, isActive: next });
+      setNotice(next ? "Requests enabled" : "Requests paused");
+    } catch (cause: any) {
+      setError(cause?.message || "Requests status could not be changed");
+    } finally {
+      setSaving(false);
     }
-  }
+  };
+  const remove = async () => {
+    if (
+      !outlet ||
+      !window.confirm(
+        `Delete ${outlet.name}? Queue history, services and reviews linked to it may also be removed.`,
+      )
+    )
+      return;
+    try {
+      await api.delete(`/outlet/${outlet.id}`);
+      if (merchantProfile) await useQueueStore.getState().fetchOutlets(merchantProfile.id);
+      router.replace("/dashboard/outlets");
+    } catch (cause: any) {
+      setError(
+        cause?.message ||
+          "Outlet cannot be deleted while it is open or has active queue entries",
+      );
+    }
+  };
+  const copy = async () => {
+    try {
+      await navigator.clipboard.writeText(shareUrl);
+      setNotice("Outlet link copied");
+    } catch {
+      setNotice("Copy failed. Select the link below to copy it manually.");
+    }
+  };
 
-  return (
-    <div className="animate-in fade-in slide-in-from-bottom-4 duration-500" style={{ padding: '36px 36px 80px' }}>
-      {/* HEADER */}
-      <div style={{ marginBottom: 32, display: 'flex', alignItems: 'center', gap: 20 }}>
-        <button 
-          onClick={() => router.push('/dashboard/outlets')} 
-          style={{ width: 44, height: 44, borderRadius: 14, background: 'rgba(255,255,255,.05)', border: '1px solid rgba(255,255,255,.1)', color: 'rgba(255,255,255,.6)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+  if (loading) return <div className="merchant-empty">Loading outlet…</div>;
+  if (!outlet)
+    return (
+      <div className="merchant-empty">
+        <h2>Outlet unavailable</h2>
+        <button
+          className="merchant-button"
+          onClick={() => router.push("/dashboard/outlets")}
         >
-          <Ic.X />
+          Back to outlets
         </button>
+      </div>
+    );
+  return (
+    <div
+      className="merchant-page-heading"
+      style={{ display: "block", maxWidth: 1080, margin: "0 auto" }}
+    >
+      <button
+        className="merchant-button quiet"
+        onClick={() => router.push("/dashboard/outlets")}
+      >
+        <Ic.ChevL size={15} /> Outlets
+      </button>
+      <header className="merchant-page-heading" style={{ marginTop: 12 }}>
         <div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 4 }}>
-            <h1 style={{ fontFamily: 'var(--font-sans)', fontSize: 26, fontWeight: 900 }}>
-              {loadingOutlet ? 'Loading...' : outlet?.name || 'Main Branch'}
-            </h1>
-            <span style={{ ...s.badge('merchant'), fontSize: 10, background: (outlet?.isActive ?? true) ? 'rgba(31,217,124,.15)' : 'rgba(255,77,109,.15)', color: (outlet?.isActive ?? true) ? '#1fd97c' : '#ff4d6d' } as React.CSSProperties}>
-              {(outlet?.isActive ?? true) ? 'ACTIVE' : 'INACTIVE'}
-            </span>
-          </div>
-          <p style={{ color: 'rgba(255,255,255,.3)', fontSize: 14 }}>Outlet ID: {id} · {outlet?.address}</p>
+          <div className="merchant-kicker">Outlet details</div>
+          <h1>{outlet.name}</h1>
+          <p>{outlet.address || "Add an address customers can recognize."}</p>
         </div>
-      </div>
-
-      {/* TABS */}
-      <div style={{ display: 'flex', gap: 8, marginBottom: 32, borderBottom: '1px solid rgba(255,255,255,.05)', paddingBottom: 16 }}>
-        {TABS.map(t => (
-          <button 
-            key={t.id} 
-            onClick={() => setActiveTab(t.id)}
-            style={{ 
-              display: 'flex', alignItems: 'center', gap: 8, padding: '10px 20px', borderRadius: 12, border: 'none', background: activeTab === t.id ? 'rgba(31,217,124,.1)' : 'transparent', color: activeTab === t.id ? '#1fd97c' : 'rgba(255,255,255,.4)', fontWeight: 700, fontSize: 14, cursor: 'pointer', transition: 'all .2s'
-            }}
-          >
-            {t.ic}{t.label}
-          </button>
-        ))}
-      </div>
-
-      {/* CONTENT */}
-      {activeTab === 'info' && (
-        <div className="animate-in zoom-in-95 duration-300" style={{ maxWidth: 600 }}>
-          <div style={{ ...s.card, padding: '24px' }}>
-            <h3 style={{ fontFamily: 'var(--font-sans)', fontWeight: 800, fontSize: 16, marginBottom: 20 }}>Outlet Information</h3>
-            
-            <div style={{ marginBottom: 16 }}>
-              <label style={{ fontSize: 10, fontWeight: 700, color: 'rgba(255,255,255,.25)', textTransform: 'uppercase', letterSpacing: 1, display: 'block', marginBottom: 8 }}>Branch Name</label>
-              <input 
-                type="text" 
-                style={s.input} 
-                value={outletForm.name}
-                onChange={e => setOutletForm(p => ({...p, name: e.target.value}))}
-              />
-            </div>
-
-            <div style={{ marginBottom: 16 }}>
-              <label style={{ fontSize: 10, fontWeight: 700, color: 'rgba(255,255,255,.25)', textTransform: 'uppercase', letterSpacing: 1, display: 'block', marginBottom: 8 }}>Street Address</label>
-              <input 
-                type="text" 
-                style={s.input} 
-                value={outletForm.address} 
-                onChange={e => setOutletForm(p => ({...p, address: e.target.value}))}
-              />
-            </div>
-
-            <button style={{ ...s.btnM, width: '100%', marginTop: 12 }} onClick={handleUpdateOutlet}>
-              Save Changes
-            </button>
-          </div>
+        <button
+          className={`merchant-status ${outlet.isActive ? "open" : "closed"}`}
+          disabled={saving}
+          onClick={toggle}
+        >
+          {outlet.isActive ? "Requests enabled" : "Requests paused"}
+        </button>
+      </header>
+      {error ? (
+        <div
+          role="alert"
+          className="merchant-card"
+          style={{ padding: 14, marginBottom: 14, color: "var(--danger)" }}
+        >
+          {error}
         </div>
-      )}
-
-      {activeTab === 'inventory' && (
-        <div className="animate-in zoom-in-95 duration-300">
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24, padding: '0 4px' }}>
+      ) : null}
+      {notice ? (
+        <div
+          role="status"
+          className="merchant-card"
+          style={{ padding: 14, marginBottom: 14, color: "var(--success)" }}
+        >
+          {notice}
+        </div>
+      ) : null}
+      <div className="merchant-queue-grid">
+        <form className="merchant-card merchant-queue-panel" onSubmit={save}>
+          <div className="merchant-panel-heading">
             <div>
-              <h3 style={{ fontFamily: 'var(--font-sans)', fontWeight: 800, fontSize: 20 }}>Digital Menu</h3>
-              <p style={{ color: 'var(--t3)', fontSize: 13 }}>Create categories and add items to your catalog.</p>
-            </div>
-            <div style={{ display: 'flex', gap: 10 }}>
-              <input 
-                style={{ ...s.input, width: 220, fontSize: 13 }} 
-                placeholder="New Category Name..." 
-                value={newCatName} 
-                onChange={e => setNewCatName(e.target.value)} 
-                onKeyDown={e => { if (e.key === 'Enter') addCategory() }} 
-              />
-              <button style={{ ...s.btnM, padding: '10px 20px' }} onClick={addCategory}><Ic.Plus /> Add Category</button>
+              <h2>Details</h2>
+              <p>Timezone: {outlet.timezone || "Asia/Kolkata"} (read-only)</p>
             </div>
           </div>
-          
-          {loadingMenu ? (
-            <div style={{ textAlign: 'center', padding: 60, opacity: 0.5 }}>Loading menu catalog...</div>
-          ) : categories.length === 0 ? (
-            <div style={{ ...s.card, padding: 60, textAlign: 'center', borderStyle: 'dashed', opacity: 0.6 }}>
-               <div style={{ fontSize: 40, marginBottom: 16, color: 'rgba(255,255,255,0.4)' }}><Ic.List /></div>
-               <div style={{ fontWeight: 800, fontSize: 17, marginBottom: 4 }}>Empty Catalog</div>
-               <p style={{ color: 'var(--t4)', fontSize: 13 }}>Add your first category above to begin.</p>
+          <div className="merchant-form-grid">
+            <div className="merchant-field full">
+              <label htmlFor="detail-name">Outlet name</label>
+              <input
+                id="detail-name"
+                required
+                value={form.name}
+                onChange={(event) =>
+                  setForm({ ...form, name: event.target.value })
+                }
+              />
             </div>
-          ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
-              {categories.map(cat => (
-                <div key={cat.id} style={{ ...s.card, padding: '24px' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-                     <h4 style={{ fontWeight: 900, fontSize: 18, color: '#1fd97c' }}>{cat.name} ({cat.items.length})</h4>
-                     <button style={s.btnGhost} onClick={() => setShowItemForm(cat.id)}>
-                        <Ic.Plus /> Add Item
-                     </button>
-                  </div>
-
-                  {showItemForm === cat.id && (
-                    <div style={{ background: 'rgba(255,255,255,.02)', padding: 18, borderRadius: 12, marginBottom: 20, border: '1px solid rgba(255,255,255,.05)' }}>
-                       <div style={{ display: 'grid', gridTemplateColumns: '1fr 120px', gap: 12, marginBottom: 12 }}>
-                          <input style={s.input} placeholder="Item Name" value={itemForm.name} onChange={e => setItemForm(p => ({...p, name: e.target.value})) } />
-                          <input style={s.input} placeholder="Price ₹" type="number" value={itemForm.price} onChange={e => setItemForm(p => ({...p, price: e.target.value})) } />
-                       </div>
-                       <textarea 
-                          style={{ ...s.input, minHeight: 60, resize: 'none', marginBottom: 12 }} 
-                          placeholder="Short description..." 
-                          value={itemForm.description}
-                          onChange={e => setItemForm(p => ({...p, description: e.target.value})) }
-                       />
-                       <div style={{ display: 'flex', gap: 8 }}>
-                          <button style={{ ...s.btnM, padding: '8px 16px', fontSize: 13 }} onClick={() => addItem(cat.id)}>Save Item</button>
-                          <button style={{ ...s.btnGhost, padding: '8px 16px', fontSize: 13 }} onClick={() => setShowItemForm(null)}>Cancel</button>
-                       </div>
-                    </div>
-                  )}
-
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-                    {cat.items.map((item: any) => (
-                      <div key={item.id} style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 100px', gap: 12, padding: '16px 0', borderBottom: '1px solid rgba(255,255,255,.03)', alignItems: 'center' }}>
-                        <div>
-                          <div style={{ fontWeight: 700, fontSize: 15 }}>{item.name}</div>
-                          {item.description && <div style={{ fontSize: 12, color: 'var(--t4)', marginTop: 2 }}>{item.description}</div>}
-                        </div>
-                        <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 800, fontSize: 14, color: '#f5c418' }}>₹{item.price}</span>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                          <div 
-                            style={{ position: 'relative', width: 36, height: 18, cursor: 'pointer' }} 
-                            onClick={() => toggleAvailability(item)}
-                          >
-                            <div style={{ width: '100%', height: '100%', borderRadius: 9, background: item.isAvailable ? 'rgba(31,217,124,.2)' : 'rgba(255,77,109,.1)', transition: 'all .3s' }} />
-                            <div style={{ position: 'absolute', top: 2, left: item.isAvailable ? 20 : 2, width: 14, height: 14, borderRadius: '50%', background: item.isAvailable ? '#1fd97c' : '#ff4d6d', transition: 'all .3s' }} />
-                          </div>
-                          <span style={{ fontSize: 10, color: item.isAvailable ? '#1fd97c' : '#ff4d6d', fontWeight: 800 }}>{item.isAvailable ? 'AVAILABLE' : 'SOLD OUT'}</span>
-                        </div>
-                        <div style={{ textAlign: 'right' }}>
-                          <button 
-                            style={{ background: 'rgba(255,77,109,.1)', border: 'none', color: '#ff4d6d', padding: '6px 10px', borderRadius: 8, cursor: 'pointer', fontSize: 11, fontWeight: 700 }} 
-                            onClick={() => deleteItem(item.id)}
-                          >
-                            Delete
-                          </button>
-                        </div>
-                      </div>
-                    ))}
-                    {cat.items.length === 0 && (
-                      <div style={{ padding: '20px 0', color: 'var(--t4)', fontSize: 13, fontStyle: 'italic' }}>No items in this category yet.</div>
-                    )}
-                  </div>
-                </div>
-              ))}
+            <div className="merchant-field full">
+              <label htmlFor="detail-address">Address</label>
+              <textarea
+                id="detail-address"
+                required
+                value={form.address}
+                onChange={(event) =>
+                  setForm({ ...form, address: event.target.value })
+                }
+              />
             </div>
-          )}
-        </div>
-      )}
-
-      {activeTab === 'hours' && (
-        <div className="animate-in zoom-in-95 duration-300" style={{ maxWidth: 540 }}>
-          <div style={{ ...s.card, padding: '24px' }}>
-            <h3 style={{ fontFamily: 'var(--font-sans)', fontWeight: 800, fontSize: 16, marginBottom: 20 }}>Operating Hours</h3>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 16, padding: '14px 0', borderBottom: '1px solid rgba(255,255,255,.05)' }}>
-              <div style={{ width: 100, fontSize: 14, fontWeight: 700 }}>Daily</div>
-              <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 10 }}>
-                <input 
-                  type="time" 
-                  value={outletForm.openTime}
-                  onChange={(e) => setOutletForm(prev => ({ ...prev, openTime: e.target.value }))}
-                  style={{ ...s.input, padding: '8px 10px', fontSize: 13 }} 
-                />
-                <span style={{ color: 'rgba(255,255,255,.2)', fontSize: 12, fontWeight: 800 }}>-</span>
-                <input 
-                  type="time" 
-                  value={outletForm.closeTime}
-                  onChange={(e) => setOutletForm(prev => ({ ...prev, closeTime: e.target.value }))}
-                  style={{ ...s.input, padding: '8px 10px', fontSize: 13 }} 
-                />
-              </div>
+            <div className="merchant-field">
+              <label htmlFor="detail-lat">Latitude (optional)</label>
+              <input
+                id="detail-lat"
+                type="number"
+                step="any"
+                min="-90"
+                max="90"
+                value={form.lat}
+                onChange={(event) =>
+                  setForm({ ...form, lat: event.target.value })
+                }
+              />
             </div>
-            <button 
-              style={{ ...s.btnM, width: '100%', marginTop: 20 }} 
-              onClick={handleUpdateOutlet}
+            <div className="merchant-field">
+              <label htmlFor="detail-lng">Longitude (optional)</label>
+              <input
+                id="detail-lng"
+                type="number"
+                step="any"
+                min="-180"
+                max="180"
+                value={form.lng}
+                onChange={(event) =>
+                  setForm({ ...form, lng: event.target.value })
+                }
+              />
+            </div>
+            <div className="merchant-field">
+              <label htmlFor="detail-open">Opening time</label>
+              <input
+                id="detail-open"
+                type="time"
+                value={form.openTime}
+                onChange={(event) =>
+                  setForm({ ...form, openTime: event.target.value })
+                }
+              />
+            </div>
+            <div className="merchant-field">
+              <label htmlFor="detail-close">Closing time</label>
+              <input
+                id="detail-close"
+                type="time"
+                value={form.closeTime}
+                onChange={(event) =>
+                  setForm({ ...form, closeTime: event.target.value })
+                }
+              />
+            </div>
+          </div>
+          <button
+            className="merchant-button"
+            type="submit"
+            disabled={saving}
+            style={{ marginTop: 20 }}
+          >
+            {saving ? "Saving…" : "Save details"}
+          </button>
+        </form>
+        <aside id="sharing" className="merchant-card merchant-queue-panel">
+          <div className="merchant-panel-heading">
+            <div>
+              <h2>Share this outlet</h2>
+              <p>Customers open the selected outlet directly.</p>
+            </div>
+          </div>
+          {qr ? (
+            <img
+              src={qr}
+              alt="QR code for this outlet"
+              width={220}
+              height={220}
+              style={{ display: "block", margin: "0 auto 16px" }}
+            />
+          ) : null}
+          {qr ? (
+            <a
+              className="merchant-button secondary"
+              href={qr}
+              download="spotly-outlet-qr.png"
             >
-              Update Schedule
+              Download QR
+            </a>
+          ) : null}
+          <button className="merchant-button" onClick={copy}>
+            Copy outlet link
+          </button>
+          <input
+            readOnly
+            value={shareUrl}
+            aria-label="Outlet link"
+            style={{ marginTop: 12 }}
+          />
+          {shareUrl ? (
+            <a
+              className="merchant-button secondary"
+              style={{ marginTop: 10 }}
+              href={shareUrl}
+              target="_blank"
+              rel="noreferrer"
+            >
+              Open customer view <Ic.Arrow size={15} />
+            </a>
+          ) : null}
+          <div
+            style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 22 }}
+          >
+            <button
+              className="merchant-button secondary"
+              onClick={() =>
+                router.push(
+                  `/dashboard/inventory?outletId=${encodeURIComponent(outlet.id)}`,
+                )
+              }
+            >
+              Services
+            </button>
+            <button
+              className="merchant-button secondary"
+              onClick={() =>
+                router.push(
+                  `/dashboard/settings/reviews?outletId=${encodeURIComponent(outlet.id)}`,
+                )
+              }
+            >
+              Reviews
             </button>
           </div>
-        </div>
-      )}
-
-      {activeTab === 'settings' && (
-        <div className="animate-in zoom-in-95 duration-300" style={{ maxWidth: 540 }}>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-            <div style={{ ...s.card, padding: '22px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', border: '1px solid rgba(255,77,109,.2)' }}>
-              <div style={{ flex: 1, paddingRight: 20 }}>
-                <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 4, color: '#ff4d6d' }}>Danger Zone</div>
-                <div style={{ fontSize: 12, color: 'rgba(255,255,255,.35)', lineHeight: 1.4 }}>Permanently delete this outlet and all its data. This cannot be undone.</div>
-              </div>
-              <button 
-                onClick={deleteOutlet}
-                style={{ background: 'rgba(255,77,109,.1)', color: '#ff4d6d', border: '1px solid rgba(255,77,109,.3)', padding: '10px 16px', borderRadius: 10, fontWeight: 700, cursor: 'pointer', transition: 'all .2s' }}
-              >
-                Delete Outlet
-              </button>
-            </div>
+        </aside>
+      </div>
+      <section
+        className="merchant-card merchant-queue-panel"
+        style={{
+          marginTop: 18,
+          borderColor: "color-mix(in srgb,var(--danger) 30%,var(--border))",
+        }}
+      >
+        <div className="merchant-panel-heading">
+          <div>
+            <h2>Delete outlet</h2>
+            <p>
+              Pause requests and finish active customers before deleting. This
+              removes linked queue history, services and reviews according to
+              the current database cascade.
+            </p>
           </div>
+          <button
+            className="merchant-button danger"
+            onClick={remove}
+            disabled={outlet.isActive}
+          >
+            Delete outlet
+          </button>
         </div>
-      )}
+      </section>
     </div>
-  )
+  );
 }

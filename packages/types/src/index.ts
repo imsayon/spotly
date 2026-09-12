@@ -198,6 +198,15 @@ export const CreateMenuItemDtoSchema = z.object({
 });
 export type CreateMenuItemDto = z.infer<typeof CreateMenuItemDtoSchema>;
 
+export const UpdateMenuItemDtoSchema = z.object({
+  name: z.string().trim().min(1).optional(),
+  description: z.string().optional(),
+  price: z.number().finite().nonnegative().optional(),
+}).strict().refine((value) => Object.keys(value).length > 0, {
+  message: "At least one editable field is required",
+});
+export type UpdateMenuItemDto = z.infer<typeof UpdateMenuItemDtoSchema>;
+
 export const CreateReviewDtoSchema = z.object({
   outletId: z.string().uuid(),
   rating: z.number().int().min(1).max(5),

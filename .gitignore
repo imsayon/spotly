@@ -62,3 +62,7 @@ serviceAccountKey.json
 # Test/debug scripts
 test*.js
 test-*.js
+
+# Keep the approved frontend handoff; screenshots remain local review artifacts.
+!docs/frontend-design/*.md
+docs/frontend-design/qa/*.png

@@ -1,0 +1,392 @@
+[
+  {
+    "role": "consumer",
+    "path": "/home",
+    "width": 360,
+    "overflow": false,
+    "errors": [],
+    "headings": [
+      "A calmer way to walk in."
+    ]
+  },
+  {
+    "role": "consumer",
+    "path": "/merchant?id=m1&outletId=o1",
+    "width": 360,
+    "overflow": false,
+    "errors": [],
+    "headings": [
+      "Corner House"
+    ]
+  },
+  {
+    "role": "consumer",
+    "path": "/home/queue?entryId=e2",
+    "width": 360,
+    "overflow": false,
+    "errors": [],
+    "headings": [
+      "Your queue ticket"
+    ]
+  },
+  {
+    "role": "consumer",
+    "path": "/home/favorites",
+    "width": 360,
+    "overflow": false,
+    "errors": [],
+    "headings": [
+      "Places worth keeping."
+    ]
+  },
+  {
+    "role": "consumer",
+    "path": "/home/profile",
+    "width": 360,
+    "overflow": false,
+    "errors": [],
+    "headings": [
+      "Keep your details useful."
+    ]
+  },
+  {
+    "role": "consumer",
+    "path": "/home",
+    "width": 768,
+    "overflow": false,
+    "errors": [],
+    "headings": [
+      "A calmer way to walk in."
+    ]
+  },
+  {
+    "role": "consumer",
+    "path": "/merchant?id=m1&outletId=o1",
+    "width": 768,
+    "overflow": false,
+    "errors": [],
+    "headings": [
+      "Corner House"
+    ]
+  },
+  {
+    "role": "consumer",
+    "path": "/home/queue?entryId=e2",
+    "width": 768,
+    "overflow": false,
+    "errors": [],
+    "headings": [
+      "Your queue ticket"
+    ]
+  },
+  {
+    "role": "consumer",
+    "path": "/home/favorites",
+    "width": 768,
+    "overflow": false,
+    "errors": [],
+    "headings": [
+      "Places worth keeping."
+    ]
+  },
+  {
+    "role": "consumer",
+    "path": "/home/profile",
+    "width": 768,
+    "overflow": false,
+    "errors": [],
+    "headings": [
+      "Keep your details useful."
+    ]
+  },
+  {
+    "role": "consumer",
+    "path": "/home",
+    "width": 1440,
+    "overflow": false,
+    "errors": [],
+    "headings": [
+      "A calmer way to walk in."
+    ]
+  },
+  {
+    "role": "consumer",
+    "path": "/merchant?id=m1&outletId=o1",
+    "width": 1440,
+    "overflow": false,
+    "errors": [],
+    "headings": [
+      "Corner House"
+    ]
+  },
+  {
+    "role": "consumer",
+    "path": "/home/queue?entryId=e2",
+    "width": 1440,
+    "overflow": false,
+    "errors": [],
+    "headings": [
+      "Your queue ticket"
+    ]
+  },
+  {
+    "role": "consumer",
+    "path": "/home/favorites",
+    "width": 1440,
+    "overflow": false,
+    "errors": [],
+    "headings": [
+      "Places worth keeping."
+    ]
+  },
+  {
+    "role": "consumer",
+    "path": "/home/profile",
+    "width": 1440,
+    "overflow": false,
+    "errors": [],
+    "headings": [
+      "Keep your details useful."
+    ]
+  },
+  {
+    "role": "merchant",
+    "path": "/dashboard",
+    "width": 360,
+    "overflow": false,
+    "errors": [],
+    "headings": [
+      "Keep the line moving."
+    ]
+  },
+  {
+    "role": "merchant",
+    "path": "/dashboard/outlets",
+    "width": 360,
+    "overflow": false,
+    "errors": [],
+    "headings": [
+      "Every location, in focus."
+    ]
+  },
+  {
+    "role": "merchant",
+    "path": "/dashboard/outlets/detail?id=o1",
+    "width": 360,
+    "overflow": false,
+    "errors": [],
+    "headings": [
+      "Main outlet"
+    ]
+  },
+  {
+    "role": "merchant",
+    "path": "/dashboard/inventory",
+    "width": 360,
+    "overflow": false,
+    "errors": [],
+    "headings": [
+      "Keep your offerings clear."
+    ]
+  },
+  {
+    "role": "merchant",
+    "path": "/dashboard/analytics",
+    "width": 360,
+    "overflow": false,
+    "errors": [],
+    "headings": [
+      "Today's requests."
+    ]
+  },
+  {
+    "role": "merchant",
+    "path": "/dashboard/settings",
+    "width": 360,
+    "overflow": false,
+    "errors": [],
+    "headings": [
+      "Keep the workspace in order."
+    ]
+  },
+  {
+    "role": "merchant",
+    "path": "/dashboard/business",
+    "width": 360,
+    "overflow": false,
+    "errors": [],
+    "headings": [
+      "Make your profile easy to trust."
+    ]
+  },
+  {
+    "role": "merchant",
+    "path": "/dashboard/settings/reviews",
+    "width": 360,
+    "overflow": false,
+    "errors": [],
+    "headings": [
+      "Listen to the people you served."
+    ]
+  },
+  {
+    "role": "merchant",
+    "path": "/dashboard",
+    "width": 768,
+    "overflow": false,
+    "errors": [],
+    "headings": [
+      "Keep the line moving."
+    ]
+  },
+  {
+    "role": "merchant",
+    "path": "/dashboard/outlets",
+    "width": 768,
+    "overflow": false,
+    "errors": [],
+    "headings": [
+      "Every location, in focus."
+    ]
+  },
+  {
+    "role": "merchant",
+    "path": "/dashboard/outlets/detail?id=o1",
+    "width": 768,
+    "overflow": false,
+    "errors": [],
+    "headings": [
+      "Main outlet"
+    ]
+  },
+  {
+    "role": "merchant",
+    "path": "/dashboard/inventory",
+    "width": 768,
+    "overflow": false,
+    "errors": [],
+    "headings": [
+      "Keep your offerings clear."
+    ]
+  },
+  {
+    "role": "merchant",
+    "path": "/dashboard/analytics",
+    "width": 768,
+    "overflow": false,
+    "errors": [],
+    "headings": [
+      "Today's requests."
+    ]
+  },
+  {
+    "role": "merchant",
+    "path": "/dashboard/settings",
+    "width": 768,
+    "overflow": false,
+    "errors": [],
+    "headings": [
+      "Keep the workspace in order."
+    ]
+  },
+  {
+    "role": "merchant",
+    "path": "/dashboard/business",
+    "width": 768,
+    "overflow": false,
+    "errors": [],
+    "headings": [
+      "Make your profile easy to trust."
+    ]
+  },
+  {
+    "role": "merchant",
+    "path": "/dashboard/settings/reviews",
+    "width": 768,
+    "overflow": false,
+    "errors": [],
+    "headings": [
+      "Listen to the people you served."
+    ]
+  },
+  {
+    "role": "merchant",
+    "path": "/dashboard",
+    "width": 1440,
+    "overflow": false,
+    "errors": [],
+    "headings": [
+      "Keep the line moving."
+    ]
+  },
+  {
+    "role": "merchant",
+    "path": "/dashboard/outlets",
+    "width": 1440,
+    "overflow": false,
+    "errors": [],
+    "headings": [
+      "Every location, in focus."
+    ]
+  },
+  {
+    "role": "merchant",
+    "path": "/dashboard/outlets/detail?id=o1",
+    "width": 1440,
+    "overflow": false,
+    "errors": [],
+    "headings": [
+      "Main outlet"
+    ]
+  },
+  {
+    "role": "merchant",
+    "path": "/dashboard/inventory",
+    "width": 1440,
+    "overflow": false,
+    "errors": [],
+    "headings": [
+      "Keep your offerings clear."
+    ]
+  },
+  {
+    "role": "merchant",
+    "path": "/dashboard/analytics",
+    "width": 1440,
+    "overflow": false,
+    "errors": [],
+    "headings": [
+      "Today's requests."
+    ]
+  },
+  {
+    "role": "merchant",
+    "path": "/dashboard/settings",
+    "width": 1440,
+    "overflow": false,
+    "errors": [],
+    "headings": [
+      "Keep the workspace in order."
+    ]
+  },
+  {
+    "role": "merchant",
+    "path": "/dashboard/business",
+    "width": 1440,
+    "overflow": false,
+    "errors": [],
+    "headings": [
+      "Make your profile easy to trust."
+    ]
+  },
+  {
+    "role": "merchant",
+    "path": "/dashboard/settings/reviews",
+    "width": 1440,
+    "overflow": false,
+    "errors": [],
+    "headings": [
+      "Listen to the people you served."
+    ]
+  }
+]

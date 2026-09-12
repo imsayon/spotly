@@ -1,6 +1,6 @@
 "use client"
 
-import React from "react"
+
 import { Ic } from "@spotly/ui"
 
 export function getMerchantIcon(category?: string) {

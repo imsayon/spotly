@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException } from "@nestjs/common";
 import { PrismaService } from "../../infra/prisma/prisma.service";
-import { CreateMenuCategoryDto, CreateMenuItemDto } from "@spotly/types";
+import { CreateMenuCategoryDto, CreateMenuItemDto, UpdateMenuItemDto } from "@spotly/types";
 
 @Injectable()
 export class MenuService {
@@ -50,5 +50,10 @@ export class MenuService {
   async deleteItem(itemId: string, userId: string) {
     await this.assertItemOwner(itemId, userId);
     return this.prisma.menuItem.delete({ where: { id: itemId } });
+  }
+
+  async updateItem(itemId: string, dto: UpdateMenuItemDto, userId: string) {
+    await this.assertItemOwner(itemId, userId);
+    return this.prisma.menuItem.update({ where: { id: itemId }, data: dto });
   }
 }

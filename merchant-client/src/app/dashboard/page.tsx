@@ -1,56 +1,447 @@
-"use client"
+"use client";
 
-import { useEffect, useRef } from "react"
-import { Ic, useToasts } from "@spotly/ui"
-import { useAuthStore } from "@/store/auth.store"
-import { useQueueStore, type ExtendedQueueEntry } from "@/store/queue.store"
+import { useEffect, useMemo, useState } from "react";
+import { usePathname, useRouter } from "next/navigation";
+import { Ic } from "@spotly/ui";
+import { useQueueStore, type ExtendedQueueEntry } from "@/store/queue.store";
 
-export default function MerchantDashboard() {
-	const { merchantProfile } = useAuthStore()
-	const { add: addToast } = useToasts()
-	const store = useQueueStore()
-	const pollRef = useRef<ReturnType<typeof setInterval> | null>(null)
+const relativeTime = (value: string | Date) => {
+  const minutes = Math.max(
+    0,
+    Math.floor((Date.now() - new Date(value).getTime()) / 60000),
+  );
+  return minutes ? `${minutes} min ago` : "Just now";
+};
 
-	useEffect(() => {
-		store.setToastFn(addToast as any)
-		if (!merchantProfile?.id) return
-		store.fetchOutlets(merchantProfile.id).then(() => store.connectRealtime())
-		pollRef.current = setInterval(() => store.fetchQueue(), 8000)
-		return () => { store.disconnectRealtime(); if (pollRef.current) clearInterval(pollRef.current) }
-		// eslint-disable-next-line react-hooks/exhaustive-deps
-	}, [merchantProfile?.id, addToast])
-
-	const pending = store.entries.filter((entry) => entry.status === "PENDING_ACCEPTANCE")
-	const waiting = store.entries.filter((entry) => entry.status === "WAITING")
-	const called = store.entries.find((entry) => entry.status === "CALLED")
-	const outlet = store.outlets.find((item) => item.id === store.selectedOutletId)
-
-	if (store.loading) return <div className="dashboard-loading" aria-label="Loading dashboard" />
-	if (!merchantProfile) return <EmptyState title="Complete your profile" copy="Set up your business before managing a queue." action="Start onboarding" href="/onboarding" />
-
-	return <div className="dashboard-page">
-		<header className="dashboard-header">
-			<div><div className="section-kicker">Today at a glance</div><h1>{merchantProfile.name}</h1><p>{outlet?.name || "Choose an outlet to begin"} · {new Date().toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" })}</p></div>
-			<div className="dashboard-actions">
-				{store.outlets.length > 0 && <label className="outlet-select"><span className="sr-only">Outlet</span><select value={store.selectedOutletId} onChange={(event) => store.setSelectedOutletId(event.target.value)}>{store.outlets.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label>}
-				<button className={`state-toggle ${store.isOpen ? "is-open" : "is-closed"}`} onClick={store.toggleOpen}><span />{store.isOpen ? "Open" : "Closed"}</button>
-			</div>
-		</header>
-
-		{store.outlets.length === 0 ? <EmptyState title="No outlets yet" copy="Add your first outlet to start accepting queue requests." action="Add outlet" href="/dashboard/outlets" /> : <>
-			<section className="metric-strip" aria-label="Queue summary"><Metric label="Pending review" value={pending.length} hint="Needs a decision" /><Metric label="Waiting" value={waiting.length} hint="Accepted customers" /><Metric label="Now serving" value={called ? `#${called.tokenNumber}` : "—"} hint={called ? "At the counter" : "Queue is clear"} /><Metric label="Connection" value={store.wsConnected ? "Live" : "Polling"} hint="Updates every few seconds" /></section>
-
-			<div className="dashboard-grid">
-				<section className="dashboard-panel pending-panel"><PanelHeading title="Requests to review" count={pending.length} copy="Customers stay pending until you accept them." />{pending.length === 0 ? <EmptyPanel copy="No new requests. Your queue is up to date." /> : <div className="request-list">{pending.map((entry) => <RequestRow key={entry.id} entry={entry} onAccept={() => store.acceptEntry(entry.id)} onReject={() => store.rejectEntry(entry.id)} />)}</div>}</section>
-				<section className="dashboard-panel called-panel"><PanelHeading title="Currently called" count={called ? 1 : 0} copy="Finish the current visit before calling another customer." />{called ? <div className="called-card"><span className="called-token">#{called.tokenNumber}</span><div><strong>Customer {called.tokenNumber}</strong><p>Called {new Date(called.calledAt || called.updatedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</p></div><button className="button-primary" onClick={() => store.markServed(called.id)}><Ic.Check /> Mark served</button></div> : <EmptyPanel copy="No customer is being called right now." />}</section>
-				<section className="dashboard-panel waiting-panel"><PanelHeading title="Waiting queue" count={waiting.length} copy="Accepted customers in order." /><div className="waiting-toolbar"><span>{waiting.length ? `Next up: #${waiting[0].tokenNumber}` : "No accepted customers"}</span><button className="button-primary" disabled={!waiting.length || !!called} onClick={store.callNext}><Ic.Arrow /> Call next</button></div>{waiting.length > 0 && <div className="waiting-list">{waiting.map((entry, index) => <div className="waiting-row" key={entry.id}><span className="queue-token">#{entry.tokenNumber}</span><span><strong>Customer {entry.tokenNumber}</strong><small>Joined {new Date(entry.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</small></span><span className="queue-position">{index === 0 ? "Next" : `${index} ahead`}</span></div>)}</div>}</section>
-			</div>
-		</>}
-	</div>
+function EntryRow({
+  entry,
+  kind,
+  onAccept,
+  onReject,
+  onRemove,
+  disabled,
+}: {
+  entry: ExtendedQueueEntry;
+  kind: "request" | "waiting";
+  onAccept?: () => void;
+  onReject?: () => void;
+  onRemove?: () => void;
+  disabled?: boolean;
+}) {
+  return (
+    <div className="merchant-queue-row">
+      <span className="merchant-token">
+        {String(entry.tokenNumber).padStart(3, "0")}
+      </span>
+      <span className="merchant-row-copy">
+        <strong>
+          {kind === "request" ? "New request" : "Waiting customer"}
+        </strong>
+        <small>
+          <time
+            dateTime={new Date(entry.createdAt).toISOString()}
+            title={new Date(entry.createdAt).toLocaleString()}
+          >
+            {relativeTime(entry.createdAt)}
+          </time>
+        </small>
+      </span>
+      <span className="merchant-row-actions">
+        {kind === "request" ? (
+          <>
+            <button
+              className="merchant-button danger"
+              disabled={disabled}
+              onClick={onReject}
+            >
+              Decline
+            </button>
+            <button
+              className="merchant-button"
+              disabled={disabled}
+              onClick={onAccept}
+            >
+              Accept
+            </button>
+          </>
+        ) : (
+          <>
+            <span className="merchant-status">
+              {entry.status === "WAITING" ? "Confirmed" : entry.status}
+            </span>
+            {onRemove ? (
+              <button
+                className="merchant-button quiet"
+                disabled={disabled}
+                onClick={onRemove}
+                aria-label={`Remove token ${entry.tokenNumber} from queue`}
+              >
+                Remove
+              </button>
+            ) : null}
+          </>
+        )}
+      </span>
+    </div>
+  );
 }
 
-function Metric({ label, value, hint }: { label: string; value: string | number; hint: string }) { return <div className="metric"><span>{label}</span><strong>{value}</strong><small>{hint}</small></div> }
-function PanelHeading({ title, count, copy }: { title: string; count: number; copy: string }) { return <div className="panel-heading"><div><h2>{title} <span>{count}</span></h2><p>{copy}</p></div></div> }
-function EmptyPanel({ copy }: { copy: string }) { return <div className="empty-panel"><Ic.Check size={18} /><span>{copy}</span></div> }
-function EmptyState({ title, copy, action, href }: { title: string; copy: string; action: string; href: string }) { return <div className="empty-state"><Ic.Store size={28} /><h1>{title}</h1><p>{copy}</p><a className="button-primary" href={href}>{action}<Ic.Arrow /></a></div> }
-function RequestRow({ entry, onAccept, onReject }: { entry: ExtendedQueueEntry; onAccept: () => void; onReject: () => void }) { return <div className="request-row"><span className="queue-token">#{entry.tokenNumber}</span><span className="request-copy"><strong>Customer {entry.tokenNumber}</strong><small>Requested {new Date(entry.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</small></span><span className="request-actions"><button className="button-secondary" onClick={onReject}><Ic.X /> Reject</button><button className="button-primary" onClick={onAccept}><Ic.Check /> Accept</button></span></div> }
+export default function MerchantQueueWorkspace() {
+  const router = useRouter();
+  const pathname = usePathname();
+  const store = useQueueStore();
+  const [tab, setTab] = useState<"requests" | "waiting">("requests");
+  const [urlOutletId, setUrlOutletId] = useState("");
+
+  useEffect(() => {
+    if (pathname === "/dashboard/queue")
+      router.replace(`/dashboard${window.location.search}`);
+  }, [pathname, router]);
+
+  useEffect(() => {
+    setUrlOutletId(
+      new URLSearchParams(window.location.search).get("outletId") || "",
+    );
+  }, []);
+  useEffect(() => {
+    if (!store.outlets.length) return;
+    const target =
+      store.outlets.find((outlet) => outlet.id === urlOutletId)?.id ||
+      store.selectedOutletId ||
+      store.outlets[0].id;
+    if (target !== store.selectedOutletId) store.setSelectedOutletId(target);
+    else {
+      void store.fetchQueue();
+      store.connectRealtime();
+    }
+    return () => store.disconnectRealtime();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [store.outlets.length, urlOutletId]);
+
+  const pending = useMemo(
+    () =>
+      store.entries.filter((entry) => entry.status === "PENDING_ACCEPTANCE"),
+    [store.entries],
+  );
+  const waiting = useMemo(
+    () => store.entries.filter((entry) => entry.status === "WAITING"),
+    [store.entries],
+  );
+  const called = useMemo(
+    () => store.entries.find((entry) => entry.status === "CALLED"),
+    [store.entries],
+  );
+  const outlet = store.outlets.find(
+    (item) => item.id === store.selectedOutletId,
+  );
+  const askToggle = async () => {
+    if (
+      !store.isOpen ||
+      window.confirm(
+        "Pause new requests? Existing customers will remain in the queue.",
+      )
+    )
+      try {
+        await store.toggleOpen();
+      } catch {
+        /* The store reports the error. */
+      }
+  };
+
+  const callNext = async () => {
+    try {
+      await store.callNext();
+    } catch {
+      /* store reports the server error */
+    }
+  };
+  const markServed = async () => {
+    if (called)
+      try {
+        await store.markServed(called.id);
+      } catch {}
+  };
+  const markMissed = async () => {
+    if (called && window.confirm(`Mark token ${called.tokenNumber} missed?`))
+      try {
+        await store.markMissed(called.id);
+      } catch {}
+  };
+
+  return (
+    <div
+      className="merchant-page-heading"
+      style={{ display: "block", maxWidth: 1180, margin: "0 auto" }}
+    >
+      <header className="merchant-page-heading">
+        <div>
+          <div className="merchant-kicker">Queue workspace</div>
+          <h1>Keep the line moving.</h1>
+          <p>
+            {store.wsConnected
+              ? "Live updates connected"
+              : store.stale
+                ? "Showing the last successful snapshot"
+                : "Checking for queue updates"}
+          </p>
+        </div>
+        <div
+          style={{
+            display: "flex",
+            alignItems: "flex-end",
+            gap: 10,
+            flexWrap: "wrap",
+          }}
+        >
+          <div className="merchant-scope">
+            <label htmlFor="outlet-scope">Outlet</label>
+            <select
+              id="outlet-scope"
+              value={store.selectedOutletId}
+              onChange={(event) => {
+                store.setSelectedOutletId(event.target.value);
+                router.replace(
+                  `/dashboard?outletId=${encodeURIComponent(event.target.value)}`,
+                );
+              }}
+            >
+              {store.outlets.map((item) => (
+                <option key={item.id} value={item.id}>
+                  {item.name}
+                </option>
+              ))}
+            </select>
+          </div>
+          <button
+            className={`merchant-status ${store.isOpen ? "open" : "closed"}`}
+            disabled={store.mutationPending || store.loading || store.stale}
+            onClick={askToggle}
+          >
+            {store.isOpen ? "Requests enabled" : "Requests paused"}
+          </button>
+          <button
+            className="merchant-button secondary"
+            onClick={() => store.fetchQueue()}
+            disabled={store.loading}
+          >
+            Refresh
+          </button>
+        </div>
+      </header>
+      {!outlet ? (
+        <div className="merchant-card merchant-empty">
+          <p>Create an outlet to start operating a queue.</p>
+          <button
+            className="merchant-button"
+            onClick={() => router.push("/dashboard/outlets")}
+          >
+            Open outlets
+          </button>
+        </div>
+      ) : (
+        <>
+          {store.error ? (
+            <div
+              role="alert"
+              className="merchant-card"
+              style={{
+                padding: "12px 16px",
+                marginBottom: 16,
+                color: "var(--danger)",
+              }}
+            >
+              {store.error}{" "}
+              <button
+                className="merchant-button quiet"
+                onClick={() => store.fetchQueue()}
+              >
+                Retry
+              </button>
+            </div>
+          ) : null}
+          <section
+            className="merchant-card merchant-call-band"
+            aria-live="polite"
+          >
+            <div>
+              <div className="merchant-kicker">Current call</div>
+              {called ? (
+                <>
+                  <div className="merchant-call-token">
+                    {String(called.tokenNumber).padStart(3, "0")}
+                  </div>
+                  <h2>Called to the counter</h2>
+                  <p>Finish this customer before calling another.</p>
+                </>
+              ) : waiting.length ? (
+                <>
+                  <h2>Ready for the next customer</h2>
+                  <p>
+                    Token {String(waiting[0].tokenNumber).padStart(3, "0")} is
+                    first in the confirmed queue.
+                  </p>
+                </>
+              ) : (
+                <>
+                  <h2>No customer to call yet</h2>
+                  <p>Accept a request or wait for a confirmed customer.</p>
+                </>
+              )}
+            </div>
+            <div className="merchant-call-actions">
+              {called ? (
+                <>
+                  <button
+                    className="merchant-button"
+                    disabled={
+                      store.mutationPending || store.loading || store.stale
+                    }
+                    onClick={markServed}
+                  >
+                    <Ic.Check size={16} /> Mark served
+                  </button>
+                  <button
+                    className="merchant-button quiet"
+                    disabled={
+                      store.mutationPending || store.loading || store.stale
+                    }
+                    onClick={markMissed}
+                  >
+                    Mark missed
+                  </button>
+                </>
+              ) : (
+                <button
+                  className="merchant-button"
+                  disabled={
+                    !waiting.length ||
+                    store.mutationPending ||
+                    store.loading ||
+                    store.stale
+                  }
+                  onClick={callNext}
+                >
+                  Call next <Ic.Arrow size={16} />
+                </button>
+              )}
+            </div>
+          </section>
+          <div className="merchant-tabbar">
+            <button
+              className={tab === "requests" ? "is-active" : ""}
+              onClick={() => setTab("requests")}
+            >
+              New requests{" "}
+              <span className="merchant-count">{pending.length}</span>
+            </button>
+            <button
+              className={tab === "waiting" ? "is-active" : ""}
+              onClick={() => setTab("waiting")}
+            >
+              Waiting <span className="merchant-count">{waiting.length}</span>
+            </button>
+          </div>
+          <div className="merchant-queue-grid">
+            <section
+              className={`merchant-card merchant-queue-panel ${tab === "requests" ? "is-visible" : "is-tab-hidden"}`}
+            >
+              <div className="merchant-panel-heading">
+                <div>
+                  <h2>New requests</h2>
+                  <p>Review each request before it enters the waiting line.</p>
+                </div>
+                <span className="merchant-count">{pending.length}</span>
+              </div>
+              {pending.length ? (
+                pending.map((entry) => (
+                  <EntryRow
+                    key={entry.id}
+                    entry={entry}
+                    kind="request"
+                    disabled={
+                      store.mutationPending || store.loading || store.stale
+                    }
+                    onAccept={() =>
+                      void store.acceptEntry(entry.id).catch(() => undefined)
+                    }
+                    onReject={() => {
+                      if (
+                        window.confirm(
+                          `Decline token ${entry.tokenNumber}? This cannot be undone.`,
+                        )
+                      )
+                        void store.rejectEntry(entry.id).catch(() => undefined);
+                    }}
+                  />
+                ))
+              ) : (
+                <div className="merchant-empty">
+                  No requests need your attention.
+                </div>
+              )}
+            </section>
+            <section
+              className={`merchant-card merchant-queue-panel ${tab === "waiting" ? "is-visible" : "is-tab-hidden"}`}
+            >
+              <div className="merchant-panel-heading">
+                <div>
+                  <h2>Waiting</h2>
+                  <p>Confirmed customers ordered by the server.</p>
+                </div>
+                <span className="merchant-count">{waiting.length}</span>
+              </div>
+              {waiting.length ? (
+                waiting.map((entry, index) => (
+                  <EntryRow
+                    key={entry.id}
+                    entry={entry}
+                    kind="waiting"
+                    disabled={
+                      store.mutationPending || store.loading || store.stale
+                    }
+                    onRemove={
+                      index === 0 || entry.status === "WAITING"
+                        ? () => {
+                            if (
+                              window.confirm(
+                                `Remove token ${entry.tokenNumber} from the queue?`,
+                              )
+                            )
+                              void store
+                                .rejectEntry(entry.id)
+                                .catch(() => undefined);
+                          }
+                        : undefined
+                    }
+                  />
+                ))
+              ) : (
+                <div className="merchant-empty">
+                  No confirmed customers are waiting.
+                </div>
+              )}
+            </section>
+          </div>
+        </>
+      )}
+      <style jsx>{`
+        @media (min-width: 1100px) {
+          .merchant-tabbar {
+            display: none;
+          }
+          .is-tab-hidden {
+            display: block;
+          }
+        }
+        @media (max-width: 1099px) {
+          .is-tab-hidden {
+            display: none;
+          }
+          .is-visible {
+            display: block;
+          }
+        }
+      `}</style>
+    </div>
+  );
+}

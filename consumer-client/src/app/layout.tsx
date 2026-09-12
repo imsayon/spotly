@@ -1,35 +1,40 @@
-import { Inter, Montserrat } from "next/font/google"
-import type { Metadata } from "next"
-import "./globals.css"
-import { AuthProvider } from "@/components/AuthProvider"
-import { OnboardingModal } from "@/components/OnboardingModal"
-import { ErrorBoundary } from "@/components/ErrorBoundary"
+import { IBM_Plex_Sans, IBM_Plex_Serif } from "next/font/google";
+import type { Metadata } from "next";
+import "./globals.css";
+import { AuthProvider } from "@/components/AuthProvider";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 
-const montserrat = Montserrat({ subsets: ["latin"], variable: "--font-body", display: "swap" })
-const inter = Inter({ subsets: ["latin"], variable: "--font-display", display: "swap" })
+const plexSans = IBM_Plex_Sans({
+  subsets: ["latin"],
+  variable: "--font-body",
+  display: "swap",
+  weight: ["400", "500", "600"],
+});
+const plexSerif = IBM_Plex_Serif({
+  subsets: ["latin"],
+  variable: "--font-editorial",
+  display: "swap",
+  weight: ["400"],
+});
 
 export const metadata: Metadata = {
-	title: "Spotly Consumer",
-	description:
-		"Skip the line. Join queues remotely. Get live updates. Never wait in line again.",
-}
+  title: "Spotly Consumer",
+  description:
+    "Find a local business, request a spot, and follow your confirmed queue state.",
+};
 
 export default function RootLayout({
-	children,
+  children,
 }: {
-	children: React.ReactNode
+  children: React.ReactNode;
 }) {
-	return (
-		<html lang="en" suppressHydrationWarning>
-			<head><script dangerouslySetInnerHTML={{ __html: `(()=>{const m=localStorage.getItem('spotly-theme');const d=m==='dark'||(m!=='light'&&matchMedia('(prefers-color-scheme: dark)').matches);document.documentElement.dataset.theme=d?'dark':'light'})()` }} /></head>
-			<body className={`${montserrat.variable} ${inter.variable} spotly-app`}>
-				<ErrorBoundary>
-					<AuthProvider>
-						<OnboardingModal />
-						{children}
-					</AuthProvider>
-				</ErrorBoundary>
-			</body>
-		</html>
-	)
+  return (
+    <html lang="en" data-spotly-role="consumer" data-theme="light">
+      <body className={`${plexSans.variable} ${plexSerif.variable} spotly-app`}>
+        <ErrorBoundary>
+          <AuthProvider>{children}</AuthProvider>
+        </ErrorBoundary>
+      </body>
+    </html>
+  );
 }

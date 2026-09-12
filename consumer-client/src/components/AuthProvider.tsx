@@ -1,69 +1,75 @@
-"use client"
+"use client";
 
-import { useEffect } from "react"
-import { supabase } from "@/lib/supabase"
-import { useAuthStore } from "@/store/auth.store"
+import { useEffect } from "react";
+import type { User as SupabaseUser } from "@supabase/supabase-js";
+import { supabase } from "@/lib/supabase";
+import { useAuthStore } from "@/store/auth.store";
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-	const setUser = useAuthStore((s) => s.setUser)
+  const setUser = useAuthStore((state) => state.setUser);
+  const setLoading = useAuthStore((state) => state.setLoading);
+  const setIdentityError = useAuthStore((state) => state.setIdentityError);
 
-	useEffect(() => {
-		const hash = typeof window !== "undefined" ? window.location.hash : ""
+  useEffect(() => {
+    let mounted = true;
+    if (window.location.pathname.startsWith("/design-preview")) {
+      setLoading(false);
+      return;
+    }
 
-		// Explicitly handle hash if Supabase misses it
-		if (hash.includes("access_token")) {
-			const params = new URLSearchParams(hash.substring(1))
-			const access_token = params.get("access_token")
-			const refresh_token = params.get("refresh_token")
+    const resolveIdentity = async (sessionUser: SupabaseUser | null) => {
+      if (!mounted) return;
+      const store = useAuthStore.getState();
+      store.setUser(sessionUser);
+      if (!sessionUser) return;
+      try {
+        setLoading(true);
+        let profile = await store.fetchProfile();
+        if (!mounted || useAuthStore.getState().user?.id !== sessionUser.id) return;
+        if (!profile) {
+          await store.registerOnBackend("CONSUMER");
+          profile = await store.fetchProfile();
+        }
+        if (mounted) setIdentityError(null);
+      } catch {
+        if (mounted)
+          setIdentityError("We couldn't load your account. Try again.");
+      } finally {
+        if (mounted) setLoading(false);
+      }
+    };
 
-			if (access_token && refresh_token) {
-				supabase.auth
-					.setSession({ access_token, refresh_token })
-					.then(({ data: { session } }) => {
-						setUser(session?.user ?? null)
-						if (session?.user) {
-							const store = useAuthStore.getState()
-							store
-								.registerOnBackend("CONSUMER")
-								.then(() => store.fetchProfile())
-						}
-						if (typeof window !== "undefined") {
-							window.history.replaceState(
-								null,
-								"",
-								window.location.pathname +
-									window.location.search,
-							)
-						}
-					})
-				return
-			}
-		}
+    setLoading(true);
+    supabase.auth.getSession().then(({ data: { session }, error }) => {
+      if (error) {
+        if (mounted) {
+          setUser(null);
+          setIdentityError("We couldn't check your session. Try again.");
+          setLoading(false);
+        }
+        return;
+      }
+      void resolveIdentity(session?.user ?? null);
+    });
 
-		supabase.auth.getSession().then(({ data: { session } }) => {
-			setUser(session?.user ?? null)
-			if (session?.user) {
-				const store = useAuthStore.getState()
-				store
-					.registerOnBackend("CONSUMER")
-					.then(() => store.fetchProfile())
-			}
-		})
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === "INITIAL_SESSION") return;
+      if (event === "PASSWORD_RECOVERY") {
+        window.location.replace("/auth/update-password");
+        return;
+      }
+      setTimeout(() => {
+        if (mounted) void resolveIdentity(session?.user ?? null);
+      }, 0);
+    });
 
-		// Listen for auth changes
-		const {
-			data: { subscription },
-		} = supabase.auth.onAuthStateChange(async (event, session) => {
-			setUser(session?.user ?? null)
-			if (session?.user && event === "SIGNED_IN") {
-				const store = useAuthStore.getState()
-				await store.registerOnBackend("CONSUMER")
-				await store.fetchProfile()
-			}
-		})
+    return () => {
+      mounted = false;
+      subscription.unsubscribe();
+    };
+  }, [setIdentityError, setLoading, setUser]);
 
-		return () => subscription.unsubscribe()
-	}, [setUser])
-
-	return <>{children}</>
+  return <>{children}</>;
 }

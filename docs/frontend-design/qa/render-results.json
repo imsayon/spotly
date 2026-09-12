@@ -1,0 +1,288 @@
+[
+  {
+    "role": "consumer",
+    "path": "/home",
+    "width": 390,
+    "url": "http://localhost:3100/home",
+    "overflow": false,
+    "errors": [],
+    "heading": [
+      "A calmer way to walk in."
+    ]
+  },
+  {
+    "role": "consumer",
+    "path": "/merchant?id=m1&outletId=o1",
+    "width": 390,
+    "url": "http://localhost:3100/merchant?id=m1&outletId=o1",
+    "overflow": false,
+    "errors": [],
+    "heading": [
+      "Corner House"
+    ]
+  },
+  {
+    "role": "consumer",
+    "path": "/home/queue?entryId=e2",
+    "width": 390,
+    "url": "http://localhost:3100/home/queue?entryId=e2",
+    "overflow": false,
+    "errors": [],
+    "heading": [
+      "Your queue ticket"
+    ]
+  },
+  {
+    "role": "consumer",
+    "path": "/home/favorites",
+    "width": 390,
+    "url": "http://localhost:3100/home/favorites",
+    "overflow": false,
+    "errors": [],
+    "heading": [
+      "Places worth keeping."
+    ]
+  },
+  {
+    "role": "consumer",
+    "path": "/home/profile",
+    "width": 390,
+    "url": "http://localhost:3100/home/profile",
+    "overflow": false,
+    "errors": [],
+    "heading": [
+      "Keep your details useful."
+    ]
+  },
+  {
+    "role": "consumer",
+    "path": "/home",
+    "width": 1440,
+    "url": "http://localhost:3100/home",
+    "overflow": false,
+    "errors": [],
+    "heading": [
+      "A calmer way to walk in."
+    ]
+  },
+  {
+    "role": "consumer",
+    "path": "/merchant?id=m1&outletId=o1",
+    "width": 1440,
+    "url": "http://localhost:3100/merchant?id=m1&outletId=o1",
+    "overflow": false,
+    "errors": [],
+    "heading": [
+      "Corner House"
+    ]
+  },
+  {
+    "role": "consumer",
+    "path": "/home/queue?entryId=e2",
+    "width": 1440,
+    "url": "http://localhost:3100/home/queue?entryId=e2",
+    "overflow": false,
+    "errors": [],
+    "heading": [
+      "Your queue ticket"
+    ]
+  },
+  {
+    "role": "consumer",
+    "path": "/home/favorites",
+    "width": 1440,
+    "url": "http://localhost:3100/home/favorites",
+    "overflow": false,
+    "errors": [],
+    "heading": [
+      "Places worth keeping."
+    ]
+  },
+  {
+    "role": "consumer",
+    "path": "/home/profile",
+    "width": 1440,
+    "url": "http://localhost:3100/home/profile",
+    "overflow": false,
+    "errors": [],
+    "heading": [
+      "Keep your details useful."
+    ]
+  },
+  {
+    "role": "merchant",
+    "path": "/dashboard",
+    "width": 390,
+    "url": "http://localhost:3102/dashboard",
+    "overflow": false,
+    "errors": [],
+    "heading": [
+      "Keep the line moving."
+    ]
+  },
+  {
+    "role": "merchant",
+    "path": "/dashboard/outlets",
+    "width": 390,
+    "url": "http://localhost:3102/dashboard/outlets",
+    "overflow": false,
+    "errors": [],
+    "heading": [
+      "Every location, in focus."
+    ]
+  },
+  {
+    "role": "merchant",
+    "path": "/dashboard/outlets/detail?id=o1",
+    "width": 390,
+    "url": "http://localhost:3102/dashboard/outlets/detail?id=o1",
+    "overflow": false,
+    "errors": [],
+    "heading": [
+      "Main outlet"
+    ]
+  },
+  {
+    "role": "merchant",
+    "path": "/dashboard/inventory",
+    "width": 390,
+    "url": "http://localhost:3102/dashboard/inventory",
+    "overflow": false,
+    "errors": [],
+    "heading": [
+      "Keep your offerings clear."
+    ]
+  },
+  {
+    "role": "merchant",
+    "path": "/dashboard/analytics",
+    "width": 390,
+    "url": "http://localhost:3102/dashboard/analytics",
+    "overflow": false,
+    "errors": [],
+    "heading": [
+      "Today's requests."
+    ]
+  },
+  {
+    "role": "merchant",
+    "path": "/dashboard/settings",
+    "width": 390,
+    "url": "http://localhost:3102/dashboard/settings",
+    "overflow": false,
+    "errors": [],
+    "heading": [
+      "Keep the workspace in order."
+    ]
+  },
+  {
+    "role": "merchant",
+    "path": "/dashboard/business",
+    "width": 390,
+    "url": "http://localhost:3102/dashboard/business",
+    "overflow": false,
+    "errors": [],
+    "heading": [
+      "Make your profile easy to trust."
+    ]
+  },
+  {
+    "role": "merchant",
+    "path": "/dashboard/settings/reviews",
+    "width": 390,
+    "url": "http://localhost:3102/dashboard/settings/reviews",
+    "overflow": false,
+    "errors": [],
+    "heading": [
+      "Listen to the people you served."
+    ]
+  },
+  {
+    "role": "merchant",
+    "path": "/dashboard",
+    "width": 1440,
+    "url": "http://localhost:3102/dashboard",
+    "overflow": false,
+    "errors": [],
+    "heading": [
+      "Keep the line moving."
+    ]
+  },
+  {
+    "role": "merchant",
+    "path": "/dashboard/outlets",
+    "width": 1440,
+    "url": "http://localhost:3102/dashboard/outlets",
+    "overflow": false,
+    "errors": [],
+    "heading": [
+      "Every location, in focus."
+    ]
+  },
+  {
+    "role": "merchant",
+    "path": "/dashboard/outlets/detail?id=o1",
+    "width": 1440,
+    "url": "http://localhost:3102/dashboard/outlets/detail?id=o1",
+    "overflow": false,
+    "errors": [],
+    "heading": [
+      "Main outlet"
+    ]
+  },
+  {
+    "role": "merchant",
+    "path": "/dashboard/inventory",
+    "width": 1440,
+    "url": "http://localhost:3102/dashboard/inventory",
+    "overflow": false,
+    "errors": [],
+    "heading": [
+      "Keep your offerings clear."
+    ]
+  },
+  {
+    "role": "merchant",
+    "path": "/dashboard/analytics",
+    "width": 1440,
+    "url": "http://localhost:3102/dashboard/analytics",
+    "overflow": false,
+    "errors": [],
+    "heading": [
+      "Today's requests."
+    ]
+  },
+  {
+    "role": "merchant",
+    "path": "/dashboard/settings",
+    "width": 1440,
+    "url": "http://localhost:3102/dashboard/settings",
+    "overflow": false,
+    "errors": [],
+    "heading": [
+      "Keep the workspace in order."
+    ]
+  },
+  {
+    "role": "merchant",
+    "path": "/dashboard/business",
+    "width": 1440,
+    "url": "http://localhost:3102/dashboard/business",
+    "overflow": false,
+    "errors": [],
+    "heading": [
+      "Make your profile easy to trust."
+    ]
+  },
+  {
+    "role": "merchant",
+    "path": "/dashboard/settings/reviews",
+    "width": 1440,
+    "url": "http://localhost:3102/dashboard/settings/reviews",
+    "overflow": false,
+    "errors": [],
+    "heading": [
+      "Listen to the people you served."
+    ]
+  }
+]

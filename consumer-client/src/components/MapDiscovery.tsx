@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useEffect, useState } from "react"
+import { useEffect, useState } from "react"
 import { MapContainer, TileLayer, Marker, Popup, useMap } from "react-leaflet"
 import "leaflet/dist/leaflet.css"
 import L from "leaflet"
@@ -45,6 +45,26 @@ function RecenterMap({ center }: { center?: [number, number] }) {
 	return null
 }
 
+function FitMarkers({ merchants, center }: { merchants: any[]; center?: [number, number] }) {
+	const map = useMap()
+
+	useEffect(() => {
+		const points: [number, number][] = merchants.flatMap((merchant) => {
+			const pins: [number, number][] = []
+			if (Number.isFinite(merchant.lat) && Number.isFinite(merchant.lng)) pins.push([merchant.lat, merchant.lng])
+			merchant.outlets?.forEach((outlet: any) => {
+				if (Number.isFinite(outlet.lat) && Number.isFinite(outlet.lng)) pins.push([outlet.lat, outlet.lng])
+			})
+			return pins
+		})
+		if (points.length > 1) map.fitBounds(L.latLngBounds(points), { padding: [24, 24], maxZoom: 13 })
+		else if (points[0]) map.setView(points[0])
+		else if (center) map.setView(center)
+	}, [center, map, merchants])
+
+	return null
+}
+
 export default function MapDiscovery({
 	merchants,
 	center = [12.9716, 77.5946],
@@ -64,9 +84,9 @@ export default function MapDiscovery({
 			<div
 				style={{
 					height: "400px",
-					background: "rgba(255,255,255,.05)",
-					borderRadius: 18,
-					border: "1px solid rgba(255,255,255,.1)",
+						background: "var(--surface-subtle, #EEE6DA)",
+						borderRadius: 8,
+						border: "1px solid var(--border, #D8CFC2)",
 					display: "flex",
 					alignItems: "center",
 					justifyContent: "center",
@@ -79,11 +99,11 @@ export default function MapDiscovery({
 	return (
 		<div
 			style={{
-				height: "400px",
+				height: "min(560px, 62vh)",
 				width: "100%",
-				borderRadius: 18,
+				borderRadius: 8,
 				overflow: "hidden",
-				border: "1px solid rgba(255,255,255,.12)",
+				border: "1px solid var(--border, #D8CFC2)",
 				position: "relative",
 			}}
 		>
@@ -91,7 +111,7 @@ export default function MapDiscovery({
 				center={center}
 				zoom={zoom}
 				scrollWheelZoom={true}
-				style={{ height: "100%", width: "100%", background: "#0a0f1a" }}
+				style={{ height: "100%", width: "100%", background: "var(--surface-subtle, #EEE6DA)" }}
 			>
 				<TileLayer
 					attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
@@ -99,6 +119,7 @@ export default function MapDiscovery({
 				/>
 				<MapResizer />
 				<RecenterMap center={center} />
+				<FitMarkers merchants={merchants} center={center} />
 				{userLocation && (
 					<Marker position={userLocation}>
 						<Popup>
@@ -163,7 +184,7 @@ export default function MapDiscovery({
 									<button
 										style={{
 											marginTop: 8,
-											background: "#1fd97c",
+										background: "var(--brand, #B34C35)",
 											color: "#fff",
 											border: "none",
 											padding: "4px 10px",

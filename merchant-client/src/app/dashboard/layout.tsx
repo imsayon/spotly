@@ -1,235 +1,232 @@
-"use client"
+"use client";
 
-import React, { useEffect } from "react"
-import { usePathname, useRouter } from "next/navigation"
-import { motion, AnimatePresence } from "framer-motion"
-import { useAuthStore } from "@/store/auth.store"
-import { useQueueStore } from "@/store/queue.store"
-import { Ic, useToasts, ToastContainer, THEME, ThemeToggle } from "@spotly/ui"
-import Link from "next/link"
+import React, { useEffect, useRef, useState } from "react";
+import Link from "next/link";
+import { usePathname, useRouter } from "next/navigation";
+import { BrandMark, Ic, ToastContainer, useToasts } from "@spotly/ui";
+import { useAuthStore } from "@/store/auth.store";
+import { useQueueStore } from "@/store/queue.store";
 
-const s = {
-  ...THEME.styles,
-  gradM: { background: THEME.gradients.merchant },
-  gradMText: { background: THEME.gradients.merchant, WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text' },
-}
+const nav = [
+  { href: "/dashboard", label: "Queue", icon: Ic.Users },
+  { href: "/dashboard/outlets", label: "Outlets", icon: Ic.Store },
+  { href: "/dashboard/inventory", label: "Services", icon: Ic.Tag },
+  { href: "/dashboard/analytics", label: "Activity", icon: Ic.Activity },
+  { href: "/dashboard/settings", label: "Settings", icon: Ic.Settings },
+];
 
-export default function MerchantLayout({ children }: { children: React.ReactNode }) {
-  const pathname = usePathname()
-  const router = useRouter()
-  const { merchantProfile, signOut } = useAuthStore()
-  const { toasts, add: addToast } = useToasts()
-  const store = useQueueStore()
-  const [mobileNavOpen, setMobileNavOpen] = React.useState(false)
-
-  // Wire toast into queue store so it can display messages
+export default function MerchantLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  const pathname = usePathname();
+  const router = useRouter();
+  const {
+    user,
+    merchantProfile,
+    loading: authLoading,
+    identityError,
+    setUser,
+    signOut,
+  } = useAuthStore();
+  const store = useQueueStore();
+  const { toasts, add } = useToasts();
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menu = useRef<HTMLDialogElement>(null);
   useEffect(() => {
-    store.setToastFn(addToast as any)
+    if (menuOpen) menu.current?.showModal();
+    else menu.current?.close();
+  }, [menuOpen]);
+
+  useEffect(() => {
+    store.setToastFn(add);
+    if (authLoading || !merchantProfile?.id) return;
+    void store.fetchOutlets(merchantProfile.id);
+    return () => store.disconnectRealtime();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [addToast])
-
-  const nav = [
-    { id: '/dashboard',           ic: <Ic.Grid />,     l: 'Dashboard' },
-    { id: '/dashboard/queue',     ic: <Ic.Users />,    l: 'Queue Operator' },
-    { id: '/dashboard/business',  ic: <Ic.Building />, l: 'Business Profile' },
-    { id: '/dashboard/inventory', ic: <Ic.Tag />,      l: 'Inventory' },
-    { id: '/dashboard/outlets',   ic: <Ic.Store />,    l: 'Outlet Control' },
-    { id: '/dashboard/settings',  ic: <Ic.Settings />, l: 'Settings' },
-  ]
-
-  const handleSignOut = () => {
-    addToast('Signing out…', 'info')
-    signOut()
-  }
-
-  const { user, loading: authLoading } = useAuthStore()
+  }, [authLoading, merchantProfile?.id, add]);
 
   useEffect(() => {
-    if (authLoading) return;
-    if (!user) { router.replace('/'); return; }
-    if (!merchantProfile) { router.replace('/onboarding'); return; }
-  }, [user, merchantProfile, authLoading, router]);
+    if (authLoading || identityError) return;
+    if (!user) router.replace("/");
+    else if (!merchantProfile) router.replace("/onboarding");
+  }, [authLoading, identityError, merchantProfile, router, user]);
 
-  if (authLoading || !user || !merchantProfile) {
+  if (authLoading)
     return (
-      <div className="merchant-loading">
-        <div className="merchant-spinner" />
-        <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+      <div className="merchant-empty" style={{ minHeight: "100vh" }}>
+        Loading your workspace…
       </div>
     );
-  }
-
-  return (
-    <div className="merchant-shell" style={{ height: '100vh', display: 'flex', overflow: 'hidden' }}>
-
-      {/* ─── SIDEBAR ─── */}
+  if (!user)
+    return (
+      <div className="merchant-empty" style={{ minHeight: "100vh" }}>
+        Returning to sign in…
+      </div>
+    );
+  if (identityError)
+    return (
       <div
-        className="merchant-sidebar hidden md:flex"
-        style={{
-          width: 256,
-          height: '100vh',
-          borderRight: '1px solid var(--border)',
-          padding: '24px 12px',
-          display: 'flex',
-          flexDirection: 'column',
-          background: 'var(--surface)',
-          backdropFilter: 'blur(10px)',
-          zIndex: 100,
-          flexShrink: 0,
-        }}
+        className="merchant-empty"
+        style={{ minHeight: "100vh", padding: 24 }}
       >
-        {/* LOGO */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '0 12px 28px' }}>
-          <div style={{ width: 34, height: 34, borderRadius: 10, ...s.gradM, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <Ic.Zap />
+        <div className="merchant-card" style={{ maxWidth: 480, padding: 24 }}>
+          <h1>Workspace unavailable</h1>
+          <p>{identityError}</p>
+          <div style={{ display: "flex", gap: 8, marginTop: 18 }}>
+            <button
+              className="merchant-button"
+              onClick={() => void setUser(user).catch(() => undefined)}
+            >
+              Retry
+            </button>
+            <button
+              className="merchant-button secondary"
+              onClick={() => void signOut().catch(() => undefined)}
+            >
+              Sign out
+            </button>
           </div>
-          <div>
-            <div className="merchant-brand-name">spotly.</div>
-            <div className="merchant-brand-subtitle">Merchant</div>
-          </div>
-        </div>
-
-        {/* NAV */}
-        <nav style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 3 }}>
-          {nav.map(n => {
-            const isActive = pathname === n.id || (n.id !== '/dashboard' && pathname.startsWith(n.id))
-            return (
-              <Link
-                key={n.id}
-                href={n.id}
-                className={`merchant-nav-link ${isActive ? 'is-active' : ''}`}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 12,
-                  padding: '11px 14px',
-                  borderRadius: 14,
-                  background: 'transparent',
-                  color: 'var(--text-secondary)',
-                  fontWeight: 700,
-                  fontSize: 14,
-                  transition: 'all .25s',
-                  textDecoration: 'none',
-                  position: 'relative',
-                }}
-              >
-                {isActive && (
-                  <span style={{
-                    position: 'absolute', left: 0,
-                    width: 3, height: '60%',
-                    borderRadius: '0 4px 4px 0',
-                    background: '#1fd97c',
-                    boxShadow: '0 0 8px rgba(31,217,124,.5)',
-                  }} />
-                )}
-                <span>{n.ic}</span>
-                {n.l}
-              </Link>
-            )
-          })}
-        </nav>
-
-        {/* OPEN/CLOSED TOGGLE IN SIDEBAR */}
-        <div style={{ marginBottom: 12 }}>
-          <button
-            onClick={store.toggleOpen}
-            style={{
-              width: '100%',
-              display: 'flex',
-              alignItems: 'center',
-              gap: 10,
-              padding: '11px 14px',
-              borderRadius: 14,
-              background: store.isOpen ? 'rgba(31,217,124,.08)' : 'rgba(255,77,109,.08)',
-              border: `1px solid ${store.isOpen ? 'rgba(31,217,124,.2)' : 'rgba(255,77,109,.2)'}`,
-              color: store.isOpen ? '#1fd97c' : '#ff4d6d',
-              fontWeight: 800,
-              fontSize: 13,
-              cursor: 'pointer',
-              transition: 'all .3s',
-              letterSpacing: 0.3,
-            }}
-          >
-            <span style={{
-              width: 8, height: 8, borderRadius: '50%',
-              background: store.isOpen ? '#1fd97c' : '#ff4d6d',
-              boxShadow: store.isOpen ? '0 0 8px rgba(31,217,124,.5)' : '0 0 8px rgba(255,77,109,.5)',
-              flexShrink: 0,
-              animation: store.isOpen ? 'pulse 2s infinite' : 'none',
-            }} />
-            Store: {store.isOpen ? 'Open' : 'Closed'}
-          </button>
-        </div>
-
-        {/* BOTTOM PROFILE */}
-        <div style={{ borderTop: '1px solid rgba(255,255,255,.05)', paddingTop: 16, display: 'flex', flexDirection: 'column', gap: 10 }}>
-          <ThemeToggle />
-          <div className="merchant-profile-row" style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '6px 12px' }}>
-            <div style={{ width: 38, height: 38, borderRadius: 12, ...s.gradM, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14, fontWeight: 900, color: '#fff', flexShrink: 0 }}>
-              {merchantProfile?.name?.[0]?.toUpperCase() || 'M'}
-            </div>
-            <div style={{ overflow: 'hidden' }}>
-              <div className="merchant-profile-name" style={{ fontWeight: 800, fontSize: 13, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                {merchantProfile?.name || 'Merchant'}
-              </div>
-              <div className="merchant-profile-status" style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 10, fontWeight: 800 }}>
-                <div style={{ width: 5, height: 5, borderRadius: '50%' }} /> Verified
-              </div>
-            </div>
-          </div>
-          <motion.button
-            whileHover={{ y: -1, background: 'rgba(255,77,109,.15)' }}
-            whileTap={{ scale: 0.98 }}
-            onClick={handleSignOut}
-            style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '11px 14px', borderRadius: 14, border: 'none', background: 'rgba(255,77,109,.08)', color: '#ff4d6d', fontWeight: 800, fontSize: 13, cursor: 'pointer', transition: 'all .2s' }}
-          >
-            <Ic.LogOut /> Logout
-          </motion.button>
         </div>
       </div>
+    );
+  if (!merchantProfile)
+    return (
+      <div className="merchant-empty" style={{ minHeight: "100vh" }}>
+        Preparing your workspace…
+      </div>
+    );
 
-      {/* ─── MAIN CONTENT ─── */}
-      <main className="merchant-main" style={{ flex: 1, overflowY: 'auto', position: 'relative' }}>
-        {/* Mobile header */}
-        <div className="merchant-mobile-header md:hidden flex items-center justify-between p-4">
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <div style={{ width: 30, height: 30, borderRadius: 8, ...s.gradM, display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Ic.Zap /></div>
-            <span style={{ fontWeight: 900, fontSize: 16 }}>spotly.</span>
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            {/* Mobile open/closed toggle */}
-            <button
-              onClick={store.toggleOpen}
-              style={{
-                padding: '6px 14px', borderRadius: 99,
-                background: store.isOpen ? 'rgba(31,217,124,.1)' : 'rgba(255,77,109,.1)',
-                border: `1px solid ${store.isOpen ? 'rgba(31,217,124,.25)' : 'rgba(255,77,109,.25)'}`,
-                color: store.isOpen ? '#1fd97c' : '#ff4d6d',
-                fontSize: 11, fontWeight: 800, cursor: 'pointer',
-              }}
+  const current = store.outlets.find(
+    (outlet) => outlet.id === store.selectedOutletId,
+  );
+  const active = (href: string) =>
+    href === "/dashboard"
+      ? pathname === "/dashboard"
+      : pathname.startsWith(href);
+
+  const handleSignOut = async () => {
+    add("Signing out…", "info");
+    try {
+      await signOut();
+    } catch {
+      add("Sign out failed. Please try again.", "error");
+    }
+  };
+
+  return (
+    <div className="merchant-redesign-shell">
+      <aside className="merchant-redesign-sidebar">
+        <Link href="/dashboard" className="merchant-redesign-brand">
+          <span className="merchant-redesign-mark">
+            <BrandMark />
+          </span>
+          <span>
+            <strong>spotly.</strong>
+            <small>merchant workspace</small>
+          </span>
+        </Link>
+        <nav className="merchant-redesign-nav" aria-label="Merchant navigation">
+          {nav.map(({ href, label, icon: Icon }) => (
+            <Link
+              key={href}
+              href={href}
+              aria-current={active(href) ? "page" : undefined}
+              className={active(href) ? "is-active" : ""}
             >
-              {store.isOpen ? 'OPEN' : 'CLOSED'}
-            </button>
-            <ThemeToggle />
-            <button aria-label="Open navigation" onClick={() => setMobileNavOpen((value) => !value)} style={{ color: 'var(--text-secondary)', background: 'none', border: 'none', minWidth: 44, minHeight: 44 }}>
-              <Ic.Menu />
+              <Icon size={17} />
+              {label}
+            </Link>
+          ))}
+        </nav>
+        <div className="merchant-redesign-profile">
+          <div className="merchant-redesign-profile-row">
+            <span className="merchant-redesign-avatar">
+              {merchantProfile.name?.[0]?.toUpperCase() || "M"}
+            </span>
+            <span>
+              <strong>{merchantProfile.name}</strong>
+              <small>{current?.name || "Select an outlet"}</small>
+            </span>
+          </div>
+          <button className="merchant-redesign-signout" onClick={handleSignOut}>
+            Sign out
+          </button>
+        </div>
+      </aside>
+      <div className="merchant-redesign-main">
+        <header className="merchant-redesign-mobile-header">
+          <span
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 9,
+              fontWeight: 600,
+            }}
+          >
+            <span className="merchant-redesign-mark">
+              <BrandMark />
+            </span>
+            spotly.
+          </span>
+          <button
+            aria-expanded={menuOpen}
+            aria-label="Open navigation"
+            onClick={() => setMenuOpen((value) => !value)}
+          >
+            <Ic.Menu size={18} /> Menu
+          </button>
+        </header>
+        <dialog
+          ref={menu}
+          className="merchant-navigation-dialog"
+          aria-label="Merchant navigation"
+          onClose={() => setMenuOpen(false)}
+        >
+          <div className="merchant-panel-heading">
+            <strong>Workspace menu</strong>
+            <button
+              className="merchant-button secondary"
+              onClick={() => setMenuOpen(false)}
+              autoFocus
+            >
+              Close
             </button>
           </div>
-        </div>
-
-        {mobileNavOpen && <nav className="mobile-nav-drawer md:hidden" aria-label="Mobile navigation">{nav.map((item) => <Link key={item.id} href={item.id} onClick={() => setMobileNavOpen(false)} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '12px 10px', color: 'var(--text-primary)', textDecoration: 'none', fontWeight: 700 }}>{item.ic}{item.l}</Link>)}</nav>}
-
-        {children}
-      </main>
-
+          <nav aria-label="Mobile navigation">
+            {nav.map(({ href, label, icon: Icon }) => (
+              <Link
+                key={href}
+                href={href}
+                aria-current={active(href) ? "page" : undefined}
+                onClick={() => setMenuOpen(false)}
+              >
+                <Icon size={18} />
+                {label}
+              </Link>
+            ))}
+          </nav>
+          <button className="merchant-button secondary" onClick={handleSignOut}>
+            Sign out
+          </button>
+        </dialog>
+        <main className="merchant-redesign-content">
+          {children}
+          <footer className="workspace-footer">
+            <div>
+              <span className="workspace-footer-kicker">
+                Good days happen locally
+              </span>
+              <p>
+                A little less waiting.
+                <br />A little more day.
+              </p>
+            </div>
+          </footer>
+        </main>
+      </div>
       <ToastContainer toasts={toasts} />
-
-      <style>{`
-        @keyframes pulse {
-          0%, 100% { opacity: 1; }
-          50% { opacity: 0.4; }
-        }
-      `}</style>
     </div>
-  )
+  );
 }

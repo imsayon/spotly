@@ -1,372 +1,421 @@
-"use client"
+"use client";
 
-import React, { useState, useEffect } from "react"
-import { motion, AnimatePresence } from "framer-motion"
-import { useAuthStore } from "@/store/auth.store"
-import { Ic, useToasts, THEME } from "@spotly/ui"
-import api from "@/lib/api"
+import { useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
+import { Ic } from "@spotly/ui";
+import type { MenuCategory, MenuItem } from "@spotly/types";
+import api from "@/lib/api";
+import { useAuthStore } from "@/store/auth.store";
+import { useQueueStore } from "@/store/queue.store";
 
-const s = THEME.styles
+type Draft = {
+  name: string;
+  description: string;
+  price: string;
+  categoryId: string;
+};
 
-export default function InventoryPage() {
-  const { merchantProfile } = useAuthStore()
-  const { add: addToast } = useToasts()
+const emptyDraft: Draft = {
+  name: "",
+  description: "",
+  price: "",
+  categoryId: "",
+};
 
-  const [outlets, setOutlets] = useState<any[]>([])
-  const [selectedOutlet, setSelectedOutlet] = useState<string>('')
-  const [categories, setCategories] = useState<any[]>([])
-  
-  const [showAddForm, setShowAddForm] = useState(false)
-  const [newName, setNewName] = useState('')
-  const [newPrice, setNewPrice] = useState('')
-  const [filter, setFilter] = useState<'all' | 'available' | 'unavailable'>('all')
+export default function ServicesPage() {
+  const router = useRouter();
+  const { merchantProfile } = useAuthStore();
+  const store = useQueueStore();
+  const [categories, setCategories] = useState<MenuCategory[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [draft, setDraft] = useState<Draft>(emptyDraft);
+  const [editing, setEditing] = useState<MenuItem | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [outletId, setOutletId] = useState("");
 
-  // Fetch outlets
   useEffect(() => {
-    const fetchOutlets = async () => {
-      if (!merchantProfile?.id) return
-      try {
-        const res = await api.get(`/outlet/merchant/${merchantProfile.id}`)
-        setOutlets(res.data.data)
-        if (res.data.data.length > 0) {
-          setSelectedOutlet(res.data.data[0].id)
-        }
-      } catch (err) {
-        addToast('Failed to load outlets', 'error')
-      }
-    }
-    fetchOutlets()
-  }, [merchantProfile?.id, addToast])
-
-  // Fetch menu for selected outlet
+    const queryOutlet =
+      new URLSearchParams(window.location.search).get("outletId") || "";
+    setOutletId(queryOutlet || store.selectedOutletId);
+  }, [store.selectedOutletId]);
   useEffect(() => {
-    const fetchMenu = async () => {
-      if (!selectedOutlet) return
-      try {
-        const res = await api.get(`/menu/outlet/${selectedOutlet}`)
-        setCategories(res.data.data)
-      } catch (err) {
-        addToast('Failed to load inventory', 'error')
-      }
-    }
-    fetchMenu()
-  }, [selectedOutlet, addToast])
-
-  const fetchMenu = async () => {
-    if (!selectedOutlet) return
-    const res = await api.get(`/menu/outlet/${selectedOutlet}`)
-    setCategories(res.data.data)
-  }
-
-  const getOrCreateGeneralCategory = async () => {
-    let general = categories.find((c: any) => c.name === 'General')
-    if (general) return general.id
-
-    const res = await api.post(`/menu/category`, { outletId: selectedOutlet, name: 'General' })
-    return res.data.data.id
-  }
-
-  const addItem = async () => {
-    if (!newName.trim() || !newPrice.trim()) {
-      addToast('Name and price are required', 'error')
-      return
-    }
-    try {
-      const catId = await getOrCreateGeneralCategory()
-      await api.post(`/menu/item`, { categoryId: catId,
-        name: newName.trim(),
-        price: parseFloat(newPrice),
-        description: ''
+    if (!outletId && store.outlets[0]) setOutletId(store.outlets[0].id);
+  }, [outletId, store.outlets]);
+  useEffect(() => {
+    if (!outletId) { setLoading(false); return; }
+    let mounted = true;
+    setLoading(true);
+    setError("");
+    api
+      .get(`/menu/outlet/${outletId}`)
+      .then((response) => {
+        if (mounted) setCategories(response.data.data || []);
       })
-      addToast('Item added', 'success')
-      setNewName('')
-      setNewPrice('')
-      setShowAddForm(false)
-      fetchMenu()
-    } catch {
-      addToast('Failed to add item', 'error')
-    }
-  }
+      .catch(() => {
+        if (mounted) setError("Services could not be loaded");
+      })
+      .finally(() => {
+        if (mounted) setLoading(false);
+      });
+    return () => {
+      mounted = false;
+    };
+  }, [outletId]);
 
-  const toggleAvailability = async (item: any) => {
+  const selectedOutlet = store.outlets.find((outlet) => outlet.id === outletId);
+  const items = useMemo(
+    () => categories.flatMap((category) => category.items || []),
+    [categories],
+  );
+  const reload = async () => {
+    if (!outletId) return;
+    const response = await api.get(`/menu/outlet/${outletId}`);
+    setCategories(response.data.data || []);
+  };
+  const updateDraft = (key: keyof Draft, value: string) =>
+    setDraft((current) => ({ ...current, [key]: value }));
+
+  const createCategory = async () => {
+    const name = window.prompt("Category name")?.trim();
+    if (!name || !outletId) return;
     try {
-      await api.patch(`/menu/item/${item.id}/availability?available=${!item.isAvailable}`)
-      fetchMenu()
-      addToast(`${item.name} marked as ${item.isAvailable ? 'unavailable' : 'available'}`, 'info')
+      await api.post("/menu/category", { outletId, name });
+      await reload();
     } catch {
-      addToast('Update failed', 'error')
+      setError("Category could not be created");
     }
-  }
+  };
 
-  const deleteItem = async (item: any) => {
-    if (!confirm('Delete this item?')) return
+  const openCreate = () => {
+    setEditing(null);
+    setDraft({ ...emptyDraft, categoryId: categories[0]?.id || "" });
+    (
+      document.getElementById("service-dialog") as HTMLDialogElement | null
+    )?.showModal();
+  };
+  const openEdit = (item: MenuItem) => {
+    setEditing(item);
+    setDraft({
+      name: item.name,
+      description: item.description || "",
+      price: String(item.price),
+      categoryId: item.categoryId,
+    });
+    (
+      document.getElementById("service-dialog") as HTMLDialogElement | null
+    )?.showModal();
+  };
+  const closeDialog = () =>
+    (
+      document.getElementById("service-dialog") as HTMLDialogElement | null
+    )?.close();
+
+  const save = async (event: React.FormEvent) => {
+    event.preventDefault();
+    setError("");
+    const name = draft.name.trim();
+    const price = Number(draft.price);
+    if (!name || !Number.isFinite(price) || price < 0) {
+      setError("Enter a service name and a non-negative price.");
+      return;
+    }
+    setSaving(true);
     try {
-      await api.delete(`/menu/item/${item.id}`)
-      fetchMenu()
-      addToast('Item removed', 'info')
-    } catch {
-      addToast('Delete failed', 'error')
+      if (editing)
+        await api.patch(`/menu/item/${editing.id}`, {
+          name,
+          description: draft.description,
+          price,
+        });
+      else {
+        let categoryId = draft.categoryId;
+        if (!categoryId) {
+          const categoryResponse = await api.post("/menu/category", {
+            outletId,
+            name: "General",
+          });
+          categoryId = categoryResponse.data.data.id;
+        }
+        await api.post("/menu/item", {
+          categoryId,
+          name,
+          description: draft.description,
+          price,
+          isAvailable: true,
+        });
+      }
+      await reload();
+      closeDialog();
+    } catch (cause: any) {
+      setError(cause?.message || "Service could not be saved");
+    } finally {
+      setSaving(false);
     }
-  }
+  };
 
-  const allItems = categories.flatMap(c => c.items)
-  const filtered = allItems.filter(item => {
-    if (filter === 'available') return item.isAvailable
-    if (filter === 'unavailable') return !item.isAvailable
-    return true
-  })
+  const toggle = async (item: MenuItem) => {
+    try {
+      await api.patch(
+        `/menu/item/${item.id}/availability?available=${!item.isAvailable}`,
+      );
+      await reload();
+    } catch {
+      setError("Availability could not be updated");
+    }
+  };
+  const remove = async (item: MenuItem) => {
+    if (!window.confirm(`Delete ${item.name}?`)) return;
+    try {
+      await api.delete(`/menu/item/${item.id}`);
+      await reload();
+    } catch {
+      setError("Service could not be deleted");
+    }
+  };
 
-  const availableCount = allItems.filter(i => i.isAvailable).length
-  const unavailableCount = allItems.length - availableCount
-
+  if (!merchantProfile) return null;
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 10 }}
-      animate={{ opacity: 1, y: 0 }}
-      style={{ padding: '36px 36px 56px', maxWidth: 760 }}
+    <div
+      className="merchant-page-heading"
+      style={{ display: "block", maxWidth: 1080, margin: "0 auto" }}
     >
-      {/* HEADER */}
-      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 28, flexWrap: 'wrap', gap: 16 }}>
+      <header className="merchant-page-heading">
         <div>
-          <h1 style={{ fontFamily: 'var(--font-sans)', fontSize: 28, fontWeight: 900, marginBottom: 4 }}>
-            Inventory
-          </h1>
-          <p style={{ color: 'rgba(255,255,255,.3)', fontSize: 14 }}>
-            Manage what your store offers.
-            <span style={{ color: '#1fd97c', marginLeft: 8, fontWeight: 700 }}>{availableCount} available</span>
-            {unavailableCount > 0 && (
-              <span style={{ color: '#ff4d6d', marginLeft: 8, fontWeight: 700 }}>{unavailableCount} unavailable</span>
-            )}
+          <div className="merchant-kicker">Services</div>
+          <h1>Keep your offerings clear.</h1>
+          <p>
+            {selectedOutlet?.name || "Select an outlet"} · Add real prices and
+            descriptions customers can trust.
           </p>
         </div>
-        
-        <div style={{ display: 'flex', gap: 12 }}>
-          {outlets.length > 0 && (
-            <select
-              value={selectedOutlet}
-              onChange={(e) => setSelectedOutlet(e.target.value)}
-              style={{
-                padding: '12px 16px', borderRadius: 12,
-                background: 'rgba(255,255,255,.05)',
-                border: '1px solid rgba(255,255,255,.1)',
-                color: '#fff', fontSize: 14, outline: 'none', cursor: 'pointer'
-              }}
-            >
-              {outlets.map(o => (
-                <option key={o.id} value={o.id} style={{ background: '#1a1a1a' }}>{o.name}</option>
-              ))}
-            </select>
-          )}
-
-          <button
-            onClick={() => setShowAddForm(!showAddForm)}
-            style={{
-              display: 'inline-flex', alignItems: 'center', gap: 8,
-              padding: '12px 22px', borderRadius: 12,
-              background: showAddForm ? 'rgba(255,255,255,.06)' : THEME.gradients.merchant,
-              border: showAddForm ? '1px solid rgba(255,255,255,.12)' : 'none',
-              color: '#fff', fontWeight: 700, fontSize: 14, cursor: 'pointer', transition: 'all .2s',
+        <div className="merchant-scope">
+          <label htmlFor="services-outlet">Outlet</label>
+          <select
+            id="services-outlet"
+            value={outletId}
+            onChange={(event) => {
+              setOutletId(event.target.value);
+              router.replace(
+                `/dashboard/inventory?outletId=${encodeURIComponent(event.target.value)}`,
+              );
             }}
           >
-            {showAddForm ? <><Ic.X size={14} /> Cancel</> : '+ Add Item'}
+            {store.outlets.map((outlet) => (
+              <option key={outlet.id} value={outlet.id}>
+                {outlet.name}
+              </option>
+            ))}
+          </select>
+        </div>
+      </header>
+      {error ? (
+        <div
+          role="alert"
+          className="merchant-card"
+          style={{ padding: 14, marginBottom: 16, color: "var(--danger)" }}
+        >
+          {error}
+        </div>
+      ) : null}
+      <div
+        style={{ display: "flex", gap: 9, marginBottom: 20, flexWrap: "wrap" }}
+      >
+        <button
+          className="merchant-button"
+          onClick={openCreate}
+          disabled={!outletId}
+        >
+          Add service <Ic.Plus size={15} />
+        </button>
+        <button
+          className="merchant-button secondary"
+          onClick={createCategory}
+          disabled={!outletId}
+        >
+          Add category
+        </button>
+      </div>
+      {!selectedOutlet ? <div className="merchant-empty">Choose an available outlet to manage its services.</div> : loading ? (
+        <div className="merchant-card merchant-empty">Loading services…</div>
+      ) : categories.length === 0 && items.length === 0 ? (
+        <div className="merchant-card merchant-empty">
+          <p>No services yet. Add a real service after choosing a category.</p>
+          <button className="merchant-button" onClick={openCreate}>
+            Add your first service
           </button>
         </div>
-      </div>
-
-      {/* ADD ITEM FORM */}
-      <AnimatePresence>
-        {showAddForm && (
-          <motion.div
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: 'auto' }}
-            exit={{ opacity: 0, height: 0 }}
-            style={{ overflow: 'hidden', marginBottom: 20 }}
-          >
-            <div style={{
-              ...s.card as any, padding: '22px',
-              background: 'rgba(31,217,124,.04)',
-              borderColor: 'rgba(31,217,124,.15)',
-            }}>
-              <h3 style={{ fontFamily: 'var(--font-sans)', fontWeight: 800, fontSize: 15, marginBottom: 16 }}>
-                Add New Item
-              </h3>
-              <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
-                <input
-                  autoFocus
-                  value={newName}
-                  onChange={e => setNewName(e.target.value)}
-                  onKeyDown={e => e.key === 'Enter' && addItem()}
-                  placeholder="Item name (required)"
-                  style={{
-                    flex: '2 1 200px',
-                    padding: '12px 16px', borderRadius: 12,
-                    background: 'rgba(255,255,255,.05)',
-                    border: '1px solid rgba(255,255,255,.1)',
-                    color: '#fff', fontSize: 14, outline: 'none',
-                  }}
-                />
-                <input
-                  type="number"
-                  value={newPrice}
-                  onChange={e => setNewPrice(e.target.value)}
-                  onKeyDown={e => e.key === 'Enter' && addItem()}
-                  placeholder="Price ₹"
-                  style={{
-                    flex: '1 1 120px',
-                    padding: '12px 16px', borderRadius: 12,
-                    background: 'rgba(255,255,255,.05)',
-                    border: '1px solid rgba(255,255,255,.1)',
-                    color: '#fff', fontSize: 14, outline: 'none',
-                  }}
-                />
-                <button
-                  onClick={addItem}
-                  style={{
-                    padding: '12px 24px', borderRadius: 12,
-                    background: THEME.gradients.merchant,
-                    border: 'none', color: '#fff', fontWeight: 700, fontSize: 14,
-                    cursor: 'pointer', flexShrink: 0,
-                  }}
-                >
-                  Add Item
-                </button>
-              </div>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      {/* FILTER TABS */}
-      {allItems.length > 0 && (
-        <div style={{ display: 'flex', gap: 8, marginBottom: 20 }}>
-          {(['all', 'available', 'unavailable'] as const).map(f => (
-            <button
-              key={f}
-              onClick={() => setFilter(f)}
-              style={{
-                padding: '8px 18px', borderRadius: 99,
-                background: filter === f ? (f === 'unavailable' ? 'rgba(255,77,109,.15)' : 'rgba(31,217,124,.12)') : 'rgba(255,255,255,.04)',
-                border: `1px solid ${filter === f ? (f === 'unavailable' ? 'rgba(255,77,109,.3)' : 'rgba(31,217,124,.25)') : 'rgba(255,255,255,.08)'}`,
-                color: filter === f ? (f === 'unavailable' ? '#ff4d6d' : '#1fd97c') : 'rgba(255,255,255,.4)',
-                fontSize: 13, fontWeight: 700, cursor: 'pointer', transition: 'all .2s',
-                textTransform: 'capitalize',
-              }}
+      ) : (
+        <div className="merchant-list">
+          {categories.map((category) => (
+            <section
+              key={category.id}
+              className="merchant-card"
+              style={{ padding: "20px 22px" }}
             >
-              {f === 'all' ? `All (${allItems.length})` : f === 'available' ? `Available (${availableCount})` : `Unavailable (${unavailableCount})`}
-            </button>
+              <div className="merchant-panel-heading">
+                <div>
+                  <h2>{category.name}</h2>
+                  <p>{category.items?.length || 0} services</p>
+                </div>
+              </div>
+              {category.items?.length ? (
+                category.items.map((item) => (
+                  <div
+                    className="merchant-list-row"
+                    key={item.id}
+                    style={{
+                      padding: "14px 0",
+                      borderTop: "1px solid var(--border)",
+                    }}
+                  >
+                    <div>
+                      <h2>{item.name}</h2>
+                      <p>
+                        {item.description || "No description"} · ₹
+                        {Number(item.price).toLocaleString("en-IN", {
+                          minimumFractionDigits: 2,
+                        })}
+                      </p>
+                    </div>
+                    <div className="merchant-list-actions">
+                      <button
+                        className={`merchant-status ${item.isAvailable ? "open" : "closed"}`}
+                        onClick={() => toggle(item)}
+                      >
+                        {item.isAvailable ? "Available" : "Unavailable"}
+                      </button>
+                      <button
+                        className="merchant-button secondary"
+                        onClick={() => openEdit(item)}
+                      >
+                        Edit
+                      </button>
+                      <button
+                        className="merchant-button danger"
+                        onClick={() => remove(item)}
+                      >
+                        Delete
+                      </button>
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <div className="merchant-empty">
+                  No services in this category.
+                </div>
+              )}
+            </section>
           ))}
         </div>
       )}
-
-      {/* EMPTY STATE */}
-      {allItems.length === 0 && (
-        <div style={{
-          ...s.card as any, padding: '60px 20px', textAlign: 'center',
-          borderStyle: 'dashed', borderColor: 'rgba(255,255,255,.06)',
-        }}>
-          <div style={{ fontSize: 48, marginBottom: 12, color: 'rgba(255,255,255,0.4)' }}><Ic.Package /></div>
-          <div style={{ fontWeight: 800, fontSize: 18, marginBottom: 6 }}>No inventory yet</div>
-          <p style={{ color: 'rgba(255,255,255,.3)', fontSize: 14, maxWidth: 340, margin: '0 auto 24px' }}>
-            Add items that your store offers. Make sure to select the correct outlet first!
-          </p>
-          <button
-            onClick={() => setShowAddForm(true)}
+      <dialog
+        aria-label="Service details"
+        id="service-dialog"
+        className="merchant-card"
+        style={{
+          width: "min(480px, calc(100vw - 32px))",
+          padding: 24,
+          border: "1px solid var(--border)",
+        }}
+      >
+        <form method="dialog" onSubmit={save}>
+          <div className="merchant-panel-heading">
+            <div>
+              <div className="merchant-kicker">
+                {editing ? "Edit service" : "New service"}
+              </div>
+              <h2>{editing ? editing.name : "Add a service"}</h2>
+            </div>
+            <button
+              className="merchant-button quiet"
+              type="button"
+              onClick={closeDialog}
+              aria-label="Close"
+            >
+              ×
+            </button>
+          </div>
+          {error ? (
+            <p role="alert" style={{ color: "var(--danger)" }}>
+              {error}
+            </p>
+          ) : null}
+          <div className="merchant-form-grid">
+            <div className="merchant-field full">
+              <label htmlFor="service-name">Name</label>
+              <input
+                id="service-name"
+                required
+                value={draft.name}
+                onChange={(event) => updateDraft("name", event.target.value)}
+              />
+            </div>
+            <div className="merchant-field full">
+              <label htmlFor="service-description">
+                Description (optional)
+              </label>
+              <textarea
+                id="service-description"
+                value={draft.description}
+                onChange={(event) =>
+                  updateDraft("description", event.target.value)
+                }
+              />
+            </div>
+            <div className="merchant-field">
+              <label htmlFor="service-price">Price (INR)</label>
+              <input
+                id="service-price"
+                required
+                min="0"
+                step="0.01"
+                type="number"
+                value={draft.price}
+                onChange={(event) => updateDraft("price", event.target.value)}
+              />
+            </div>
+            {!editing ? (
+              <div className="merchant-field">
+                <label htmlFor="service-category">Category</label>
+                <select
+                  id="service-category"
+                  value={draft.categoryId}
+                  onChange={(event) =>
+                    updateDraft("categoryId", event.target.value)
+                  }
+                >
+                  <option value="">Create General</option>
+                  {categories.map((category) => (
+                    <option key={category.id} value={category.id}>
+                      {category.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            ) : null}
+          </div>
+          <div
             style={{
-              padding: '12px 28px', borderRadius: 12,
-              background: THEME.gradients.merchant,
-              border: 'none', color: '#fff', fontWeight: 700, fontSize: 14, cursor: 'pointer',
+              display: "flex",
+              justifyContent: "flex-end",
+              gap: 8,
+              marginTop: 20,
             }}
           >
-            + Add First Item
-          </button>
-        </div>
-      )}
-
-      {/* ITEM LIST */}
-      {filtered.length > 0 && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-          <AnimatePresence>
-            {filtered.map((item) => (
-              <motion.div
-                key={item.id}
-                layout
-                initial={{ opacity: 0, y: 8 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, x: -20 }}
-                style={{
-                  display: 'flex', alignItems: 'center', gap: 16,
-                  padding: '16px 20px', borderRadius: 16,
-                  background: item.isAvailable ? 'rgba(255,255,255,.025)' : 'rgba(255,255,255,.01)',
-                  border: `1px solid ${item.isAvailable ? 'rgba(255,255,255,.07)' : 'rgba(255,255,255,.04)'}`,
-                  transition: 'all .2s',
-                }}
-              >
-                {/* Status dot */}
-                <div style={{
-                  width: 10, height: 10, borderRadius: '50%', flexShrink: 0,
-                  background: item.isAvailable ? '#1fd97c' : '#374151',
-                  boxShadow: item.isAvailable ? '0 0 8px rgba(31,217,124,.4)' : 'none',
-                  transition: 'all .3s',
-                }} />
-
-                {/* Name */}
-                <div style={{ flex: 1 }}>
-                  <div style={{
-                    fontWeight: 700, fontSize: 15, color: item.isAvailable ? '#fff' : 'rgba(255,255,255,.35)',
-                    textDecoration: item.isAvailable ? 'none' : 'line-through',
-                  }}>
-                    {item.name}
-                  </div>
-                  <div style={{
-                    fontSize: 12, color: 'rgba(255,255,255,.3)', fontWeight: 600, marginTop: 2,
-                  }}>
-                    ₹{item.price}
-                  </div>
-                </div>
-
-                {/* Toggle */}
-                <button
-                  onClick={() => toggleAvailability(item)}
-                  style={{
-                    padding: '8px 16px', borderRadius: 99,
-                    background: item.isAvailable ? 'rgba(31,217,124,.1)' : 'rgba(255,255,255,.04)',
-                    border: `1px solid ${item.isAvailable ? 'rgba(31,217,124,.25)' : 'rgba(255,255,255,.08)'}`,
-                    color: item.isAvailable ? '#1fd97c' : 'rgba(255,255,255,.3)',
-                    fontSize: 12, fontWeight: 700, cursor: 'pointer', transition: 'all .25s',
-                    minWidth: 110,
-                  }}
-                >
-                  {item.isAvailable ? <><Ic.Check size={12} /> Available</> : 'Unavailable'}
-                </button>
-
-                {/* Delete */}
-                <motion.button
-                  whileHover={{ background: 'rgba(255,77,109,.15)', color: '#ff4d6d' }}
-                  onClick={() => deleteItem(item)}
-                  style={{
-                    width: 36, height: 36, borderRadius: 10, flexShrink: 0,
-                    background: 'rgba(255,255,255,.04)',
-                    border: '1px solid rgba(255,255,255,.08)',
-                    color: 'rgba(255,255,255,.3)',
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    fontSize: 16, cursor: 'pointer', transition: 'all .2s',
-                  }}
-                >
-                  ×
-                </motion.button>
-              </motion.div>
-            ))}
-          </AnimatePresence>
-        </div>
-      )}
-
-      {/* No results for filter */}
-      {allItems.length > 0 && filtered.length === 0 && (
-        <div style={{ textAlign: 'center', padding: '48px 20px', color: 'rgba(255,255,255,.2)' }}>
-          <div style={{ fontSize: 32, marginBottom: 8, color: 'rgba(255,255,255,0.4)' }}><Ic.Search /></div>
-          <div style={{ fontWeight: 700 }}>No {filter} items</div>
-        </div>
-      )}
-    </motion.div>
-  )
+            <button
+              className="merchant-button secondary"
+              type="button"
+              onClick={closeDialog}
+            >
+              Cancel
+            </button>
+            <button className="merchant-button" type="submit" disabled={saving}>
+              {saving ? "Saving…" : "Save service"}
+            </button>
+          </div>
+        </form>
+      </dialog>
+    </div>
+  );
 }

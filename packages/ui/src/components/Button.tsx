@@ -20,19 +20,17 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
       <button
         ref={ref}
         className={cn(
-          'inline-flex items-center justify-center rounded-xl font-medium transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 active:scale-[0.98] hover:scale-[1.02]',
+          'inline-flex min-h-11 items-center justify-center rounded-lg border font-medium transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60',
           {
-            'bg-zinc-100 text-zinc-900 hover:bg-white/90': variant === 'primary',
-            'bg-zinc-800 text-zinc-100 hover:bg-zinc-700': variant === 'secondary',
-            'hover:bg-zinc-800 text-zinc-300 hover:text-zinc-50': variant === 'ghost',
-            'bg-red-500/10 text-red-500 hover:bg-red-500/20': variant === 'destructive',
-            'bg-[#F5A623] text-black hover:bg-[#F5A623]/90': variant === 'consumer',
-            'bg-[#10B981] text-white hover:bg-[#10B981]/90': variant === 'merchant',
+            'border-[var(--border-strong)] bg-[var(--brand)] text-[var(--on-brand)] hover:brightness-95': variant === 'primary' || variant === 'consumer' || variant === 'merchant',
+            'border-[var(--border-strong)] bg-[var(--surface)] text-[var(--text-primary)] hover:bg-[var(--surface-raised)]': variant === 'secondary',
+            'border-transparent bg-transparent text-[var(--text-secondary)] hover:bg-[var(--surface-raised)] hover:text-[var(--text-primary)]': variant === 'ghost',
+            'border-[var(--danger)] bg-transparent text-[var(--danger)] hover:bg-[var(--danger-soft)]': variant === 'destructive',
             'h-9 px-4 text-sm': size === 'sm',
-            'h-11 px-8': size === 'md',
-            'h-14 px-10 text-lg': size === 'lg',
-            'h-11 w-11': size === 'icon',
-            'opacity-50 pointer-events-none': isLoading || props.disabled,
+            'h-11 px-5': size === 'md',
+            'h-14 px-7 text-lg': size === 'lg',
+            'h-11 w-11 px-0': size === 'icon',
+            'pointer-events-none': isLoading,
           },
           className
         )}

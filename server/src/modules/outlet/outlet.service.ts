@@ -1,4 +1,5 @@
-import { Injectable, ForbiddenException, NotFoundException } from "@nestjs/common";
+import { Injectable, ConflictException, ForbiddenException, NotFoundException } from "@nestjs/common";
+import { Prisma } from "@prisma/client";
 import { PrismaService } from "../../infra/prisma/prisma.service";
 import { CreateOutletDto, UpdateOutletDto } from "@spotly/types";
 
@@ -58,7 +59,22 @@ export class OutletService {
   }
 
   async remove(id: string, userId: string) {
-    await this.prisma.assertOutletOwner(id, userId);
-    return this.prisma.outlet.delete({ where: { id } });
+    for (let attempt = 0; attempt < 3; attempt += 1) {
+      try {
+        return await this.prisma.$transaction(async (tx) => {
+          const outlet = await tx.outlet.findUnique({ where: { id }, select: { id: true, isActive: true, merchant: { select: { ownerId: true } } } });
+          if (!outlet) throw new NotFoundException(`Outlet ${id} not found`);
+          if (outlet.merchant.ownerId !== userId) throw new ForbiddenException("You do not own this outlet");
+          if (outlet.isActive) throw new ConflictException("Pause this outlet before deleting it");
+          const activeEntry = await tx.queueEntry.findFirst({ where: { outletId: id, status: { in: ["PENDING_ACCEPTANCE", "WAITING", "CALLED"] } }, select: { id: true } });
+          if (activeEntry) throw new ConflictException("This outlet has active queue entries. Serve or close them before deleting it.");
+          return tx.outlet.delete({ where: { id } });
+        }, { isolationLevel: "Serializable" });
+      } catch (error) {
+        if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2034" && attempt < 2) continue;
+        throw error;
+      }
+    }
+    throw new ConflictException("The outlet changed. Refresh and try again.");
   }
 }

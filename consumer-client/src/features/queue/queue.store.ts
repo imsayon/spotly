@@ -1,153 +1,81 @@
-import { create } from "zustand"
-import { QueueEntry, QueueUpdatePayload } from "@spotly/types"
-import api from "@/lib/api"
-
-// Play a notification sound using Web Audio API
-const playNotificationSound = () => {
-	try {
-		const audioContext = new (
-			window.AudioContext || (window as any).webkitAudioContext
-		)()
-		const oscillator = audioContext.createOscillator()
-		const gainNode = audioContext.createGain()
-
-		oscillator.connect(gainNode)
-		gainNode.connect(audioContext.destination)
-
-		// Double beep: two high-pitched sounds
-		oscillator.frequency.value = 800
-		gainNode.gain.setValueAtTime(0.3, audioContext.currentTime)
-		gainNode.gain.exponentialRampToValueAtTime(
-			0.01,
-			audioContext.currentTime + 0.1,
-		)
-
-		oscillator.start(audioContext.currentTime)
-		oscillator.stop(audioContext.currentTime + 0.1)
-
-		// Second beep
-		const osc2 = audioContext.createOscillator()
-		osc2.connect(gainNode)
-		osc2.frequency.value = 1000
-		gainNode.gain.setValueAtTime(0.3, audioContext.currentTime + 0.15)
-		gainNode.gain.exponentialRampToValueAtTime(
-			0.01,
-			audioContext.currentTime + 0.25,
-		)
-
-		osc2.start(audioContext.currentTime + 0.15)
-		osc2.stop(audioContext.currentTime + 0.25)
-	} catch {
-		// Silently fail if Web Audio API not available
-	}
-}
+import { create } from "zustand";
+import { QueueEntry, QueueUpdatePayload } from "@spotly/types";
+import api from "@/lib/api";
 
 interface QueueState {
-	entries: QueueUpdatePayload["entries"]
-	currentToken: number
-	myEntry: QueueEntry | null
-	loading: boolean
+  entries: QueueUpdatePayload["entries"];
+  myEntry: QueueEntry | null;
+  loading: boolean;
+  error: string | null;
 
-	fetchQueue: (outletId: string) => Promise<void>
-	joinQueue: (outletId: string) => Promise<QueueEntry>
-	leaveQueue: (entryId: string) => Promise<void>
-	fetchActiveEntry: () => Promise<QueueEntry | null>
-	handleQueueUpdate: (payload: QueueUpdatePayload) => void
-	handleTokenCalled: (tokenNumber: number) => void
+  joinQueue: (outletId: string) => Promise<QueueEntry>;
+  leaveQueue: (entryId: string) => Promise<void>;
+  fetchActiveEntry: () => Promise<QueueEntry | null>;
+  clearActive: () => void;
+  handleQueueUpdate: (payload: QueueUpdatePayload) => void;
 }
 
 export const useQueueStore = create<QueueState>()((set, get) => ({
-	entries: [],
-	currentToken: 0,
-	myEntry: null,
-	loading: false,
+  entries: [],
+  myEntry: null,
+  loading: false,
+  error: null,
 
-	fetchQueue: async (outletId: string) => {
-		set({ loading: true })
-		try {
-			const res = await api.get(`/queue/outlet/${outletId}`)
-			const entries: QueueUpdatePayload["entries"] = res.data.data || []
-			const called = entries.find((entry) => entry.status === "CALLED")
-			set({
-				entries,
-				currentToken: called?.tokenNumber ?? 0,
-				loading: false,
-			})
-		} catch {
-			set({ entries: [], currentToken: 0, loading: false })
-		}
-	},
+  joinQueue: async (outletId: string) => {
+    try {
+      const res = await api.post("/queue/join", { outletId });
+      const entry: QueueEntry = res.data.data;
+      set({ myEntry: entry, error: null });
+      return entry;
+    } catch (err: unknown) {
+      throw err instanceof Error ? err : new Error("Failed to join queue");
+    }
+  },
 
-	joinQueue: async (outletId: string) => {
-		try {
-			const res = await api.post("/queue/join", { outletId })
-			const entry: QueueEntry = res.data.data
-			set({ myEntry: entry })
-			return entry
-		} catch (err: unknown) {
-			throw err instanceof Error ? err : new Error("Failed to join queue")
-		}
-	},
+  leaveQueue: async (entryId: string) => {
+    await api.patch(`/queue/entry/${entryId}/leave`);
+    set({ myEntry: null, error: null });
+  },
 
-	leaveQueue: async (entryId: string) => {
-		await api.patch(`/queue/entry/${entryId}/leave`)
-		set({ myEntry: null })
-	},
+  fetchActiveEntry: async () => {
+    try {
+      const res = await api.get("/queue/active");
+      const entry: QueueEntry | null = res.data.data;
+      set({ myEntry: entry, error: null });
+      return entry;
+    } catch {
+      set({ error: "Your active request could not be refreshed" });
+      return get().myEntry;
+    }
+  },
 
-	fetchActiveEntry: async () => {
-		try {
-			const res = await api.get("/queue/active")
-			const entry: QueueEntry | null = res.data.data
-			set({ myEntry: entry })
-			return entry
-		} catch {
-			return null
-		}
-	},
+  clearActive: () => set({ myEntry: null }),
 
-	handleQueueUpdate: (payload: QueueUpdatePayload) => {
-		const { myEntry } = get()
-		const update = payload.entries.find((e) => e.id === myEntry?.id)
-		const updatedMyEntry = myEntry?.outletId === payload.outletId
-			? (update ? { ...myEntry, ...update } : null)
-			: myEntry
-		set({
-			entries: payload.entries,
-			currentToken: payload.currentToken,
-			myEntry: updatedMyEntry,
-		})
-	},
+  handleQueueUpdate: (payload: QueueUpdatePayload) => {
+    const { myEntry } = get();
+    const update = payload.entries.find((e) => e.id === myEntry?.id);
+    const updatedMyEntry =
+      myEntry?.outletId === payload.outletId
+        ? update
+          ? { ...myEntry, ...update }
+          : myEntry
+        : myEntry;
+    set({
+      entries: payload.entries,
+      myEntry: updatedMyEntry,
+    });
+  },
+}));
 
-	handleTokenCalled: (tokenNumber: number) => {
-		const { myEntry } = get()
-
-		if (myEntry && myEntry.tokenNumber === tokenNumber) {
-			// Update entry status
-			const updated = { ...myEntry, status: "CALLED" as const }
-			set({ myEntry: updated })
-
-			// Browser notification
-			if (
-				"Notification" in window &&
-				Notification.permission === "granted"
-			) {
-				new Notification("Your turn", {
-					body: `Token ${tokenNumber} - Please proceed to the counter`,
-					icon: "/logo.png",
-					tag: "token_called",
-					requireInteraction: true,
-				})
-			}
-
-			// Play notification sound
-			playNotificationSound()
-
-			// Vibration (if supported)
-			if ("vibrate" in navigator) {
-				navigator.vibrate([200, 100, 200])
-			}
-
-			console.log(`Token ${tokenNumber} has been called.`)
-		}
-	},
-}))
+export function waitingAhead(
+  entries: QueueUpdatePayload["entries"],
+  current: { id: string; outletId: string },
+): number | null {
+  const index = entries
+    .filter(
+      (entry) =>
+        entry.outletId === current.outletId && entry.status === "WAITING",
+    )
+    .findIndex((entry) => entry.id === current.id);
+  return index < 0 ? null : index;
+}

@@ -1,275 +1,202 @@
-"use client"
+"use client";
 
-import React, { useState, useEffect, useCallback } from "react"
-import { useRouter } from "next/navigation"
-import { Ic, useToasts } from "@spotly/ui"
-import api from "@/lib/api"
+import { useEffect, useState } from "react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { Ic, useToasts } from "@spotly/ui";
+import { useAuthStore } from "@/store/auth.store";
+import api from "@/lib/api";
 
-interface FavoriteOutlet {
-	id: string
-	outletId: string
-	outlet: {
-		id: string
-		name: string
-		address: string
-		isActive: boolean
-		merchantId: string
-		merchant: {
-			id: string
-			name: string
-			category: string
-			logoUrl?: string
-		}
-	}
-}
-
-const s = {
-	card: {
-		background: "var(--s1)",
-		border: "1px solid var(--bdr)",
-		borderRadius: 18,
-		padding: 22,
-		transition: "all .3s cubic-bezier(.25,.46,.45,.94)",
-	} as React.CSSProperties,
-	badge: (c: string) => ({
-		display: "inline-flex",
-		alignItems: "center",
-		gap: 4,
-		padding: "3px 9px",
-		borderRadius: 999,
-		fontSize: 11,
-		fontWeight: 700,
-		letterSpacing: 0.3,
-		...(c === "green" && {
-			background: "rgba(31,217,124,.12)",
-			color: "#1fd97c",
-			border: "1px solid rgba(31,217,124,.22)",
-		}),
-		...(c === "gray" && {
-			background: "rgba(255,255,255,.07)",
-			color: "rgba(255,255,255,.5)",
-			border: "1px solid var(--bdr)",
-		}),
-		...(c === "red" && {
-			background: "rgba(255,77,109,.1)",
-			color: "#ff4d6d",
-			border: "1px solid rgba(255,77,109,.22)",
-		}),
-	}),
-}
+type Favorite = {
+  id: string;
+  outletId: string;
+  outlet: {
+    id: string;
+    name: string;
+    address?: string;
+    isActive: boolean;
+    merchantId: string;
+    merchant?: { name?: string; category?: string; logoUrl?: string };
+  };
+};
 
 export default function ConsumerFavorites() {
-	const { add: addToast } = useToasts()
-	const router = useRouter()
-	const [favorites, setFavorites] = useState<FavoriteOutlet[]>([])
-	const [loading, setLoading] = useState(true)
-
-	const fetchFavorites = useCallback(async () => {
-		try {
-			const res = await api.get("/favorite")
-			setFavorites(res.data.data || [])
-		} catch {
-			addToast("Failed to load favorites", "error")
-		} finally {
-			setLoading(false)
-		}
-	}, [addToast])
-
-	useEffect(() => {
-		fetchFavorites()
-	}, [fetchFavorites])
-
-	const removeFav = async (outletId: string, e?: React.MouseEvent) => {
-		if (e) e.stopPropagation()
-		try {
-			await api.delete(`/favorite/${outletId}`)
-			setFavorites((prev) => prev.filter((f) => f.outletId !== outletId))
-			addToast("Removed from favorites", "info")
-		} catch {
-			addToast("Failed to remove favorite", "error")
-		}
-	}
-
-	const getCategoryIcon = (category: string) => {
-		const cat = category?.toLowerCase() || ""
-		if (cat.includes("coffee")) return <Ic.Clock />
-		if (cat.includes("health") || cat.includes("pharm"))
-			return <Ic.Activity />
-		if (cat.includes("bakery") || cat.includes("food")) return <Ic.Store />
-		return <Ic.Store />
-	}
-
-	return (
-		<div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
-			<h1
-				style={{
-					fontFamily: "var(--font-sans)",
-					fontSize: 24,
-					fontWeight: 900,
-					marginBottom: 4,
-					display: "flex",
-					alignItems: "center",
-					gap: 8,
-				}}
-			>
-				<Ic.Heart fill="#ff4d6d" color="#ff4d6d" />
-				Saved Places
-			</h1>
-			<p style={{ color: "var(--t3)", fontSize: 13, marginBottom: 20 }}>
-				{favorites.length} saved merchants
-			</p>
-
-			{loading ? (
-				<div
-					style={{
-						display: "flex",
-						flexDirection: "column",
-						gap: 10,
-					}}
-				>
-					{[1, 2, 3].map((i) => (
-						<div
-							key={i}
-							style={{
-								...s.card,
-								height: 80,
-								opacity: 0.4,
-								background: "rgba(255,255,255,.02)",
-								animation: "pulse 2s infinite",
-							}}
-						/>
-					))}
-				</div>
-			) : favorites.length === 0 ? (
-				<div
-					style={{
-						textAlign: "center",
-						padding: "60px 20px",
-						color: "var(--t3)",
-					}}
-				>
-					<div
-						style={{
-							fontSize: 48,
-							marginBottom: 12,
-							color: "rgba(255,255,255,.4)",
-							display: "flex",
-							alignItems: "center",
-							justifyContent: "center",
-						}}
-					>
-						<Ic.Heart fill="none" />
-					</div>
-					<p
-						style={{
-							fontWeight: 700,
-							fontSize: 16,
-							marginBottom: 6,
-						}}
-					>
-						No saved places yet
-					</p>
-					<p style={{ fontSize: 13 }}>
-						Tap the heart on any merchant to save
-					</p>
-				</div>
-			) : (
-				<div
-					style={{
-						display: "flex",
-						flexDirection: "column",
-						gap: 10,
-					}}
-				>
-					{favorites.map((f) => (
-						<div
-							key={f.id}
-							style={{
-								...s.card,
-								padding: "16px",
-								display: "flex",
-								alignItems: "center",
-								gap: 14,
-								cursor: "pointer",
-							}}
-							onClick={() =>
-								router.push(
-									`/merchant?id=${encodeURIComponent(f.outlet.merchant?.id ?? f.outlet.merchantId)}`,
-								)
-							}
-						>
-							<div
-								style={{
-									width: 52,
-									height: 52,
-									borderRadius: 14,
-									background: "rgba(245,196,24,.08)",
-									color: "#f5c418",
-									display: "flex",
-									alignItems: "center",
-									justifyContent: "center",
-									flexShrink: 0,
-								}}
-							>
-								{getCategoryIcon(f.outlet.merchant?.category)}
-							</div>
-							<div style={{ flex: 1 }}>
-								<div
-									style={{
-										fontWeight: 700,
-										fontSize: 15,
-										marginBottom: 2,
-									}}
-								>
-									{f.outlet.merchant?.name || f.outlet.name}
-								</div>
-								<div
-									style={{
-										fontSize: 12,
-										color: "var(--t3)",
-										marginBottom: 5,
-									}}
-								>
-									{f.outlet.merchant?.category} —{" "}
-									{f.outlet.address}
-								</div>
-								<div style={{ display: "flex", gap: 7 }}>
-									<span
-										style={{
-											...(s.badge(
-												f.outlet.isActive
-													? "green"
-													: "red",
-											) as React.CSSProperties),
-											fontSize: 10,
-										}}
-									>
-										{f.outlet.isActive
-											? "● Open"
-											: "● Closed"}
-									</span>
-								</div>
-							</div>
-							<div
-								style={{
-									display: "flex",
-									flexDirection: "column",
-									gap: 8,
-									alignItems: "center",
-								}}
-							>
-								<div
-									onClick={(e) => removeFav(f.outletId, e)}
-									className="hover:scale-110 active:scale-95 transition-transform"
-								>
-									<Ic.Heart fill="#ff4d6d" color="#ff4d6d" />
-								</div>
-								<Ic.ChevR />
-							</div>
-						</div>
-					))}
-				</div>
-			)}
-		</div>
-	)
+  const router = useRouter();
+  const { add } = useToasts();
+  const { user, loading: authLoading } = useAuthStore();
+  const [favorites, setFavorites] = useState<Favorite[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const load = async () => {
+    setLoading(true);
+    setError("");
+    try {
+      const response = await api.get("/favorite");
+      setFavorites(response.data.data || []);
+    } catch {
+      setError("Saved places could not be loaded");
+    } finally {
+      setLoading(false);
+    }
+  };
+  useEffect(() => {
+    if (!user) {
+      setFavorites([]);
+      setLoading(false);
+      return;
+    }
+    void load();
+  }, [user]);
+  const remove = async (outletId: string) => {
+    try {
+      await api.delete(`/favorite/${outletId}`);
+      setFavorites((current) =>
+        current.filter((favorite) => favorite.outletId !== outletId),
+      );
+      add("Removed from saved places", "info");
+    } catch {
+      add("Saved place could not be removed", "error");
+    }
+  };
+  if (authLoading)
+    return (
+      <div className="consumer-page">
+        <div className="consumer-empty-state">
+          <p>Loading account…</p>
+        </div>
+      </div>
+    );
+  if (!user)
+    return (
+      <div className="consumer-page">
+        <header className="consumer-page-heading">
+          <div>
+            <div className="consumer-kicker">Saved</div>
+            <h1 className="consumer-editorial">Places worth keeping.</h1>
+            <p>
+              Save an outlet to return to its real services, reviews and queue
+              status.
+            </p>
+          </div>
+        </header>
+        <div className="consumer-empty-state">
+          <Ic.Heart size={24} />
+          <h2>Sign in to see saved places.</h2>
+          <p>
+            Your saved outlets are tied to your account and stay available
+            across devices.
+          </p>
+          <Link
+            className="consumer-button"
+            href="/auth/sign-in?returnTo=%2Fhome%2Ffavorites"
+          >
+            Sign in
+          </Link>
+          <button
+            className="consumer-button quiet"
+            onClick={() => router.push("/home")}
+          >
+            Discover places
+          </button>
+        </div>
+      </div>
+    );
+  return (
+    <div className="consumer-page">
+      <header className="consumer-page-heading">
+        <div>
+          <div className="consumer-kicker">Saved</div>
+          <h1 className="consumer-editorial">Places worth keeping.</h1>
+          <p>
+            Save an outlet to return to its real services, reviews and queue
+            status.
+          </p>
+        </div>
+        <span className="consumer-status">{favorites.length} saved</span>
+      </header>
+      {loading ? (
+        <div className="consumer-empty-state">
+          <p>Loading saved places…</p>
+        </div>
+      ) : error ? (
+        <div className="consumer-empty-state">
+          <h2>{error}</h2>
+          <button className="consumer-button" onClick={() => load()}>
+            Retry
+          </button>
+        </div>
+      ) : favorites.length === 0 ? (
+        <div className="consumer-empty-state">
+          <Ic.Heart size={24} />
+          <h2>No saved places yet.</h2>
+          <p>Save an outlet from its detail page and it will appear here.</p>
+          <button
+            className="consumer-button"
+            onClick={() => router.push("/home")}
+          >
+            Discover places
+          </button>
+        </div>
+      ) : (
+        <div className="consumer-place-list">
+          {favorites.map((favorite) => (
+            <div className="consumer-place-row" key={favorite.id}>
+              <span className="consumer-place-logo">
+                {favorite.outlet.merchant?.logoUrl ? (
+                  <img
+                    src={favorite.outlet.merchant.logoUrl}
+                    alt=""
+                    style={{
+                      width: "100%",
+                      height: "100%",
+                      objectFit: "cover",
+                      borderRadius: 9,
+                    }}
+                  />
+                ) : (
+                  favorite.outlet.merchant?.name?.[0]?.toUpperCase() || "S"
+                )}
+              </span>
+              <span className="consumer-place-copy">
+                <h2>
+                  {favorite.outlet.merchant?.name || favorite.outlet.name}
+                </h2>
+                <p>
+                  {favorite.outlet.merchant?.category || "Services"} ·{" "}
+                  {favorite.outlet.name}
+                </p>
+                <small>
+                  {favorite.outlet.address || "Address unavailable"}
+                </small>
+              </span>
+              <span className="consumer-place-meta">
+                <span
+                  className={`consumer-status ${favorite.outlet.isActive ? "called" : "terminal"}`}
+                >
+                  {favorite.outlet.isActive ? "Requests enabled" : "Paused"}
+                </span>
+                <button
+                  className="consumer-button secondary"
+                  onClick={() =>
+                    router.push(
+                      `/merchant?id=${encodeURIComponent(favorite.outlet.merchantId)}&outletId=${encodeURIComponent(favorite.outletId)}`,
+                    )
+                  }
+                >
+                  Open
+                </button>
+                <button
+                  className="consumer-button quiet"
+                  onClick={() => remove(favorite.outletId)}
+                  aria-label={`Remove ${favorite.outlet.name} from saved places`}
+                >
+                  <Ic.Heart fill="currentColor" size={15} />
+                </button>
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
 }

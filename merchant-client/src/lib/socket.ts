@@ -21,6 +21,7 @@ export function subscribeToOutlet(
 		onTokenCalled?: (payload: TokenCalledPayload) => void
 	},
 	onConnected?: () => void,
+	onDisconnected?: () => void,
 ): () => void {
 	const s = getQueueSocket()
 
@@ -28,8 +29,11 @@ export function subscribeToOutlet(
 		s.emit("join_outlet_room", outletId)
 		onConnected?.()
 	}
+	const handleDisconnect = () => onDisconnected?.()
 
 	s.on("connect", handleConnect)
+	s.on("disconnect", handleDisconnect)
+	s.on("connect_error", handleDisconnect)
 
 	if (s.connected) {
 		s.emit("join_outlet_room", outletId)
@@ -50,6 +54,8 @@ export function subscribeToOutlet(
 	return () => {
 		s.emit("leave_outlet_room", outletId)
 		s.off("connect", handleConnect)
+		s.off("disconnect", handleDisconnect)
+		s.off("connect_error", handleDisconnect)
 		s.off("queue_update", handleQueueUpdate)
 		s.off("token_called", handleTokenCalled)
 	}

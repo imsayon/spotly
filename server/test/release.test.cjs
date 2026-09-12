@@ -2,10 +2,12 @@ const { test } = require('node:test');
 const assert = require('node:assert/strict');
 require('reflect-metadata');
 const { QueueService } = require('../dist/modules/queue/queue.service');
+const { MenuService } = require('../dist/modules/menu/menu.service');
+const { OutletService } = require('../dist/modules/outlet/outlet.service');
 const { UserService } = require('../dist/modules/user/user.service');
 const { MerchantService } = require('../dist/modules/merchant/merchant.service');
 const { ZodValidationPipe } = require('../dist/shared/pipes/zod-validation.pipe');
-const { CreateMerchantDtoSchema, UpdateUserProfileDtoSchema } = require('@spotly/types');
+const { CreateMerchantDtoSchema, UpdateUserProfileDtoSchema, UpdateMenuItemDtoSchema } = require('@spotly/types');
 
 test('request validation removes privilege and ownership injection', () => {
   const pipe = new ZodValidationPipe(CreateMerchantDtoSchema);
@@ -29,6 +31,40 @@ test('a different merchant cannot update a business', async () => {
   const service = new MerchantService({ merchant: { findFirst: async () => null, update: async () => writes++ } });
   await assert.rejects(service.update('business', { name: 'Hijacked' }, 'intruder'), /do not own/);
   assert.equal(writes, 0);
+});
+
+test('menu item edits are owner checked and limited to editable fields', async () => {
+  assert.deepEqual(UpdateMenuItemDtoSchema.parse({ name: '  Espresso  ', description: '', price: 3.5 }), { name: 'Espresso', description: '', price: 3.5 });
+  assert.throws(() => UpdateMenuItemDtoSchema.parse({ price: -1 }));
+  assert.throws(() => UpdateMenuItemDtoSchema.parse({ categoryId: 'other' }));
+
+  let updated = false;
+  const service = new MenuService({
+    menuItem: {
+      findUnique: async () => ({ id: 'item', category: { outletId: 'outlet' } }),
+      update: async ({ data }) => { updated = data; return { id: 'item', ...data }; },
+    },
+    assertOutletOwner: async (_outlet, user) => { if (user !== 'owner') throw Error('Forbidden'); },
+  });
+  await assert.rejects(service.updateItem('item', { name: 'Updated' }, 'intruder'), /Forbidden/);
+  assert.equal(updated, false);
+  assert.deepEqual(await service.updateItem('item', { name: 'Updated' }, 'owner'), { id: 'item', name: 'Updated' });
+  assert.deepEqual(updated, { name: 'Updated' });
+});
+
+test('outlet deletion requires a paused queue with no active entries', async () => {
+  const paused = { id: 'outlet', isActive: false, merchant: { ownerId: 'owner' } };
+  const deleted = new OutletService({
+    $transaction: async (work, options) => work({
+      outlet: { findUnique: async () => paused, delete: async () => ({ id: 'outlet' }) },
+      queueEntry: { findFirst: async () => null },
+    }, options),
+  });
+  const result = await deleted.remove('outlet', 'owner');
+  assert.deepEqual(result, { id: 'outlet' });
+
+  await assert.rejects(new OutletService({ $transaction: async (work, options) => work({ outlet: { findUnique: async () => ({ ...paused, isActive: true }), delete: async () => ({}) }, queueEntry: { findFirst: async () => null } }, options) }).remove('outlet', 'owner'), /Pause this outlet/);
+  await assert.rejects(new OutletService({ $transaction: async (work, options) => work({ outlet: { findUnique: async () => paused, delete: async () => ({}) }, queueEntry: { findFirst: async () => ({ id: 'entry' }) } }, options) }).remove('outlet', 'owner'), /active queue entries/);
 });
 
 test('queue actions require owner and a valid previous status', async () => {
