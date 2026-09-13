@@ -1,5 +1,7 @@
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const path = require('node:path');
 require('reflect-metadata');
 const { QueueService } = require('../dist/modules/queue/queue.service');
 const { MenuService } = require('../dist/modules/menu/menu.service');
@@ -8,6 +10,14 @@ const { UserService } = require('../dist/modules/user/user.service');
 const { MerchantService } = require('../dist/modules/merchant/merchant.service');
 const { ZodValidationPipe } = require('../dist/shared/pipes/zod-validation.pipe');
 const { CreateMerchantDtoSchema, UpdateUserProfileDtoSchema, UpdateMenuItemDtoSchema } = require('@spotly/types');
+
+test('production static clients use the versioned API and bare websocket origins', () => {
+  const blueprint = fs.readFileSync(path.resolve(__dirname, '../../render.yaml'), 'utf8');
+  const apiValues = [...blueprint.matchAll(/key: NEXT_PUBLIC_API_URL\n\s+value: (.+)/g)].map((match) => match[1].trim());
+  const wsValues = [...blueprint.matchAll(/key: NEXT_PUBLIC_WS_URL\n\s+value: (.+)/g)].map((match) => match[1].trim());
+  assert.deepEqual(apiValues, ['https://spotly-api-d1dr.onrender.com/api/v1', 'https://spotly-api-d1dr.onrender.com/api/v1']);
+  assert.deepEqual(wsValues, ['https://spotly-api-d1dr.onrender.com', 'https://spotly-api-d1dr.onrender.com']);
+});
 
 test('request validation removes privilege and ownership injection', () => {
   const pipe = new ZodValidationPipe(CreateMerchantDtoSchema);

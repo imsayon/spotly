@@ -29,6 +29,7 @@ api.interceptors.response.use(
 	(err) => {
 		if (err.response) {
 			err.message =
+				err.response.data?.error?.message ??
 				err.response.data?.message ??
 				err.response.statusText ??
 				"Request failed"
