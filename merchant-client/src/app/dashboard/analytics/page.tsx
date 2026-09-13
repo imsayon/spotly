@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { animeReveal } from "@spotly/ui";
 import api from "@/lib/api";
 import { useAuthStore } from "@/store/auth.store";
 import { useQueueStore } from "@/store/queue.store";
@@ -23,6 +24,7 @@ export default function ActivityPage() {
   const [loading, setLoading] = useState(true);
   const readVersion = useRef(0);
   const [error, setError] = useState("");
+  const pageRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     const query =
       new URLSearchParams(window.location.search).get("outletId") || "";
@@ -74,9 +76,34 @@ export default function ActivityPage() {
     active: entries.filter((entry) => active.has(entry.status)).length,
   };
   const max = Math.max(...bins, 1);
+  useEffect(() => {
+    const page = pageRef.current;
+    if (!page) return;
+    const cards = animeReveal(
+      page.querySelectorAll<HTMLElement>(
+        ".merchant-stat-grid > *, .merchant-queue-panel tbody tr",
+      ),
+      { translateY: [10, 0], duration: 420 },
+    );
+    const bars = animeReveal(
+      page.querySelectorAll<HTMLElement>(".activity-bar"),
+      {
+        opacity: [0.35, 1],
+        scaleY: [0, 1],
+        translateY: [0, 0],
+        transformOrigin: "bottom",
+        duration: 560,
+      },
+    );
+    return () => {
+      cards?.revert();
+      bars?.revert();
+    };
+  }, [bins, entries.length, error, loading]);
   if (!merchantProfile) return null;
   return (
     <div
+      ref={pageRef}
       className="merchant-page-heading"
       style={{ display: "block", maxWidth: 1120, margin: "0 auto" }}
     >
@@ -116,7 +143,12 @@ export default function ActivityPage() {
           </button>
         </div>
       ) : null}
-      {loading ? (
+      {!outletId || !outlet ? (
+        <div className="merchant-card merchant-empty">
+          <h2>Select an outlet to see activity.</h2>
+          <p>Create an outlet first, then its request history will appear here.</p>
+        </div>
+      ) : loading ? (
         <div className="merchant-card merchant-empty">
           Loading today's activity…
         </div>
@@ -164,11 +196,13 @@ export default function ActivityPage() {
                     {value || ""}
                   </span>
                   <span
+                    className="activity-bar"
                     style={{
                       display: "block",
                       height: `${value ? Math.max(8, (value / max) * 125) : 2}px`,
                       background: "var(--brand)",
                       borderRadius: "4px 4px 1px 1px",
+                      transformOrigin: "bottom",
                     }}
                     title={`${value} requests at ${String(hour).padStart(2, "0")}:00`}
                   />

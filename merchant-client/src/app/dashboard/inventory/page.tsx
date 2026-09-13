@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Ic } from "@spotly/ui";
+import { animeReveal, Ic } from "@spotly/ui";
 import type { MenuCategory, MenuItem } from "@spotly/types";
 import api from "@/lib/api";
 import { useAuthStore } from "@/store/auth.store";
@@ -33,6 +33,7 @@ export default function ServicesPage() {
   const [editing, setEditing] = useState<MenuItem | null>(null);
   const [saving, setSaving] = useState(false);
   const [outletId, setOutletId] = useState("");
+  const pageRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const queryOutlet =
@@ -62,6 +63,17 @@ export default function ServicesPage() {
       mounted = false;
     };
   }, [outletId]);
+  useEffect(() => {
+    const page = pageRef.current;
+    if (!page) return;
+    const animation = animeReveal(
+      page.querySelectorAll<HTMLElement>(".merchant-list > .merchant-card, .merchant-list-row"),
+      { translateY: [10, 0], duration: 420 },
+    );
+    return () => {
+      animation?.revert();
+    };
+  }, [categories.length, error, loading, outletId]);
 
   const selectedOutlet = store.outlets.find((outlet) => outlet.id === outletId);
   const items = useMemo(
@@ -177,6 +189,7 @@ export default function ServicesPage() {
   if (!merchantProfile) return null;
   return (
     <div
+      ref={pageRef}
       className="merchant-page-heading"
       style={{ display: "block", maxWidth: 1080, margin: "0 auto" }}
     >

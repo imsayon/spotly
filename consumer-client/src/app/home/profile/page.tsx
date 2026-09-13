@@ -1,10 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useAuthStore } from "@/store/auth.store";
-import { Ic, useToasts } from "@spotly/ui";
+import { animeReveal, Ic, useToasts } from "@spotly/ui";
 import api from "@/lib/api";
 
 const MapPicker = dynamic(() => import("@/components/MapPicker"), {
@@ -41,9 +41,10 @@ export default function ConsumerProfile() {
     name: string;
     phone: string;
     location: string;
-    lat?: number;
-    lng?: number;
-  }>({ name: "", phone: "", location: "" });
+    lat: number | null;
+    lng: number | null;
+  }>({ name: "", phone: "", location: "", lat: null, lng: null });
+  const pageRef = useRef<HTMLDivElement>(null);
 
   const loadHistory = () => {
     if (!user) return;
@@ -62,8 +63,8 @@ export default function ConsumerProfile() {
       name: profile?.name || user?.email?.split("@")[0] || "",
       phone: profile?.phone || "",
       location: profile?.location || "",
-      lat: profile?.lat ?? undefined,
-      lng: profile?.lng ?? undefined,
+      lat: profile?.lat ?? null,
+      lng: profile?.lng ?? null,
     });
   }, [editing, profile, user?.email]);
 
@@ -76,6 +77,18 @@ export default function ConsumerProfile() {
     loadHistory();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
+
+  useEffect(() => {
+    const page = pageRef.current;
+    if (!page) return;
+    const animation = animeReveal(
+      page.querySelectorAll<HTMLElement>(".consumer-card, .consumer-place-row"),
+      { translateY: [12, 0], duration: 440 },
+    );
+    return () => {
+      animation?.revert();
+    };
+  }, [editing, history.length, historyError, historyLoading, user]);
 
   const save = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -104,7 +117,7 @@ export default function ConsumerProfile() {
   const label = profile?.name || user?.email?.split("@")[0] || "Account";
   if (!user)
     return (
-      <div className="consumer-page">
+      <div ref={pageRef} className="consumer-page">
         <header className="consumer-page-heading">
           <div>
             <div className="consumer-kicker">Account</div>
@@ -141,7 +154,7 @@ export default function ConsumerProfile() {
   };
 
   return (
-    <div className="consumer-page">
+    <div ref={pageRef} className="consumer-page">
       <header className="consumer-page-heading">
         <div>
           <div className="consumer-kicker">Account</div>
@@ -222,9 +235,43 @@ export default function ConsumerProfile() {
                 Select a point to save coordinates with your profile. Location
                 access is never requested automatically.
               </p>
+              <div className="consumer-form-grid">
+                <label className="consumer-field">
+                  <span>Latitude</span>
+                  <input
+                    type="number"
+                    step="any"
+                    min="-90"
+                    max="90"
+                    value={form.lat ?? ""}
+                    onChange={(event) =>
+                      setForm({
+                        ...form,
+                        lat: event.target.value === "" ? null : Number(event.target.value),
+                      })
+                    }
+                  />
+                </label>
+                <label className="consumer-field">
+                  <span>Longitude</span>
+                  <input
+                    type="number"
+                    step="any"
+                    min="-180"
+                    max="180"
+                    value={form.lng ?? ""}
+                    onChange={(event) =>
+                      setForm({
+                        ...form,
+                        lng: event.target.value === "" ? null : Number(event.target.value),
+                      })
+                    }
+                  />
+                </label>
+              </div>
               <MapPicker
-                lat={form.lat}
-                lng={form.lng}
+                lat={form.lat ?? undefined}
+                lng={form.lng ?? undefined}
                 onSelect={(lat, lng, address) =>
                   setForm((current) => ({
                     ...current,
@@ -234,6 +281,13 @@ export default function ConsumerProfile() {
                   }))
                 }
               />
+              <button
+                className="consumer-button quiet"
+                type="button"
+                onClick={() => setForm((current) => ({ ...current, lat: null, lng: null }))}
+              >
+                Clear map pin
+              </button>
             </details>
             <button className="consumer-button" type="submit" disabled={saving}>
               {saving ? "Saving…" : "Save profile"}
@@ -305,7 +359,7 @@ export default function ConsumerProfile() {
                     >
                       View ticket
                     </Link>
-                    {reviewHref ? (
+                    {reviewHref && visit.status === "SERVED" ? (
                       <Link className="consumer-button quiet" href={reviewHref}>
                         Review outlet
                       </Link>

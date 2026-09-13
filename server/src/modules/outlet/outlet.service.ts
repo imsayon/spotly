@@ -10,11 +10,57 @@ export class OutletService {
   async findById(id: string) {
     const outlet = await this.prisma.outlet.findUnique({
       where: { id },
-      include: {
-        merchant: true,
+      select: {
+        id: true,
+        merchantId: true,
+        name: true,
+        address: true,
+        lat: true,
+        lng: true,
+        isActive: true,
+        openTime: true,
+        closeTime: true,
+        timezone: true,
+        createdAt: true,
+        updatedAt: true,
+        merchant: {
+          select: {
+            id: true,
+            name: true,
+            category: true,
+            description: true,
+            verified: true,
+            logoUrl: true,
+            phone: true,
+            address: true,
+            website: true,
+            lat: true,
+            lng: true,
+            spotId: true,
+          },
+        },
         menuCategories: {
-          include: {
-            items: true,
+          select: {
+            id: true,
+            outletId: true,
+            name: true,
+            order: true,
+            createdAt: true,
+            updatedAt: true,
+            items: {
+              select: {
+                id: true,
+                categoryId: true,
+                name: true,
+                description: true,
+                price: true,
+                image: true,
+                isAvailable: true,
+                order: true,
+                createdAt: true,
+                updatedAt: true,
+              },
+            },
           },
         },
       },
@@ -31,12 +77,30 @@ export class OutletService {
     return this.prisma.outlet.findMany({
       where: { merchantId },
       orderBy: { createdAt: "desc" },
+      select: {
+        id: true,
+        merchantId: true,
+        name: true,
+        address: true,
+        lat: true,
+        lng: true,
+        isActive: true,
+        openTime: true,
+        closeTime: true,
+        timezone: true,
+        createdAt: true,
+        updatedAt: true,
+      },
     });
   }
 
   async create(dto: CreateOutletDto, userId: string) {
     const owned = await this.prisma.merchant.findFirst({ where: { id: dto.merchantId, ownerId: userId } });
     if (!owned) throw new ForbiddenException("You do not own this business");
+    const existing = await this.prisma.outlet.findFirst({
+      where: { merchantId: dto.merchantId, name: dto.name },
+    });
+    if (existing) return existing;
     return this.prisma.outlet.create({
       data: dto,
     });

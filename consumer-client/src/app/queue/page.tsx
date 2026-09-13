@@ -1,10 +1,11 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
+import QRCode from "qrcode";
 import ConsumerLayout from "../home/layout";
-import { Ic, useToasts } from "@spotly/ui";
+import { animate, Ic, motionEnabled, useToasts } from "@spotly/ui";
 import type { QueueEntry, QueueUpdatePayload } from "@spotly/types";
 import { useAuthStore } from "@/store/auth.store";
 import { useQueueStore, waitingAhead } from "@/store/queue.store";
@@ -59,6 +60,13 @@ export default function ConsumerQueuePage() {
   const [leaving, setLeaving] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
+  const [verificationQr, setVerificationQr] = useState("");
+  const [verificationExpiry, setVerificationExpiry] = useState<string | null>(null);
+  const [verificationError, setVerificationError] = useState("");
+  const [verificationLoading, setVerificationLoading] = useState(false);
+  const [verificationNow, setVerificationNow] = useState(() => Date.now());
+  const ticketRef = useRef<HTMLElement>(null);
+  const verificationRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (pathname === "/queue")
@@ -133,6 +141,69 @@ export default function ConsumerQueuePage() {
       mounted = false;
     };
   }, [add, applyQueue, authLoading, entryId, user, revision]);
+
+  const issueVerificationQr = useCallback(async () => {
+    if (!entry?.id || entry.status !== "CALLED") return;
+    setVerificationLoading(true);
+    setVerificationError("");
+    try {
+      const response = await api.post("/queue/verification/issue");
+      const value = response.data.data as { token: string; expiresAt: string };
+      setVerificationQr(await QRCode.toDataURL(value.token, { width: 240, margin: 2 }));
+      setVerificationExpiry(value.expiresAt);
+    } catch (cause: any) {
+      setVerificationQr("");
+      setVerificationExpiry(null);
+      setVerificationError(cause?.message || "Your verification QR could not be loaded.");
+    } finally {
+      setVerificationLoading(false);
+    }
+  }, [entry?.id, entry?.status]);
+
+  useEffect(() => {
+    if (entry?.status === "CALLED") void issueVerificationQr();
+    else {
+      setVerificationQr("");
+      setVerificationExpiry(null);
+      setVerificationError("");
+    }
+  }, [entry?.id, entry?.status, issueVerificationQr]);
+
+  useEffect(() => {
+    if (!verificationExpiry) return;
+    const timer = window.setInterval(() => setVerificationNow(Date.now()), 1000);
+    return () => window.clearInterval(timer);
+  }, [verificationExpiry]);
+  const verificationExpired = !!verificationExpiry && new Date(verificationExpiry).getTime() <= verificationNow;
+
+  useEffect(() => {
+    const ticket = ticketRef.current;
+    if (!ticket || !entry || !motionEnabled()) return;
+    const animation = animate(ticket, {
+      opacity: [0.55, 1],
+      translateY: [12, 0],
+      duration: 420,
+      ease: "out(4)",
+    });
+    return () => {
+      animation.revert();
+    };
+  }, [ahead, entry?.status]);
+
+  useEffect(() => {
+    const card = verificationRef.current;
+    if (!card || !verificationQr || !motionEnabled()) return;
+    const animation = animate(card, {
+      opacity: [0, 1],
+      scale: [0.96, 1],
+      translateY: [8, 0],
+      duration: 460,
+      ease: "out(4)",
+    });
+    return () => {
+      animation.revert();
+    };
+  }, [verificationQr]);
 
   const trackedOutletId = entry?.outletId;
   const trackedEntryId = entry?.id;
@@ -314,6 +385,7 @@ export default function ConsumerQueuePage() {
         <Ic.ChevL size={15} /> Back to discover
       </button>
       <section
+        ref={ticketRef}
         className="consumer-card consumer-ticket"
         style={{ marginTop: 16 }}
       >
@@ -355,6 +427,27 @@ export default function ConsumerQueuePage() {
           <p style={{ color: "var(--text-muted)", fontSize: 12 }}>
             Queue position is based on the business's confirmed order.
           </p>
+        ) : null}
+        {entry.status === "CALLED" ? (
+          <div ref={verificationRef} className="consumer-verification-card" aria-label="Customer verification QR">
+            <div>
+              <div className="consumer-kicker">At the counter</div>
+              <h2>Show this QR to the business</h2>
+              <p>This one-time code expires shortly and confirms this ticket.</p>
+            </div>
+            {verificationQr ? (
+              <img src={verificationQr} alt="One-time QR for this queue ticket" width={240} height={240} />
+            ) : verificationLoading ? (
+              <p role="status">Preparing your secure code…</p>
+            ) : null}
+            {verificationExpiry ? (
+              <small>{verificationExpired ? "Code expired. Refresh before showing it." : `Expires ${new Date(verificationExpiry).toLocaleTimeString()}`}</small>
+            ) : null}
+            {verificationError ? <p role="alert">{verificationError}</p> : null}
+            <button className="consumer-button quiet" onClick={() => void issueVerificationQr()} disabled={verificationLoading}>
+              {verificationLoading ? "Preparing…" : verificationExpired ? "Get a new QR" : "Refresh QR"}
+            </button>
+          </div>
         ) : null}
         {directions ? (
           <a

@@ -402,6 +402,19 @@ button.merchant-status { min-height:44px; }
 .merchant-navigation-dialog nav a { min-height:48px; display:flex; align-items:center; gap:12px; padding:8px 12px; text-decoration:none; color:var(--text-primary); border-radius:6px; }
 .merchant-navigation-dialog nav a[aria-current] { background:var(--brand-soft); }
 .merchant-redesign-mobile-header button { display:inline-flex; align-items:center; justify-content:center; gap:8px; padding:0 12px; }
+.merchant-verification { display:grid; gap:12px; width:min(100%,520px); padding:16px; color:var(--text-primary); background:var(--surface); border:1px solid var(--border); border-radius:7px; }
+.merchant-call-band .merchant-verification { color:var(--text-primary); }
+.merchant-verification .merchant-panel-heading { margin:0; }
+.merchant-verification .merchant-panel-heading h3 { margin:3px 0 0; font-size:17px; }
+.merchant-verification .merchant-panel-heading p { margin:4px 0 0; color:var(--text-secondary); font-size:12px; }
+.merchant-verification-video { width:100%; max-height:260px; object-fit:cover; background:#111; border-radius:6px; }
+.merchant-verification-video.is-idle { display:none; }
+.merchant-verification-actions { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+.merchant-verification-manual { display:flex; flex:1; min-width:220px; gap:6px; }
+.merchant-verification-manual input { min-width:0; flex:1; }
+.merchant-verification-error,.merchant-verification-success { margin:0; font-size:13px; }
+.merchant-verification-error { color:var(--danger); }
+.merchant-verification-success { color:var(--success); }
 .button-primary:hover { background:var(--brand-strong); }
 .workspace-footer-queue { background: radial-gradient(circle at 84% 22%, #dbb76b 0 2px, transparent 2px 22px), linear-gradient(120deg,#173c35 0%,#2d6657 58%,#a84d3b 100%); background-size:44px 44px,auto; }
 .workspace-footer-outlets { background: linear-gradient(135deg,#173d37 0 34%,#4e806a 34% 67%,#d6a568 67%); }

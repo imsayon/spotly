@@ -1,4 +1,4 @@
-import { Injectable } from "@nestjs/common"
+import { ForbiddenException, Injectable } from "@nestjs/common"
 import { PrismaService } from "../../infra/prisma/prisma.service"
 import { CreateReviewDto } from "@spotly/types"
 
@@ -7,6 +7,12 @@ export class ReviewService {
 	constructor(private readonly prisma: PrismaService) {}
 
 	async create(userId: string, dto: CreateReviewDto) {
+		const servedVisit = await this.prisma.queueEntry.findFirst({
+			where: { userId, outletId: dto.outletId, status: "SERVED" },
+			select: { id: true },
+		})
+		if (!servedVisit) throw new ForbiddenException("Reviews are available after a served visit")
+
 		return this.prisma.review.upsert({
 			where: {
 				userId_outletId: {
@@ -30,7 +36,12 @@ export class ReviewService {
   async getOutletReviews(outletId: string) {
 		return this.prisma.review.findMany({
 			where: { outletId },
-			include: {
+			select: {
+				id: true,
+				outletId: true,
+				rating: true,
+				comment: true,
+				createdAt: true,
 				user: {
 					select: { name: true },
 				},
@@ -38,6 +49,20 @@ export class ReviewService {
 			orderBy: { createdAt: "desc" },
 		})
   }
+
+	async getMyReview(userId: string, outletId: string) {
+		const [review, servedVisit] = await Promise.all([
+			this.prisma.review.findUnique({
+				where: { userId_outletId: { userId, outletId } },
+				select: { id: true, outletId: true, rating: true, comment: true, createdAt: true },
+			}),
+			this.prisma.queueEntry.findFirst({
+				where: { userId, outletId, status: "SERVED" },
+				select: { id: true },
+			}),
+		])
+		return { review, eligible: !!servedVisit }
+	}
 
   async getOutletStats(outletId: string) {
     const aggregate = await this.prisma.review.aggregate({

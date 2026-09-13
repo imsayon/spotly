@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { BrandMark, Ic } from "@spotly/ui";
+import { animate, animeReveal, BrandMark, Ic, motionEnabled } from "@spotly/ui";
 import { useAuthStore } from "@/store/auth.store";
 import { env } from "@/lib/env";
 
@@ -37,10 +37,33 @@ const categories = [
 export default function LandingPage() {
   const router = useRouter();
   const { user, loading } = useAuthStore();
+  const pageRef = useRef<HTMLElement>(null);
 
   useEffect(() => {
     if (!loading && user) router.replace("/home");
   }, [loading, router, user]);
+
+  useLayoutEffect(() => {
+    const page = pageRef.current;
+    if (!page) return;
+    const intro = animeReveal(
+      page.querySelectorAll<HTMLElement>("[data-anime-intro]"),
+      { translateY: [24, 0], duration: 720 },
+    );
+    const rules = motionEnabled()
+      ? animate(page.querySelectorAll<HTMLElement>(".journey-card-rule"), {
+          scaleX: [0, 1],
+          transformOrigin: "left center",
+          delay: 520,
+          duration: 520,
+          ease: "out(3)",
+        })
+      : null;
+    return () => {
+      intro?.revert();
+      rules?.revert();
+    };
+  }, []);
 
   const start = () =>
     user ? router.push("/home") : router.push("/auth/sign-in?returnTo=%2Fhome");
@@ -69,9 +92,9 @@ export default function LandingPage() {
         </div>
       </header>
 
-      <main id="top" className="marketing-main">
-        <section className="marketing-hero" aria-labelledby="consumer-title">
-          <div>
+      <main id="top" ref={pageRef} className="marketing-main">
+          <section className="marketing-hero" aria-labelledby="consumer-title">
+          <div data-anime-intro>
             <div className="eyebrow">For your everyday places</div>
             <h1 id="consumer-title" className="consumer-editorial">
               Your place in line.
@@ -100,7 +123,7 @@ export default function LandingPage() {
         >
           <div className="section-kicker">A calmer rhythm</div>
           <h2 id="how-title">Keep your day moving while your place is held.</h2>
-          <div className="steps-grid journey-grid">
+          <div className="steps-grid journey-grid" data-anime-intro>
             {steps.map(([number, title, copy]) => (
               <article className="step-card journey-card" key={number}>
                 <div className="journey-card-top">
@@ -127,7 +150,7 @@ export default function LandingPage() {
         >
           <div className="section-kicker">Choose the next stop</div>
           <h2 id="category-title">Begin with what your day is asking for.</h2>
-          <div className="categories-grid category-grid-reimagined">
+          <div className="categories-grid category-grid-reimagined" data-anime-intro>
             {categories.map(([label, Icon, copy]) => (
               <button className="category-card category-card-button" key={label} onClick={start}>
                 <span className="category-icon"><Icon size={20} /></span>
@@ -149,7 +172,7 @@ export default function LandingPage() {
         >
           <div className="section-kicker">Three useful questions</div>
           <h2 id="questions-title">Know what the queue means.</h2>
-          <div className="steps-grid questions-grid">
+          <div className="steps-grid questions-grid" data-anime-intro>
             {questions.map(([question, answer]) => (
               <article className="step-card" key={question}>
                 <h3>{question}</h3>
@@ -160,7 +183,7 @@ export default function LandingPage() {
         </section>
 
         <section className="marketing-section">
-          <div className="marketing-callout">
+          <div className="marketing-callout" data-anime-intro>
             <div>
               <div className="section-kicker">For walk-in businesses</div>
               <h2>Run a better queue.</h2>
@@ -189,14 +212,31 @@ export default function LandingPage() {
 
 function QueuePreview() {
   const [stage, setStage] = useState(0);
+  const ticketRef = useRef<HTMLDivElement>(null);
   const states = [
     ["Request sent", "The business has received your request."],
     ["Place confirmed", "Your spot is confirmed."],
     ["Your turn", "Go to the counter when called."],
   ] as const;
   const [status, detail] = states[stage];
+
+  useLayoutEffect(() => {
+    const ticket = ticketRef.current;
+    if (!ticket || !motionEnabled()) return;
+    const animation = animate(ticket, {
+      opacity: [0.35, 1],
+      translateY: [10, 0],
+      scale: [0.98, 1],
+      duration: 420,
+      ease: "out(4)",
+    });
+    return () => {
+      animation.revert();
+    };
+  }, [stage]);
+
   return (
-    <div className="queue-demo" aria-label="Example journey, sample data">
+    <div className="queue-demo" data-anime-intro aria-label="Example journey, sample data">
       <div className="queue-demo-head">
         <div>
           <div className="queue-demo-title">Example journey · Sample data</div>
@@ -204,7 +244,7 @@ function QueuePreview() {
         </div>
         <span className="status-chip">{status}</span>
       </div>
-      <div className="queue-demo-ticket">
+      <div className="queue-demo-ticket" ref={ticketRef}>
         <div className="queue-demo-meta">Your number</div>
         <strong>045</strong>
         <div className="queue-demo-status">{status}</div>

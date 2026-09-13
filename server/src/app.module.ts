@@ -1,7 +1,8 @@
+import { APP_GUARD } from "@nestjs/core"
 import { Module, MiddlewareConsumer, NestModule } from "@nestjs/common"
 import { ConfigModule } from "@nestjs/config"
 import { ScheduleModule } from "@nestjs/schedule"
-import { ThrottlerModule } from "@nestjs/throttler"
+import { ThrottlerGuard, ThrottlerModule } from "@nestjs/throttler"
 import { z } from "zod"
 
 import { PrismaModule } from "./infra/prisma/prisma.module"
@@ -17,6 +18,7 @@ import { QueueModule } from "./modules/queue/queue.module"
 import { MenuModule } from "./modules/menu/menu.module"
 import { ReviewModule } from "./modules/review/review.module"
 import { FavoriteModule } from "./modules/favorite/favorite.module"
+import { LocationModule } from "./modules/location/location.module"
 
 const envSchema = z.object({
 	NODE_ENV: z
@@ -55,8 +57,9 @@ const envSchema = z.object({
 		MenuModule,
 		ReviewModule,
 		FavoriteModule,
+		LocationModule,
 	],
-	providers: [LoggerService],
+	providers: [LoggerService, { provide: APP_GUARD, useClass: ThrottlerGuard }],
 })
 export class AppModule implements NestModule {
 	configure(consumer: MiddlewareConsumer) {

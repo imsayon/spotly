@@ -356,6 +356,11 @@ button:disabled { cursor:not-allowed; }
 .button-primary:hover { background:var(--brand-strong); }
 
 .consumer-detail-main,.consumer-detail-side { min-width:0; }
+.consumer-verification-card { display:grid; justify-items:center; gap:10px; margin:20px 0; padding:20px; text-align:center; background:var(--surface-raised); border:1px solid var(--border-strong); border-radius:8px; }
+.consumer-verification-card h2 { margin:0; font-size:20px; }
+.consumer-verification-card p { margin:0; color:var(--text-secondary); font-size:13px; }
+.consumer-verification-card img { display:block; width:min(240px,72vw); height:auto; padding:8px; background:#fff; border-radius:6px; }
+.consumer-verification-card small { color:var(--text-muted); }
 
 /* The landing story uses an editorial path instead of a flat card row. */
 .journey-grid { grid-template-columns: 1.18fr 1fr 1fr; gap: 16px; }

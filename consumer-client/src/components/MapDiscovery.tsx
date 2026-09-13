@@ -21,7 +21,7 @@ interface MapDiscoveryProps {
 	merchants: any[]
 	center?: [number, number]
 	zoom?: number
-	onSelect: (merchant: any) => void
+	onSelect: (merchant: any, outletId?: string) => void
 	userLocation?: [number, number]
 }
 
@@ -115,7 +115,7 @@ export default function MapDiscovery({
 			>
 				<TileLayer
 					attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-					url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+					url="https://tile.openstreetmap.org/{z}/{x}/{y}.png"
 				/>
 				<MapResizer />
 				<RecenterMap center={center} />
@@ -159,7 +159,7 @@ export default function MapDiscovery({
 							key={`${m.id}-${idx}`}
 							position={[p.lat, p.lng]}
 							eventHandlers={{
-								click: () => onSelect(m),
+								click: () => onSelect(m, p.id),
 							}}
 						>
 							<Popup className="spotly-popup">
@@ -193,7 +193,7 @@ export default function MapDiscovery({
 											fontWeight: 700,
 											cursor: "pointer",
 										}}
-										onClick={() => onSelect(m)}
+										onClick={() => onSelect(m, p.id)}
 									>
 										View Details
 									</button>

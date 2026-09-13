@@ -29,6 +29,13 @@ export class ReviewController {
 		return this.reviewService.getOutletReviews(outletId)
 	}
 
+	@Get("outlet/:outletId/mine")
+	@UseGuards(JwtAuthGuard)
+	@ApiBearerAuth()
+	async getMyReview(@CurrentUser("id") userId: string, @Param("outletId") outletId: string) {
+		return this.reviewService.getMyReview(userId, outletId)
+	}
+
 	@Get("outlet/:outletId/stats")
 	async getOutletStats(@Param("outletId") outletId: string) {
 		return this.reviewService.getOutletStats(outletId)

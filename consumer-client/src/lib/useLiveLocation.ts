@@ -1,9 +1,10 @@
 "use client"
 
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 
 const STORAGE_KEY = "spotly.consumer.live-location"
 const LOCATION_EVENT = "spotly:location-updated"
+const CACHE_MAX_AGE_MS = 30 * 60 * 1000
 
 export interface LiveLocationSnapshot {
 	latitude: number
@@ -31,7 +32,8 @@ function readCachedLocation(): LiveLocationSnapshot | null {
 		const parsed = JSON.parse(raw) as LiveLocationSnapshot
 		if (
 			!Number.isFinite(parsed.latitude) ||
-			!Number.isFinite(parsed.longitude)
+			!Number.isFinite(parsed.longitude) ||
+			(parsed.updatedAt > 0 && Date.now() - parsed.updatedAt > CACHE_MAX_AGE_MS)
 		)
 			return null
 		return parsed
@@ -60,6 +62,7 @@ export function useLiveLocation(options: UseLiveLocationOptions = {}) {
 	const [permissionStatus, setPermissionStatus] =
 		useState<GeoPermission>("unknown")
 	const [requestTick, setRequestTick] = useState(0)
+	const updateSequence = useRef(0)
 
 	const requestLocation = () => setRequestTick((v) => v + 1)
 
@@ -139,6 +142,7 @@ export function useLiveLocation(options: UseLiveLocationOptions = {}) {
 		let isMounted = true
 
 		const updateFromPosition = async (position: GeolocationPosition) => {
+			const sequence = ++updateSequence.current
 			const { latitude, longitude, accuracy } = position.coords
 			const label = await reverseGeocode(latitude, longitude)
 
@@ -147,10 +151,10 @@ export function useLiveLocation(options: UseLiveLocationOptions = {}) {
 				longitude,
 				accuracy: Number.isFinite(accuracy) ? accuracy : null,
 				label,
-				updatedAt: Date.now(),
+				updatedAt: Number.isFinite(position.timestamp) && position.timestamp > 0 ? position.timestamp : Date.now(),
 			}
 
-			if (!isMounted) return
+			if (!isMounted || sequence !== updateSequence.current) return
 			setLocation(snapshot)
 			saveLocation(snapshot)
 			setPermissionStatus("granted")

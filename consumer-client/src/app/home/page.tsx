@@ -1,9 +1,9 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
-import { Ic, useToasts } from "@spotly/ui";
+import { animate, animeReveal, Ic, motionEnabled, useToasts } from "@spotly/ui";
 import { useAuthStore } from "@/store/auth.store";
 import { useLiveLocation } from "@/lib/useLiveLocation";
 import api from "@/lib/api";
@@ -48,9 +48,12 @@ export default function ConsumerHome() {
   const [category, setCategory] = useState("All");
   const [view, setView] = useState<"list" | "map">("list");
   const [selected, setSelected] = useState<Place | null>(null);
+  const [selectedOutletId, setSelectedOutletId] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
   const [hydrated, setHydrated] = useState(false);
+  const pageRef = useRef<HTMLDivElement>(null);
+  const selectionRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -147,15 +150,45 @@ export default function ConsumerHome() {
         Number.isFinite(mappable[0].lng)
       ? [mappable[0].lat as number, mappable[0].lng as number]
       : undefined;
-  const open = (place: Place) =>
+  const open = (place: Place, outletId?: string) => {
+    const resolvedOutletId =
+      outletId || (place.outlets?.length === 1 ? place.outlets[0].id : "");
     router.push(
-      `/merchant?id=${encodeURIComponent(place.id)}${place.outlets?.length === 1 ? `&outletId=${encodeURIComponent(place.outlets[0].id)}` : ""}`,
+      `/merchant?id=${encodeURIComponent(place.id)}${resolvedOutletId ? `&outletId=${encodeURIComponent(resolvedOutletId)}` : ""}`,
     );
+  };
   const locationLabel =
     location?.label || profile?.location || "Location stays optional";
 
+  useEffect(() => {
+    const page = pageRef.current;
+    if (!page) return;
+    const rows = animeReveal(
+      page.querySelectorAll<HTMLElement>(".consumer-place-row"),
+      { translateY: [12, 0], duration: 480 },
+    );
+    return () => {
+      rows?.revert();
+    };
+  }, [category, error, loading, query, view, visible.length]);
+
+  useEffect(() => {
+    const selection = selectionRef.current;
+    if (!selection || !selected || !motionEnabled()) return;
+    const animation = animate(selection, {
+      opacity: [0, 1],
+      translateY: [10, 0],
+      scale: [0.98, 1],
+      duration: 360,
+      ease: "out(4)",
+    });
+    return () => {
+      animation.revert();
+    };
+  }, [selected?.id]);
+
   return (
-    <div className="consumer-page">
+    <div ref={pageRef} className="consumer-page">
       <header className="consumer-page-heading">
         <div>
           <div className="consumer-kicker">Discover</div>
@@ -264,7 +297,10 @@ export default function ConsumerHome() {
                 userLocation={
                   location ? [location.latitude, location.longitude] : undefined
                 }
-                onSelect={setSelected}
+                onSelect={(place, outletId) => {
+                  setSelected(place);
+                  setSelectedOutletId(outletId || "");
+                }}
               />
             </div>
           ) : (
@@ -283,7 +319,7 @@ export default function ConsumerHome() {
             </div>
           )}
           {selected ? (
-            <div className="consumer-map-selection">
+            <div ref={selectionRef} className="consumer-map-selection">
               <div>
                 <div className="consumer-kicker">Selected place</div>
                 <h2>{selected.name}</h2>
@@ -291,7 +327,7 @@ export default function ConsumerHome() {
               </div>
               <button
                 className="consumer-button"
-                onClick={() => open(selected)}
+                onClick={() => open(selected, selectedOutletId)}
               >
                 View place <Ic.Arrow size={16} />
               </button>

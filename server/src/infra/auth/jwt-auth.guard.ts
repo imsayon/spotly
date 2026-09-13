@@ -6,6 +6,17 @@ import {
 } from "@nestjs/common"
 import { createClient, SupabaseClient } from "@supabase/supabase-js"
 import { ConfigService } from "@nestjs/config"
+import { createHash } from "node:crypto"
+
+function sessionIdFromToken(token: string) {
+	try {
+		const payload = JSON.parse(Buffer.from(token.split(".")[1], "base64url").toString("utf8")) as { session_id?: unknown }
+		if (typeof payload.session_id === "string" && payload.session_id) return payload.session_id
+	} catch {
+		// A verified Supabase token without a session claim still gets a non-reversible binding.
+	}
+	return createHash("sha256").update(token).digest("hex")
+}
 
 @Injectable()
 export class JwtAuthGuard implements CanActivate {
@@ -55,6 +66,7 @@ export class JwtAuthGuard implements CanActivate {
 			}
 
 			request.user = user
+			request.authSessionId = sessionIdFromToken(token)
 			return true
 		} catch (err) {
 			if (err instanceof UnauthorizedException) throw err

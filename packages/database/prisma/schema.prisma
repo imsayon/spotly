@@ -104,6 +104,10 @@ model QueueEntry {
   tokenNumber Int
   calledAt    DateTime?
   servedAt    DateTime?
+  verificationTokenDigest String? @unique
+  verificationExpiresAt DateTime?
+  verificationUsedAt DateTime?
+  verificationSessionId String?
 
   outlet      Outlet      @relation(fields: [outletId], references: [id], onDelete: Cascade)
   user        User        @relation(fields: [userId], references: [id])

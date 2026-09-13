@@ -1,9 +1,9 @@
 "use client";
 
-import React, { useEffect } from "react";
+import React, { useEffect, useRef } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { BrandMark, Ic, ToastContainer, useToasts } from "@spotly/ui";
+import { animate, BrandMark, Ic, motionEnabled, ToastContainer, useToasts } from "@spotly/ui";
 import { useAuthStore } from "@/store/auth.store";
 import { useQueueStore } from "@/store/queue.store";
 
@@ -26,11 +26,26 @@ export default function ConsumerLayout({
   const myEntry = useQueueStore((state) => state.myEntry);
   const fetchActiveEntry = useQueueStore((state) => state.fetchActiveEntry);
   const clearActive = useQueueStore((state) => state.clearActive);
+  const contentRef = useRef<HTMLElement>(null);
 
   useEffect(() => {
     if (user) void fetchActiveEntry();
     else clearActive();
   }, [clearActive, fetchActiveEntry, user]);
+
+  useEffect(() => {
+    const content = contentRef.current;
+    if (!content || !motionEnabled()) return;
+    const animation = animate(content, {
+      opacity: [0, 1],
+      translateY: [10, 0],
+      duration: 360,
+      ease: "out(3)",
+    });
+    return () => {
+      animation.revert();
+    };
+  }, [pathname]);
 
   const firstName =
     profile?.name?.split(" ")[0] || user?.email?.split("@")[0] || "there";
@@ -114,7 +129,7 @@ export default function ConsumerLayout({
           )}
         </div>
       </header>
-      <main className="consumer-redesign-content">
+      <main ref={contentRef} className="consumer-redesign-content">
         {identityError ? (
           <div role="alert" className="consumer-inline-error">
             {identityError}{" "}

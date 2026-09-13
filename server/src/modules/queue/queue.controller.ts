@@ -1,4 +1,4 @@
-import { JoinQueueDtoSchema } from "@spotly/types";
+import { JoinQueueDtoSchema, VerificationTokenDtoSchema } from "@spotly/types";
 import { ZodValidationPipe } from "../../shared/pipes/zod-validation.pipe";
 import {
 	Controller,
@@ -13,7 +13,8 @@ import { ApiTags, ApiOperation, ApiBearerAuth } from "@nestjs/swagger"
 import { QueueService } from "./queue.service"
 import { JwtAuthGuard } from "../../infra/auth/jwt-auth.guard"
 import { CurrentUser } from "../../infra/auth/current-user.decorator"
-import { JoinQueueDto } from "@spotly/types"
+import { CurrentSessionId } from "../../infra/auth/current-session.decorator"
+import { JoinQueueDto, VerificationTokenDto } from "@spotly/types"
 
 @ApiTags("Queue")
 @Controller("queue")
@@ -40,6 +41,22 @@ export class QueueController {
 	@ApiOperation({ summary: "Get current active queue entry for user" })
 	async getActive(@CurrentUser("id") userId: string) {
 		return this.queueService.getActiveEntry(userId)
+	}
+
+	@Post("verification/issue")
+	@UseGuards(JwtAuthGuard)
+	@ApiBearerAuth()
+	@ApiOperation({ summary: "Issue a one-time QR token for the current called ticket" })
+	async issueVerification(@CurrentUser("id") userId: string, @CurrentSessionId() sessionId: string) {
+		return this.queueService.issueVerification(userId, sessionId)
+	}
+
+	@Post("verification/redeem")
+	@UseGuards(JwtAuthGuard)
+	@ApiBearerAuth()
+	@ApiOperation({ summary: "Redeem a consumer QR token at the owned outlet" })
+	async redeemVerification(@CurrentUser("id") userId: string, @Body(new ZodValidationPipe(VerificationTokenDtoSchema)) dto: VerificationTokenDto) {
+		return this.queueService.redeemVerification(dto.token, dto.outletId, userId)
 	}
 
 	@Get("history")

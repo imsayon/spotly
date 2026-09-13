@@ -1,12 +1,19 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
-import { Ic } from "@spotly/ui";
+import { animeReveal, Ic } from "@spotly/ui";
 import type { Outlet } from "@spotly/types";
 import { useQueueStore } from "@/store/queue.store";
 import api from "@/lib/api";
+import { reverseGeocode } from "@/lib/geocoding";
 import { useAuthStore } from "@/store/auth.store";
+
+const MapPicker = dynamic(() => import("@/components/MapPicker"), {
+  ssr: false,
+  loading: () => <div className="merchant-map-loading">Loading map…</div>,
+});
 
 export default function OutletsPage() {
   const router = useRouter();
@@ -17,10 +24,14 @@ export default function OutletsPage() {
   const [form, setForm] = useState({
     name: "",
     address: "",
+    lat: "",
+    lng: "",
     openTime: "09:00",
     closeTime: "21:00",
   });
   const [saving, setSaving] = useState(false);
+  const [locationLoading, setLocationLoading] = useState(false);
+  const pageRef = useRef<HTMLDivElement>(null);
 
   const load = async () => {
     if (!merchantProfile?.id) return;
@@ -38,20 +49,73 @@ export default function OutletsPage() {
   useEffect(() => {
     void load();
   }, [merchantProfile?.id]);
+  useEffect(() => {
+    const page = pageRef.current;
+    if (!page) return;
+    const animation = animeReveal(
+      page.querySelectorAll<HTMLElement>(".merchant-list-row"),
+      { translateY: [12, 0], duration: 440 },
+    );
+    return () => {
+      animation?.revert();
+    };
+  }, [error, loading, outlets.length]);
+  const useCurrentLocation = () => {
+    if (!navigator.geolocation) {
+      setError("Location is unavailable in this browser. Click the map or enter coordinates.");
+      return;
+    }
+    setLocationLoading(true);
+    setError("");
+    navigator.geolocation.getCurrentPosition(
+      async ({ coords }) => {
+        const label = await reverseGeocode(coords.latitude, coords.longitude);
+        setForm((current) => ({
+          ...current,
+          lat: coords.latitude.toFixed(6),
+          lng: coords.longitude.toFixed(6),
+          address: label === "Location unavailable" ? current.address : label,
+        }));
+        setLocationLoading(false);
+      },
+      () => {
+        setError("We could not read your location. Click the map or enter coordinates.");
+        setLocationLoading(false);
+      },
+      { enableHighAccuracy: true, timeout: 12000, maximumAge: 0 },
+    );
+  };
   const create = async (event: React.FormEvent) => {
     event.preventDefault();
     if (!merchantProfile?.id) return;
     setSaving(true);
     setError("");
+    const lat = form.lat.trim() === "" ? undefined : Number(form.lat);
+    const lng = form.lng.trim() === "" ? undefined : Number(form.lng);
+    if (
+      (lat !== undefined && !Number.isFinite(lat)) ||
+      (lng !== undefined && !Number.isFinite(lng)) ||
+      (lat !== undefined && (lat < -90 || lat > 90)) ||
+      (lng !== undefined && (lng < -180 || lng > 180)) ||
+      (lat === undefined) !== (lng === undefined)
+    ) {
+      setError("Enter both valid map coordinates or leave them empty.");
+      setSaving(false);
+      return;
+    }
     try {
       const response = await api.post("/outlet", {
         merchantId: merchantProfile.id,
-        ...form,
+        name: form.name.trim(),
+        address: form.address.trim(),
+        openTime: form.openTime,
+        closeTime: form.closeTime,
+        ...(lat !== undefined && lng !== undefined ? { lat, lng } : {}),
       });
       const outlet = response.data.data;
       setOutlets((current) => [outlet, ...current]);
       await useQueueStore.getState().fetchOutlets(merchantProfile.id);
-      setForm({ name: "", address: "", openTime: "09:00", closeTime: "21:00" });
+      setForm({ name: "", address: "", lat: "", lng: "", openTime: "09:00", closeTime: "21:00" });
       (
         document.getElementById("outlet-dialog") as HTMLDialogElement | null
       )?.close();
@@ -64,6 +128,7 @@ export default function OutletsPage() {
   if (!merchantProfile) return null;
   return (
     <div
+      ref={pageRef}
       className="merchant-page-heading"
       style={{ display: "block", maxWidth: 1080, margin: "0 auto" }}
     >
@@ -245,6 +310,25 @@ export default function OutletsPage() {
                 }
               />
             </div>
+          </div>
+          <div className="merchant-field full" style={{ marginTop: 16 }}>
+            <label>Map location (optional)</label>
+            <button className="merchant-button secondary" type="button" onClick={useCurrentLocation} disabled={locationLoading}>
+              <Ic.MapPin size={15} /> {locationLoading ? "Reading location…" : "Use current location"}
+            </button>
+            <MapPicker
+              lat={form.lat ? Number(form.lat) : undefined}
+              lng={form.lng ? Number(form.lng) : undefined}
+              onSelect={(lat, lng, address) =>
+                setForm((current) => ({
+                  ...current,
+                  lat: lat.toFixed(6),
+                  lng: lng.toFixed(6),
+                  address: address && address !== "Location unavailable" ? address : current.address,
+                }))
+              }
+            />
+            <small>Click the map or drag the pin to the customer entrance.</small>
           </div>
           <div
             style={{

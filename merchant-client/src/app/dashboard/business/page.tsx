@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { animeReveal } from "@spotly/ui";
 import { useAuthStore } from "@/store/auth.store";
 import api from "@/lib/api";
 
@@ -32,6 +33,7 @@ export default function BusinessPage() {
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
+  const pageRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     if (!merchantProfile) return;
     setForm({
@@ -48,6 +50,17 @@ export default function BusinessPage() {
       gstNumber: merchantProfile.gstNumber || "",
     });
   }, [merchantProfile]);
+  useEffect(() => {
+    const page = pageRef.current;
+    if (!page) return;
+    const animation = animeReveal(
+      page.querySelectorAll<HTMLElement>(".merchant-card"),
+      { translateY: [12, 0], duration: 440 },
+    );
+    return () => {
+      animation?.revert();
+    };
+  }, [error, message]);
   const set = (key: keyof Form, value: string) =>
     setForm((current) => ({ ...current, [key]: value }));
   const save = async (event: React.FormEvent) => {
@@ -61,13 +74,13 @@ export default function BusinessPage() {
         ...form,
         name: form.name.trim(),
         category: form.category.trim(),
-        description: form.description.trim(),
-        phone: form.phone.trim(),
-        contactEmail: form.contactEmail || undefined,
-        website: form.website || undefined,
-        address: form.address.trim(),
-        foundingYear: form.foundingYear ? Number(form.foundingYear) : undefined,
-        gstNumber: form.gstNumber.trim(),
+        description: form.description.trim() || null,
+        phone: form.phone.trim() || null,
+        contactEmail: form.contactEmail.trim() || null,
+        website: form.website.trim() || null,
+        address: form.address.trim() || null,
+        foundingYear: form.foundingYear ? Number(form.foundingYear) : null,
+        gstNumber: form.gstNumber.trim() || null,
       });
       setMerchantProfile({ ...merchantProfile, ...response.data.data });
       setMessage("Business details saved");
@@ -80,6 +93,7 @@ export default function BusinessPage() {
   if (!merchantProfile) return null;
   return (
     <div
+      ref={pageRef}
       className="merchant-page-heading"
       style={{ display: "block", maxWidth: 980, margin: "0 auto" }}
     >

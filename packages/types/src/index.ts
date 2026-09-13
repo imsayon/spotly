@@ -134,45 +134,67 @@ export const UpdateUserProfileDtoSchema = z.object({
   phone: z.string().optional(),
   secondaryPhone: z.string().optional(),
   location: z.string().optional(),
-  lat: z.number().optional(),
-  lng: z.number().optional(),
+  lat: z.number().finite().min(-90).max(90).nullable().optional(),
+  lng: z.number().finite().min(-180).max(180).nullable().optional(),
+}).superRefine((value, context) => {
+  const hasLat = value.lat !== undefined && value.lat !== null;
+  const hasLng = value.lng !== undefined && value.lng !== null;
+  if ((value.lat === undefined) !== (value.lng === undefined) || hasLat !== hasLng) {
+    context.addIssue({ code: z.ZodIssueCode.custom, path: [value.lat === undefined ? "lat" : "lng"], message: "Latitude and longitude must be provided together" });
+  }
 });
 export type UpdateUserProfileDto = z.infer<typeof UpdateUserProfileDtoSchema>;
 
-export const CreateMerchantDtoSchema = z.object({
-  name: z.string().min(1, "Merchant name is required"),
-  category: z.string().min(1, "Category is required"),
-  description: z.string().optional(),
-  contactEmail: z.string().email().optional(),
-  logoUrl: z.string().url().optional(),
-  phone: z.string().optional(),
-  address: z.string().optional(),
-  foundingYear: z.number().int().optional(),
-  gstNumber: z.string().optional(),
-  website: z.string().url().optional(),
-  lat: z.number().optional(),
-  lng: z.number().optional(),
-  spotId: z.string().optional(),
+const MerchantFieldsSchema = z.object({
+  name: z.string().trim().min(1, "Merchant name is required"),
+  category: z.string().trim().min(1, "Category is required"),
+  description: z.string().nullable().optional(),
+  contactEmail: z.string().email().nullable().optional(),
+  logoUrl: z.string().url().nullable().optional(),
+  phone: z.string().nullable().optional(),
+  address: z.string().nullable().optional(),
+  foundingYear: z.number().int().nullable().optional(),
+  gstNumber: z.string().nullable().optional(),
+  website: z.string().url().nullable().optional(),
+  lat: z.number().finite().min(-90).max(90).nullable().optional(),
+  lng: z.number().finite().min(-180).max(180).nullable().optional(),
+  spotId: z.string().nullable().optional(),
 });
+const withMerchantCoordinates = <T extends z.ZodTypeAny>(schema: T) => schema.superRefine((value: z.infer<T>, context) => {
+  const hasLat = value.lat !== undefined && value.lat !== null;
+  const hasLng = value.lng !== undefined && value.lng !== null;
+  if ((value.lat === undefined) !== (value.lng === undefined) || hasLat !== hasLng) {
+    context.addIssue({ code: z.ZodIssueCode.custom, path: [value.lat === undefined ? "lat" : "lng"], message: "Latitude and longitude must be provided together" });
+  }
+});
+export const CreateMerchantDtoSchema = withMerchantCoordinates(MerchantFieldsSchema);
 export type CreateMerchantDto = z.infer<typeof CreateMerchantDtoSchema>;
 
-export const UpdateMerchantDtoSchema = CreateMerchantDtoSchema.partial();
+export const UpdateMerchantDtoSchema = withMerchantCoordinates(MerchantFieldsSchema.partial());
 export type UpdateMerchantDto = z.infer<typeof UpdateMerchantDtoSchema>;
 
-export const CreateOutletDtoSchema = z.object({
+const OutletFieldsSchema = z.object({
   merchantId: z.string().uuid(),
   name: z.string().min(1, "Outlet name is required"),
   address: z.string().optional(),
-  lat: z.number().optional(),
-  lng: z.number().optional(),
+  lat: z.number().finite().min(-90).max(90).nullable().optional(),
+  lng: z.number().finite().min(-180).max(180).nullable().optional(),
   openTime: z.string().optional(),
   closeTime: z.string().optional(),
 });
+const withOutletCoordinates = <T extends z.ZodTypeAny>(schema: T) => schema.superRefine((value: z.infer<T>, context) => {
+  const hasLat = value.lat !== undefined && value.lat !== null;
+  const hasLng = value.lng !== undefined && value.lng !== null;
+  if ((value.lat === undefined) !== (value.lng === undefined) || hasLat !== hasLng) {
+    context.addIssue({ code: z.ZodIssueCode.custom, path: [value.lat === undefined ? "lat" : "lng"], message: "Latitude and longitude must be provided together" });
+  }
+});
+export const CreateOutletDtoSchema = withOutletCoordinates(OutletFieldsSchema);
 export type CreateOutletDto = z.infer<typeof CreateOutletDtoSchema>;
 
-export const UpdateOutletDtoSchema = CreateOutletDtoSchema.omit({ merchantId: true }).partial().extend({
+export const UpdateOutletDtoSchema = withOutletCoordinates(OutletFieldsSchema.omit({ merchantId: true }).partial().extend({
   isActive: z.boolean().optional(),
-});
+}));
 export type UpdateOutletDto = z.infer<typeof UpdateOutletDtoSchema>;
 
 export const JoinQueueDtoSchema = z.object({
@@ -213,6 +235,12 @@ export const CreateReviewDtoSchema = z.object({
   comment: z.string().optional(),
 });
 export type CreateReviewDto = z.infer<typeof CreateReviewDtoSchema>;
+
+export const VerificationTokenDtoSchema = z.object({
+  token: z.string().trim().regex(/^[A-Za-z0-9_-]{32,64}$/, "Invalid verification token"),
+  outletId: z.string().uuid(),
+}).strict();
+export type VerificationTokenDto = z.infer<typeof VerificationTokenDtoSchema>;
 
 // ─── Response Envelope Schemas ───────────────────────────────────────────────
 

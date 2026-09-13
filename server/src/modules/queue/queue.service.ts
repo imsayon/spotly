@@ -3,9 +3,23 @@ import { Prisma, QueueStatus } from "@prisma/client";
 import { PrismaService } from "../../infra/prisma/prisma.service";
 import { AppEventsService } from "../../shared/events/app-events.service";
 import { QueueUpdatePayload } from "@spotly/types";
+import { createHash, randomBytes } from "node:crypto";
 
 const active: QueueStatus[] = ["PENDING_ACCEPTANCE", "WAITING", "CALLED"];
 const pendingCutoff = () => new Date(Date.now() - 10 * 60 * 1000);
+const queueOutletSelect = {
+  id: true,
+  merchantId: true,
+  name: true,
+  address: true,
+  lat: true,
+  lng: true,
+  isActive: true,
+  openTime: true,
+  closeTime: true,
+  timezone: true,
+  merchant: { select: { id: true, name: true } },
+} as const;
 
 @Injectable()
 export class QueueService {
@@ -64,7 +78,10 @@ export class QueueService {
 
   async getEntry(entryId: string, userId: string) {
     await this.cleanupStalePendingEntries();
-    const entry = await this.prisma.queueEntry.findUnique({ where: { id: entryId }, include: { outlet: true } });
+    const entry = await this.prisma.queueEntry.findUnique({
+      where: { id: entryId },
+      select: { id: true, userId: true, outletId: true, status: true, tokenNumber: true, calledAt: true, servedAt: true, createdAt: true, updatedAt: true, outlet: { select: queueOutletSelect } },
+    });
     if (!entry) throw new NotFoundException("Queue entry not found");
     if (entry.userId !== userId) throw new ForbiddenException("You can only view your own queue entry");
     return entry;
@@ -83,12 +100,61 @@ export class QueueService {
 
   async getActiveEntry(userId: string) {
     await this.cleanupStalePendingEntries();
-    return this.prisma.queueEntry.findFirst({ where: { userId, status: { in: active } }, include: { outlet: true } });
+    return this.prisma.queueEntry.findFirst({
+      where: { userId, status: { in: active } },
+      select: { id: true, userId: true, outletId: true, status: true, tokenNumber: true, calledAt: true, servedAt: true, createdAt: true, updatedAt: true, outlet: { select: queueOutletSelect } },
+    });
   }
 
   async getHistory(userId: string) {
     await this.cleanupStalePendingEntries();
-    return this.prisma.queueEntry.findMany({ where: { userId }, orderBy: { createdAt: "desc" }, take: 20, include: { outlet: true } });
+    return this.prisma.queueEntry.findMany({
+      where: { userId },
+      orderBy: { createdAt: "desc" },
+      take: 20,
+      select: { id: true, userId: true, outletId: true, status: true, tokenNumber: true, calledAt: true, servedAt: true, createdAt: true, updatedAt: true, outlet: { select: queueOutletSelect } },
+    });
+  }
+
+  async issueVerification(userId: string, sessionId: string) {
+    const entry = await this.prisma.queueEntry.findFirst({
+      where: { userId, status: "CALLED" },
+      select: { id: true, outletId: true, tokenNumber: true },
+    });
+    if (!entry) throw new ConflictException("A QR is available only for your called ticket");
+
+    const token = randomBytes(32).toString("base64url");
+    const digest = createHash("sha256").update(token).digest("hex");
+    const expiresAt = new Date(Date.now() + 90 * 1000);
+    const updated = await this.prisma.queueEntry.updateMany({
+      where: { id: entry.id, userId, status: "CALLED" },
+      data: {
+        verificationTokenDigest: digest,
+        verificationExpiresAt: expiresAt,
+        verificationUsedAt: null,
+        verificationSessionId: sessionId,
+      },
+    });
+    if (!updated.count) throw new ConflictException("Your called ticket changed. Refresh and try again");
+    return { token, entryId: entry.id, outletId: entry.outletId, tokenNumber: entry.tokenNumber, expiresAt };
+  }
+
+  async redeemVerification(token: string, outletId: string, userId: string) {
+    const digest = createHash("sha256").update(token).digest("hex");
+    const now = new Date();
+    const entry = await this.prisma.queueEntry.findFirst({
+      where: { verificationTokenDigest: digest, outletId, status: "CALLED", verificationUsedAt: null, verificationExpiresAt: { gt: now } },
+      select: { id: true, outletId: true, tokenNumber: true, outlet: { select: { merchant: { select: { ownerId: true } } } } },
+    });
+    if (!entry) throw new ConflictException("This customer QR is expired or already used");
+    if (entry.outlet.merchant.ownerId !== userId) throw new ForbiddenException("You do not own this outlet");
+    const result = await this.prisma.queueEntry.updateMany({
+      where: { id: entry.id, outletId, status: "CALLED", verificationTokenDigest: digest, verificationUsedAt: null, verificationExpiresAt: { gt: now } },
+      data: { verificationUsedAt: now },
+    });
+    if (!result.count) throw new ConflictException("This customer QR is expired or already used");
+    await this.emitQueueUpdate(entry.outletId);
+    return { verified: true, entryId: entry.id, outletId: entry.outletId, tokenNumber: entry.tokenNumber, verifiedAt: now };
   }
 
   async advanceQueue(outletId: string, userId: string) {
@@ -114,20 +180,20 @@ export class QueueService {
     await this.emitQueueUpdate(entry.outletId);
   }
 
-  private async transition(entryId: string, outletId: string, userId: string, from: QueueStatus[], status: QueueStatus) {
+  private async transition(entryId: string, outletId: string, userId: string, from: QueueStatus[], status: QueueStatus, requiresVerification = false) {
     await this.prisma.assertOutletOwner(outletId, userId);
     await this.cleanupStalePendingEntries();
     const result = await this.prisma.queueEntry.updateMany({
-      where: { id: entryId, outletId, status: { in: from } },
+      where: { id: entryId, outletId, status: { in: from }, ...(requiresVerification ? { verificationUsedAt: { not: null } } : {}) },
       data: { status, ...(status === "SERVED" ? { servedAt: new Date() } : {}) },
     });
-    if (!result.count) throw new ConflictException("This queue action is no longer available");
+    if (!result.count) throw new ConflictException(requiresVerification ? "This queue action is no longer available. Verify the customer's QR before marking served" : "This queue action is no longer available");
     await this.emitQueueUpdate(outletId);
   }
 
   acceptEntry(id: string, outletId: string, userId: string) { return this.transition(id, outletId, userId, ["PENDING_ACCEPTANCE"], "WAITING"); }
   rejectEntry(id: string, outletId: string, userId: string) { return this.transition(id, outletId, userId, ["PENDING_ACCEPTANCE", "WAITING"], "MISSED"); }
-  markServed(id: string, outletId: string, userId: string) { return this.transition(id, outletId, userId, ["CALLED"], "SERVED"); }
+  markServed(id: string, outletId: string, userId: string) { return this.transition(id, outletId, userId, ["CALLED"], "SERVED", true); }
   markMissed(id: string, outletId: string, userId: string) { return this.transition(id, outletId, userId, ["CALLED"], "MISSED"); }
 
   async cleanupStalePendingEntries() {

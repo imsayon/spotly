@@ -1,9 +1,9 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { BrandMark, Ic } from "@spotly/ui";
+import { animeReveal, BrandMark, Ic } from "@spotly/ui";
 import { useAuthStore } from "@/store/auth.store";
 import { supabase } from "@/lib/supabase";
 
@@ -389,8 +389,22 @@ function AuthFrame({
   subtitle: string;
   children: React.ReactNode;
 }) {
+  const frameRef = useRef<HTMLElement>(null);
+  useEffect(() => {
+    const frame = frameRef.current;
+    if (!frame) return;
+    const animation = animeReveal(
+      frame.querySelectorAll<HTMLElement>(
+        ".auth-page-brand, .auth-page-card, .auth-page-back",
+      ),
+      { translateY: [14, 0], duration: 500 },
+    );
+    return () => {
+      animation?.revert();
+    };
+  }, []);
   return (
-    <main className="auth-page">
+    <main ref={frameRef} className="auth-page">
       <div className="auth-page-brand">
         <span className="consumer-redesign-mark">
           <BrandMark />

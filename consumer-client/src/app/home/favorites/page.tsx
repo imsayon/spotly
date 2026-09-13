@@ -1,9 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Ic, useToasts } from "@spotly/ui";
+import { animeReveal, Ic, useToasts } from "@spotly/ui";
 import { useAuthStore } from "@/store/auth.store";
 import api from "@/lib/api";
 
@@ -27,6 +27,7 @@ export default function ConsumerFavorites() {
   const [favorites, setFavorites] = useState<Favorite[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const pageRef = useRef<HTMLDivElement>(null);
   const load = async () => {
     setLoading(true);
     setError("");
@@ -47,6 +48,17 @@ export default function ConsumerFavorites() {
     }
     void load();
   }, [user]);
+  useEffect(() => {
+    const page = pageRef.current;
+    if (!page) return;
+    const animation = animeReveal(
+      page.querySelectorAll<HTMLElement>(".consumer-place-row"),
+      { translateY: [12, 0], duration: 440 },
+    );
+    return () => {
+      animation?.revert();
+    };
+  }, [error, favorites.length, loading, user]);
   const remove = async (outletId: string) => {
     try {
       await api.delete(`/favorite/${outletId}`);
@@ -60,7 +72,7 @@ export default function ConsumerFavorites() {
   };
   if (authLoading)
     return (
-      <div className="consumer-page">
+      <div ref={pageRef} className="consumer-page">
         <div className="consumer-empty-state">
           <p>Loading account…</p>
         </div>
@@ -68,7 +80,7 @@ export default function ConsumerFavorites() {
     );
   if (!user)
     return (
-      <div className="consumer-page">
+      <div ref={pageRef} className="consumer-page">
         <header className="consumer-page-heading">
           <div>
             <div className="consumer-kicker">Saved</div>
@@ -102,7 +114,7 @@ export default function ConsumerFavorites() {
       </div>
     );
   return (
-    <div className="consumer-page">
+    <div ref={pageRef} className="consumer-page">
       <header className="consumer-page-heading">
         <div>
           <div className="consumer-kicker">Saved</div>

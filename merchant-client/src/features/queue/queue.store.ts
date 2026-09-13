@@ -185,13 +185,11 @@ export const useQueueStore = create<QueueStore>((set, get) => ({
       });
       get()._addToast?.("Marked as served", "success");
       await get().fetchQueue();
-    } catch {
+    } catch (cause: any) {
       await get().fetchQueue();
-      get()._addToast?.(
-        "Failed to mark served. Queue refreshed; check the current state before retrying.",
-        "error",
-      );
-      throw new Error("Failed to mark served");
+      const message = cause?.message || "Failed to mark served. Queue refreshed; check the current state before retrying.";
+      get()._addToast?.(message, "error");
+      throw new Error(message);
     } finally {
       set({ mutationPending: false });
     }

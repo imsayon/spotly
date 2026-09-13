@@ -1,7 +1,7 @@
 "use client"
 
-import { useEffect, useState } from "react"
-import { MapContainer, TileLayer, Marker, useMapEvents } from "react-leaflet"
+import { useEffect, useRef, useState } from "react"
+import { MapContainer, TileLayer, Marker, useMap, useMapEvents } from "react-leaflet"
 import "leaflet/dist/leaflet.css"
 import L from "leaflet"
 
@@ -28,19 +28,43 @@ interface MapPickerProps {
 import { reverseGeocode } from "@/lib/geocoding"
 
 function LocationMarker({ lat, lng, onSelect }: MapPickerProps) {
-	const [position, setPosition] = useState<L.LatLng | null>(
-		lat != null && lng != null ? L.latLng(lat, lng) : null,
-	)
+  const [position, setPosition] = useState<L.LatLng | null>(
+    Number.isFinite(lat) && Number.isFinite(lng) ? L.latLng(lat as number, lng as number) : null,
+  )
+	const selection = useRef(0)
+
+	useEffect(() => {
+		setPosition(Number.isFinite(lat) && Number.isFinite(lng) ? L.latLng(lat as number, lng as number) : null)
+	}, [lat, lng])
+
+	const select = async (next: L.LatLng) => {
+		const request = ++selection.current
+		setPosition(next)
+		const label = await reverseGeocode(next.lat, next.lng)
+		if (request === selection.current) onSelect(next.lat, next.lng, label)
+	}
 
 	useMapEvents({
-		async click(e) {
-			setPosition(e.latlng)
-			const label = await reverseGeocode(e.latlng.lat, e.latlng.lng)
-			onSelect(e.latlng.lat, e.latlng.lng, label)
+		click(e) {
+			void select(e.latlng)
 		},
 	})
 
-	return position === null ? null : <Marker position={position} />
+	return position === null ? null : (
+		<Marker
+			position={position}
+			draggable
+			eventHandlers={{ dragend: (event) => void select((event.target as L.Marker).getLatLng()) }}
+		/>
+	)
+}
+
+function SyncMap({ lat, lng }: Pick<MapPickerProps, "lat" | "lng">) {
+	const map = useMap()
+	useEffect(() => {
+		if (Number.isFinite(lat) && Number.isFinite(lng)) map.setView([lat as number, lng as number])
+	}, [lat, lng, map])
+	return null
 }
 
 export default function MapPicker({
@@ -73,7 +97,7 @@ export default function MapPicker({
 		)
 
 	const center: L.LatLngExpression =
-		lat != null && lng != null ? [lat, lng] : [12.9716, 77.5946] // Default to Bengaluru
+		Number.isFinite(lat) && Number.isFinite(lng) ? [lat as number, lng as number] : [12.9716, 77.5946] // Default to Bengaluru
 
 	return (
 		<div
@@ -93,8 +117,9 @@ export default function MapPicker({
 			>
 				<TileLayer
 					attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-					url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+					url="https://tile.openstreetmap.org/{z}/{x}/{y}.png"
 				/>
+				<SyncMap lat={lat} lng={lng} />
 				<LocationMarker lat={lat} lng={lng} onSelect={onSelect} />
 			</MapContainer>
 		</div>

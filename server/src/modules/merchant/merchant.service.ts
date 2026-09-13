@@ -8,6 +8,7 @@ export class MerchantService {
 
   async findAll() {
     return this.prisma.merchant.findMany({
+      where: { outlets: { some: { isActive: true } } },
       select: {
         id: true,
         name: true,
@@ -19,6 +20,7 @@ export class MerchantService {
         lat: true,
         lng: true,
         outlets: {
+          where: { isActive: true },
           select: {
             id: true,
             name: true,
@@ -37,7 +39,21 @@ export class MerchantService {
   async findById(id: string) {
     const merchant = await this.prisma.merchant.findUnique({
       where: { id },
-      include: {
+      select: {
+        id: true,
+        name: true,
+        category: true,
+        description: true,
+        verified: true,
+        logoUrl: true,
+        phone: true,
+        address: true,
+        website: true,
+        lat: true,
+        lng: true,
+        spotId: true,
+        createdAt: true,
+        updatedAt: true,
         outlets: true,
       },
     });

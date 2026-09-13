@@ -7,3 +7,4 @@ export * from "./components/Icons";
 export * from "./components/Toast";
 
 export * from "./components/BrandMark";
+export * from "./components/AnimeMotion";

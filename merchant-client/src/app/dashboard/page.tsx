@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import { Ic } from "@spotly/ui";
+import { animate, animeReveal, Ic, motionEnabled } from "@spotly/ui";
 import { useQueueStore, type ExtendedQueueEntry } from "@/store/queue.store";
+import VerificationScanner from "@/components/VerificationScanner";
 
 const relativeTime = (value: string | Date) => {
   const minutes = Math.max(
@@ -92,6 +93,8 @@ export default function MerchantQueueWorkspace() {
   const store = useQueueStore();
   const [tab, setTab] = useState<"requests" | "waiting">("requests");
   const [urlOutletId, setUrlOutletId] = useState("");
+  const pageRef = useRef<HTMLDivElement>(null);
+  const callRef = useRef<HTMLElement>(null);
 
   useEffect(() => {
     if (pathname === "/dashboard/queue")
@@ -168,8 +171,35 @@ export default function MerchantQueueWorkspace() {
       } catch {}
   };
 
+  useEffect(() => {
+    const page = pageRef.current;
+    if (!page) return;
+    const rows = animeReveal(
+      page.querySelectorAll<HTMLElement>(".merchant-queue-row"),
+      { translateY: [10, 0], duration: 420 },
+    );
+    return () => {
+      rows?.revert();
+    };
+  }, [pending.length, store.loading, store.stale, tab, waiting.length]);
+
+  useEffect(() => {
+    const call = callRef.current;
+    if (!call || !motionEnabled()) return;
+    const animation = animate(call, {
+      opacity: [0.6, 1],
+      translateY: [10, 0],
+      duration: 420,
+      ease: "out(4)",
+    });
+    return () => {
+      animation.revert();
+    };
+  }, [called?.id]);
+
   return (
     <div
+      ref={pageRef}
       className="merchant-page-heading"
       style={{ display: "block", maxWidth: 1180, margin: "0 auto" }}
     >
@@ -260,6 +290,7 @@ export default function MerchantQueueWorkspace() {
             </div>
           ) : null}
           <section
+            ref={callRef}
             className="merchant-card merchant-call-band"
             aria-live="polite"
           >
@@ -291,6 +322,11 @@ export default function MerchantQueueWorkspace() {
             <div className="merchant-call-actions">
               {called ? (
                 <>
+                  <VerificationScanner
+                    outletId={store.selectedOutletId}
+                    disabled={store.mutationPending || store.loading || store.stale}
+                    onVerified={() => undefined}
+                  />
                   <button
                     className="merchant-button"
                     disabled={

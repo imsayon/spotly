@@ -33,9 +33,25 @@ export class FavoriteService {
   async getUserFavorites(userId: string) {
     return this.prisma.favorite.findMany({
       where: { userId },
-      include: {
+      select: {
+        id: true,
+        userId: true,
+        outletId: true,
+        createdAt: true,
         outlet: {
-          include: { merchant: true },
+          select: {
+            id: true,
+            merchantId: true,
+            name: true,
+            address: true,
+            lat: true,
+            lng: true,
+            isActive: true,
+            openTime: true,
+            closeTime: true,
+            timezone: true,
+            merchant: { select: { id: true, name: true, category: true, logoUrl: true, verified: true } },
+          },
         },
       },
       orderBy: { createdAt: "desc" },

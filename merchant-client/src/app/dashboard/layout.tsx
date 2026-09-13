@@ -3,7 +3,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { BrandMark, Ic, ToastContainer, useToasts } from "@spotly/ui";
+import { animate, BrandMark, Ic, motionEnabled, ToastContainer, useToasts } from "@spotly/ui";
 import { useAuthStore } from "@/store/auth.store";
 import { useQueueStore } from "@/store/queue.store";
 
@@ -34,6 +34,7 @@ export default function MerchantLayout({
   const { toasts, add } = useToasts();
   const [menuOpen, setMenuOpen] = useState(false);
   const menu = useRef<HTMLDialogElement>(null);
+  const contentRef = useRef<HTMLElement>(null);
   useEffect(() => {
     if (menuOpen) menu.current?.showModal();
     else menu.current?.close();
@@ -52,6 +53,20 @@ export default function MerchantLayout({
     if (!user) router.replace("/");
     else if (!merchantProfile) router.replace("/onboarding");
   }, [authLoading, identityError, merchantProfile, router, user]);
+
+  useEffect(() => {
+    const content = contentRef.current;
+    if (!content || !motionEnabled()) return;
+    const animation = animate(content, {
+      opacity: [0, 1],
+      translateY: [10, 0],
+      duration: 360,
+      ease: "out(3)",
+    });
+    return () => {
+      animation.revert();
+    };
+  }, [pathname]);
 
   if (authLoading)
     return (
@@ -227,7 +242,7 @@ export default function MerchantLayout({
             Sign out
           </button>
         </dialog>
-        <main className="merchant-redesign-content">
+        <main ref={contentRef} className="merchant-redesign-content">
           {children}
           <footer className={`workspace-footer workspace-footer-${footerVariant}`}>
             <div>

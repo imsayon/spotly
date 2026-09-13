@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Ic, useToasts } from "@spotly/ui";
+import { animeReveal, Ic, useToasts } from "@spotly/ui";
 import type {
   Merchant,
   Outlet,
@@ -15,7 +15,10 @@ import { useQueueStore } from "@/store/queue.store";
 import ConsumerLayout from "../home/layout";
 import api from "@/lib/api";
 
-type ReviewWithAuthor = Review & { user?: { name?: string | null } };
+type ReviewWithAuthor = Omit<Review, "userId"> & {
+  user?: { name?: string | null };
+};
+type ReviewAccess = { review: Omit<Review, "userId"> | null; eligible: boolean };
 type ReviewStats = { avgRating: number; count: number };
 type SectionErrors = {
   details?: boolean;
@@ -47,6 +50,7 @@ function MerchantDetail() {
   const [invalidOutlet, setInvalidOutlet] = useState(false);
   const [menu, setMenu] = useState<MenuCategory[]>([]);
   const [reviews, setReviews] = useState<ReviewWithAuthor[]>([]);
+  const [reviewAccess, setReviewAccess] = useState<ReviewAccess | null>(null);
   const [reviewStats, setReviewStats] = useState<ReviewStats>({
     avgRating: 0,
     count: 0,
@@ -62,6 +66,7 @@ function MerchantDetail() {
   const [reviewComment, setReviewComment] = useState("");
   const [reviewSaving, setReviewSaving] = useState(false);
   const [reviewNotice, setReviewNotice] = useState("");
+  const pageRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -158,6 +163,26 @@ function MerchantDetail() {
 
   useEffect(() => {
     if (!selectedOutletId || !user) {
+      setReviewAccess(null);
+      return;
+    }
+    let mounted = true;
+    setReviewAccess(null);
+    api
+      .get(`/review/outlet/${selectedOutletId}/mine`)
+      .then(({ data }) => {
+        if (mounted) setReviewAccess(data.data || null);
+      })
+      .catch(() => {
+        if (mounted) setReviewAccess(null);
+      });
+    return () => {
+      mounted = false;
+    };
+  }, [selectedOutletId, user, revision]);
+
+  useEffect(() => {
+    if (!selectedOutletId || !user) {
       setSaved(false);
       return;
     }
@@ -195,7 +220,7 @@ function MerchantDetail() {
     merchant?.website && /^https?:\/\//i.test(merchant.website)
       ? merchant.website
       : "";
-  const currentReview = reviews.find((review) => review.userId === user?.id);
+  const currentReview = reviewAccess?.review || null;
 
   useEffect(() => {
     if (currentReview) {
@@ -203,6 +228,20 @@ function MerchantDetail() {
       setReviewComment(currentReview.comment || "");
     }
   }, [currentReview?.id, currentReview?.rating, currentReview?.comment]);
+
+  useEffect(() => {
+    const page = pageRef.current;
+    if (!page) return;
+    const animation = animeReveal(
+      page.querySelectorAll<HTMLElement>(
+        ".consumer-outlet, .consumer-place-row, .consumer-review",
+      ),
+      { translateY: [12, 0], duration: 440 },
+    );
+    return () => {
+      animation?.revert();
+    };
+  }, [outlets.length, reviews.length, selectedOutletId, services.length]);
 
   const selectOutlet = (id: string) => {
     setInvalidOutlet(false);
@@ -305,7 +344,7 @@ function MerchantDetail() {
     );
 
   return (
-    <div className="consumer-page">
+    <div ref={pageRef} className="consumer-page">
       <button
         className="consumer-button quiet"
         onClick={() => router.push("/home")}
@@ -506,10 +545,9 @@ function MerchantDetail() {
                         </span>
                         <span className="consumer-place-meta">
                           <strong>
-                            ₹
-                            {Number(service.price).toLocaleString("en-IN", {
-                              minimumFractionDigits: 2,
-                            })}
+                            {service.isAvailable
+                              ? `₹${Number(service.price).toLocaleString("en-IN", { minimumFractionDigits: 2 })}`
+                              : "Unavailable"}
                           </strong>
                         </span>
                       </div>
@@ -560,7 +598,7 @@ function MerchantDetail() {
               No reviews yet.
             </div>
           )}
-          {user && outlet ? (
+          {user && outlet && reviewAccess?.eligible ? (
             <form className="consumer-review-form" onSubmit={submitReview}>
               <div className="consumer-kicker">
                 {currentReview ? "Update your review" : "Share your experience"}
@@ -610,6 +648,8 @@ function MerchantDetail() {
                     : "Submit review"}
               </button>
             </form>
+          ) : user && outlet ? (
+            <p className="consumer-muted">You can review this outlet after a served visit.</p>
           ) : null}
         </aside>
       </div>

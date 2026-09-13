@@ -1,4 +1,5 @@
 import { Injectable, NotFoundException } from "@nestjs/common"
+import { Prisma } from "@prisma/client"
 import { PrismaService } from "../../infra/prisma/prisma.service"
 import { UpdateUserProfileDto } from "@spotly/types"
 
@@ -42,9 +43,13 @@ export class UserService {
 	}
 
 	async updateProfile(id: string, dto: UpdateUserProfileDto) {
+		const data: Prisma.UserUpdateInput = { ...dto }
+		if ("phone" in dto) data.phone = dto.phone?.trim() || null
+		if ("secondaryPhone" in dto) data.secondaryPhone = dto.secondaryPhone?.trim() || null
+		if ("location" in dto) data.location = dto.location?.trim() || null
 		return this.prisma.user.update({
 			where: { id },
-			data: dto,
+			data,
 			select: {
 				id: true,
 				email: true,

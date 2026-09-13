@@ -1,10 +1,17 @@
 "use client";
 
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
+import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
-import { Ic } from "@spotly/ui";
+import { animeReveal, Ic } from "@spotly/ui";
 import api from "@/lib/api";
 import { useAuthStore, type MerchantProfile } from "@/store/auth.store";
+import { reverseGeocode } from "@/lib/geocoding";
+
+const MapPicker = dynamic(() => import("@/components/MapPicker"), {
+  ssr: false,
+  loading: () => <div className="merchant-onboarding-map-loading">Loading map…</div>,
+});
 
 const CATEGORIES = [
   "Grocery",
@@ -88,6 +95,7 @@ export default function OnboardingPage() {
   const [hoursEnabled, setHoursEnabled] = useState(false);
   const [openTime, setOpenTime] = useState("09:00");
   const [closeTime, setCloseTime] = useState("21:00");
+  const pageRef = useRef<HTMLElement>(null);
 
   useEffect(() => {
     if (authLoading) return;
@@ -108,6 +116,20 @@ export default function OnboardingPage() {
     // Profile identity changes only when the auth owner changes. Do not overwrite an in-progress edit.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [merchantProfile?.id]);
+
+  useEffect(() => {
+    const page = pageRef.current;
+    if (!page) return;
+    const animation = animeReveal(
+      page.querySelectorAll<HTMLElement>(
+        ".merchant-onboarding-header, .merchant-onboarding-intro, .merchant-onboarding-card, .merchant-onboarding-footer",
+      ),
+      { translateY: [14, 0], duration: 500 },
+    );
+    return () => {
+      animation?.revert();
+    };
+  }, [error, step]);
 
   const retryIdentity = () => {
     if (user) void setUser(user).catch(() => undefined);
@@ -187,9 +209,11 @@ export default function OnboardingPage() {
     setLocationLoading(true);
     setLocationError("");
     navigator.geolocation.getCurrentPosition(
-      ({ coords }) => {
+      async ({ coords }) => {
         setLatitude(coords.latitude.toFixed(6));
         setLongitude(coords.longitude.toFixed(6));
+        const label = await reverseGeocode(coords.latitude, coords.longitude);
+        if (label !== "Location unavailable") setOutletAddress(label);
         setLocationLoading(false);
       },
       () => {
@@ -198,7 +222,7 @@ export default function OnboardingPage() {
         );
         setLocationLoading(false);
       },
-      { timeout: 10000 },
+      { enableHighAccuracy: true, timeout: 12000, maximumAge: 0 },
     );
   };
 
@@ -274,7 +298,7 @@ export default function OnboardingPage() {
     );
   if (identityError) {
     return (
-      <main className="merchant-onboarding-page">
+      <main ref={pageRef} className="merchant-onboarding-page">
         <div className="merchant-onboarding-header">
           <a className="merchant-onboarding-brand" href="/">
             spotly.<span>/ business</span>
@@ -296,7 +320,7 @@ export default function OnboardingPage() {
   }
 
   return (
-    <main className="merchant-onboarding-page">
+    <main ref={pageRef} className="merchant-onboarding-page">
       <header className="merchant-onboarding-header">
         <a className="merchant-onboarding-brand" href="/">
           spotly.<span>/ business</span>
@@ -476,6 +500,15 @@ export default function OnboardingPage() {
                     placeholder="Longitude"
                   />
                 </div>
+                <MapPicker
+                  lat={latitude ? Number(latitude) : undefined}
+                  lng={longitude ? Number(longitude) : undefined}
+                  onSelect={(lat, lng, address) => {
+                    setLatitude(lat.toFixed(6));
+                    setLongitude(lng.toFixed(6));
+                    if (address && address !== "Location unavailable") setOutletAddress(address);
+                  }}
+                />
                 {latitude && longitude ? (
                   <small>
                     <Ic.MapPin size={13} /> {latitude}, {longitude}
