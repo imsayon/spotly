@@ -403,3 +403,9 @@ button.merchant-status { min-height:44px; }
 .merchant-navigation-dialog nav a[aria-current] { background:var(--brand-soft); }
 .merchant-redesign-mobile-header button { display:inline-flex; align-items:center; justify-content:center; gap:8px; padding:0 12px; }
 .button-primary:hover { background:var(--brand-strong); }
+.workspace-footer-queue { background: radial-gradient(circle at 84% 22%, #dbb76b 0 2px, transparent 2px 22px), linear-gradient(120deg,#173c35 0%,#2d6657 58%,#a84d3b 100%); background-size:44px 44px,auto; }
+.workspace-footer-outlets { background: linear-gradient(135deg,#173d37 0 34%,#4e806a 34% 67%,#d6a568 67%); }
+.workspace-footer-services { background: radial-gradient(circle at 24% 20%, #f0c47d 0 3px, transparent 3px 26px), linear-gradient(135deg,#7b3f2d,#b66046 52%,#dfa56a); background-size:52px 52px,auto; }
+.workspace-footer-analytics { background: linear-gradient(155deg,#262a25 0 42%,#536b58 42% 70%,#b06a4e 70%); }
+.workspace-footer-settings { background: linear-gradient(120deg,#292822 0 28%,#62544a 28% 62%,#bd7558 62%); }
+.workspace-footer-queue > div,.workspace-footer-outlets > div,.workspace-footer-services > div,.workspace-footer-analytics > div,.workspace-footer-settings > div { background: color-mix(in srgb,#282723 88%,transparent); }

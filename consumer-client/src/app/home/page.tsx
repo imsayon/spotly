@@ -36,7 +36,13 @@ export default function ConsumerHome() {
   const router = useRouter();
   const { profile } = useAuthStore();
   const { add } = useToasts();
-  const { location, requestLocation, isDenied } = useLiveLocation();
+  const {
+    location,
+    requestLocation,
+    isDenied,
+    error: locationError,
+    loading: locationLoading,
+  } = useLiveLocation();
   const [places, setPlaces] = useState<Place[]>([]);
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState("All");
@@ -145,7 +151,8 @@ export default function ConsumerHome() {
     router.push(
       `/merchant?id=${encodeURIComponent(place.id)}${place.outlets?.length === 1 ? `&outletId=${encodeURIComponent(place.outlets[0].id)}` : ""}`,
     );
-  const locationLabel = profile?.location || "Location stays optional";
+  const locationLabel =
+    location?.label || profile?.location || "Location stays optional";
 
   return (
     <div className="consumer-page">
@@ -216,13 +223,23 @@ export default function ConsumerHome() {
                 ? `${mappable.length} places on the map`
                 : "Some places are available in List only."}
             </span>
-            <button className="consumer-button quiet" onClick={requestLocation}>
-              <Ic.MapPin size={16} /> Use my location
+            <button
+              className="consumer-button quiet"
+              onClick={requestLocation}
+              disabled={locationLoading}
+            >
+              <Ic.MapPin size={16} />
+              {locationLoading ? "Finding you…" : "Use my location"}
             </button>
           </div>
           {isDenied ? (
             <div className="consumer-inline-error" role="alert">
               Location access was denied. The directory still works without it.
+            </div>
+          ) : null}
+          {locationError && !isDenied ? (
+            <div className="consumer-inline-error" role="alert">
+              {locationError} The directory still works without it.
             </div>
           ) : null}
           {loading ? (
@@ -252,8 +269,11 @@ export default function ConsumerHome() {
             </div>
           ) : (
             <div className="consumer-empty-state">
-              <h2>Map unavailable for these results.</h2>
-              <p>Switch to List to see every available place.</p>
+              <h2>No mapped places yet.</h2>
+              <p>
+                Places appear here after an outlet shares a map location. List
+                still shows every available place.
+              </p>
               <button
                 className="consumer-button"
                 onClick={() => setView("list")}

@@ -23,7 +23,9 @@ export class MerchantController {
   @ApiBearerAuth()
   @ApiOperation({ summary: "Get merchant details owned by current user" })
   async getMyMerchant(@CurrentUser("id") userId: string) {
-    return this.merchantService.findByOwner(userId);
+    const merchant = await this.merchantService.findByOwner(userId);
+    if (!merchant) throw new NotFoundException("Business not found");
+    return merchant;
   }
 
   @Get(":id")

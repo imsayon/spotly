@@ -36,6 +36,19 @@ export default function ConsumerLayout({
     profile?.name?.split(" ")[0] || user?.email?.split("@")[0] || "there";
   const isActive = (href: string) =>
     href === "/home" ? pathname === "/home" : pathname.startsWith(href);
+  const footerVariant = pathname.includes("/queue")
+    ? "queue"
+    : pathname.includes("/favorites")
+      ? "saved"
+      : pathname.includes("/profile")
+        ? "account"
+        : "discover";
+  const footerCopy = {
+    discover: ["Find your next local stop", "A clearer route to the places you already need."],
+    queue: ["Your turn, without the guesswork", "Keep moving until the counter calls you in."],
+    saved: ["Keep the places that fit", "Good local habits are worth returning to."],
+    account: ["Your details, on your terms", "A useful account stays quiet until you need it."],
+  }[footerVariant];
 
   const handleSignOut = async () => {
     add("Signing out…", "info");
@@ -114,15 +127,12 @@ export default function ConsumerLayout({
           </div>
         ) : null}
         {children}
-        <footer className="workspace-footer">
+        <footer className={`workspace-footer workspace-footer-${footerVariant}`}>
           <div>
             <span className="workspace-footer-kicker">
-              Good days happen locally
+              {footerCopy[0]}
             </span>
-            <p>
-              A little less waiting.
-              <br />A little more day.
-            </p>
+            <p>{footerCopy[1]}</p>
           </div>
         </footer>
       </main>

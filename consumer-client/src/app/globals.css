@@ -356,3 +356,36 @@ button:disabled { cursor:not-allowed; }
 .button-primary:hover { background:var(--brand-strong); }
 
 .consumer-detail-main,.consumer-detail-side { min-width:0; }
+
+/* The landing story uses an editorial path instead of a flat card row. */
+.journey-grid { grid-template-columns: 1.18fr 1fr 1fr; gap: 16px; }
+.journey-card { position: relative; min-height: 248px; display: flex; flex-direction: column; justify-content: space-between; padding: 24px 24px 22px; overflow: hidden; background: color-mix(in srgb,var(--surface) 88%,var(--brand-soft)); }
+.journey-card:first-child { color: #fffdf9; background: var(--brand-strong); border-color: var(--brand-strong); }
+.journey-card:first-child .step-number { color: #fffdf9; }
+.journey-card:first-child p { color: color-mix(in srgb,#fffdf9 78%,transparent); }
+.journey-card-top { display: flex; align-items: baseline; justify-content: space-between; gap: 14px; }
+.journey-card .step-number { margin: 0; font-size: 42px; line-height: 1; }
+.journey-card-label { color: var(--text-muted); font-size: 10px; letter-spacing: .12em; text-transform: uppercase; }
+.journey-card:first-child .journey-card-label { color: color-mix(in srgb,#fffdf9 70%,transparent); }
+.journey-card-rule { width: 100%; height: 1px; margin: 22px 0 20px; background: var(--border); }
+.journey-card:first-child .journey-card-rule { background: color-mix(in srgb,#fffdf9 28%,transparent); }
+.journey-card h3 { font-size: 18px; }
+.journey-card p { max-width: 210px; }
+.journey-card-arrow { display: grid; width: 34px; height: 34px; place-items: center; margin-top: 18px; color: var(--brand-strong); border: 1px solid var(--border-strong); border-radius: 50%; }
+.journey-card:first-child .journey-card-arrow { color: #fffdf9; border-color: color-mix(in srgb,#fffdf9 54%,transparent); }
+.category-grid-reimagined { grid-template-columns: repeat(4,1fr); gap: 14px; }
+.category-card-button { position: relative; align-items: flex-start; min-height: 178px; text-align: left; cursor: pointer; transition: transform 160ms ease, border-color 160ms ease, box-shadow 160ms ease; }
+.category-card-button:hover { transform: translateY(-4px); border-color: var(--brand); box-shadow: 0 12px 24px color-mix(in srgb,var(--brand-strong) 12%,transparent); }
+.category-icon { display: grid; width: 42px; height: 42px; place-items: center; color: var(--brand-strong); background: color-mix(in srgb,var(--brand) 18%,var(--surface)); border-radius: 50%; }
+.category-card-copy { margin-top: 20px; }
+.category-card-copy h3 { margin-bottom: 6px; }
+.category-card-arrow { position: absolute; right: 20px; bottom: 20px; color: var(--text-muted); }
+
+/* Each workspace surface gets its own visual cue without adding an asset bundle. */
+.workspace-footer-discover { background: #793e2b url('/images/neighborhood.webp') center 55% / cover; }
+.workspace-footer-queue { background: radial-gradient(circle at 84% 22%, #d9a15a 0 2px, transparent 2px 22px), linear-gradient(120deg,#173c35 0%,#2d6657 58%,#a84d3b 100%); background-size: 44px 44px, auto; }
+.workspace-footer-saved { background: radial-gradient(circle at 18% 20%, #f1c47c 0 3px, transparent 3px 26px), linear-gradient(135deg,#682f26,#b55a3e 52%,#e39b61); background-size: 52px 52px, auto; }
+.workspace-footer-account { background: linear-gradient(118deg,#252621 0 38%,#43534b 38% 70%,#9a654c 70%); }
+.workspace-footer-queue > div,.workspace-footer-saved > div,.workspace-footer-account > div { background: color-mix(in srgb,#282723 88%,transparent); }
+@media (max-width:900px) { .journey-grid { grid-template-columns: 1fr; } .category-grid-reimagined { grid-template-columns: repeat(2,1fr); } }
+@media (max-width:520px) { .category-grid-reimagined { grid-template-columns: 1fr; } }

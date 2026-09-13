@@ -105,6 +105,22 @@ export default function MerchantLayout({
     href === "/dashboard"
       ? pathname === "/dashboard"
       : pathname.startsWith(href);
+  const footerVariant = pathname.includes("/outlets")
+    ? "outlets"
+    : pathname.includes("/inventory")
+      ? "services"
+      : pathname.includes("/analytics")
+        ? "analytics"
+        : pathname.includes("/settings")
+          ? "settings"
+          : "queue";
+  const footerCopy = {
+    queue: ["A steadier front desk", "Keep the next useful action in view."],
+    outlets: ["Every location, in focus", "Make each outlet easy to run and easy to find."],
+    services: ["A better answer at the counter", "Keep the details customers actually ask for."],
+    analytics: ["Notice the rhythm", "Small queue patterns become better days for your team."],
+    settings: ["Keep the workspace yours", "The right defaults make the next shift lighter."],
+  }[footerVariant];
 
   const handleSignOut = async () => {
     add("Signing out…", "info");
@@ -213,15 +229,12 @@ export default function MerchantLayout({
         </dialog>
         <main className="merchant-redesign-content">
           {children}
-          <footer className="workspace-footer">
+          <footer className={`workspace-footer workspace-footer-${footerVariant}`}>
             <div>
               <span className="workspace-footer-kicker">
-                Good days happen locally
+                {footerCopy[0]}
               </span>
-              <p>
-                A little less waiting.
-                <br />A little more day.
-              </p>
+              <p>{footerCopy[1]}</p>
             </div>
           </footer>
         </main>

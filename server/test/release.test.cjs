@@ -8,6 +8,7 @@ const { MenuService } = require('../dist/modules/menu/menu.service');
 const { OutletService } = require('../dist/modules/outlet/outlet.service');
 const { UserService } = require('../dist/modules/user/user.service');
 const { MerchantService } = require('../dist/modules/merchant/merchant.service');
+const { MerchantController } = require('../dist/modules/merchant/merchant.controller');
 const { ZodValidationPipe } = require('../dist/shared/pipes/zod-validation.pipe');
 const { CreateMerchantDtoSchema, UpdateUserProfileDtoSchema, UpdateMenuItemDtoSchema } = require('@spotly/types');
 
@@ -41,6 +42,30 @@ test('a different merchant cannot update a business', async () => {
   const service = new MerchantService({ merchant: { findFirst: async () => null, update: async () => writes++ } });
   await assert.rejects(service.update('business', { name: 'Hijacked' }, 'intruder'), /do not own/);
   assert.equal(writes, 0);
+});
+
+test('merchant onboarding treats a missing business as a 404', async () => {
+  const controller = new MerchantController({ findByOwner: async () => null });
+  await assert.rejects(
+    controller.getMyMerchant('owner'),
+    (error) => error?.status === 404 && error?.message === 'Business not found',
+  );
+});
+
+test('public merchant results keep outlet location fields for map discovery', async () => {
+  let query;
+  const service = new MerchantService({ merchant: { findMany: async (args) => { query = args; return []; } } });
+  await service.findAll();
+  assert.deepEqual(query.select.outlets.select, {
+    id: true,
+    name: true,
+    address: true,
+    lat: true,
+    lng: true,
+    isActive: true,
+    openTime: true,
+    closeTime: true,
+  });
 });
 
 test('menu item edits are owner checked and limited to editable fields', async () => {

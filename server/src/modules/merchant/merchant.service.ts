@@ -22,6 +22,9 @@ export class MerchantService {
           select: {
             id: true,
             name: true,
+            address: true,
+            lat: true,
+            lng: true,
             isActive: true,
             openTime: true,
             closeTime: true,

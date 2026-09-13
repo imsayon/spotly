@@ -98,14 +98,23 @@ export default function LandingPage() {
           className="marketing-section"
           aria-labelledby="how-title"
         >
-          <div className="section-kicker">Three clear steps</div>
-          <h2 id="how-title">More time for what you came to do.</h2>
-          <div className="steps-grid">
+          <div className="section-kicker">A calmer rhythm</div>
+          <h2 id="how-title">Keep your day moving while your place is held.</h2>
+          <div className="steps-grid journey-grid">
             {steps.map(([number, title, copy]) => (
-              <article className="step-card" key={number}>
-                <span className="step-number">{number}</span>
-                <h3>{title}</h3>
-                <p>{copy}</p>
+              <article className="step-card journey-card" key={number}>
+                <div className="journey-card-top">
+                  <span className="step-number">{number}</span>
+                  <span className="journey-card-label">Spotly / {number}</span>
+                </div>
+                <div className="journey-card-rule" aria-hidden="true" />
+                <div>
+                  <h3>{title}</h3>
+                  <p>{copy}</p>
+                </div>
+                <span className="journey-card-arrow" aria-hidden="true">
+                  <Ic.Arrow size={18} />
+                </span>
               </article>
             ))}
           </div>
@@ -116,15 +125,18 @@ export default function LandingPage() {
           className="marketing-section"
           aria-labelledby="category-title"
         >
-          <div className="section-kicker">Find a real place</div>
-          <h2 id="category-title">Start with what you need.</h2>
-          <div className="categories-grid">
+          <div className="section-kicker">Choose the next stop</div>
+          <h2 id="category-title">Begin with what your day is asking for.</h2>
+          <div className="categories-grid category-grid-reimagined">
             {categories.map(([label, Icon, copy]) => (
-              <button className="category-card" key={label} onClick={start}>
-                <Icon size={20} />
-                <span>
+              <button className="category-card category-card-button" key={label} onClick={start}>
+                <span className="category-icon"><Icon size={20} /></span>
+                <span className="category-card-copy">
                   <h3>{label}</h3>
                   <p>{copy}</p>
+                </span>
+                <span className="category-card-arrow" aria-hidden="true">
+                  <Ic.Arrow size={16} />
                 </span>
               </button>
             ))}
