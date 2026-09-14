@@ -59,7 +59,43 @@ export default function LandingPage() {
           ease: "out(3)",
         })
       : null;
+    const sectionAnimations: Array<{ revert: () => void }> = [];
+    const teardown: Array<() => void> = [];
+    if ("IntersectionObserver" in window) {
+      page.querySelectorAll<HTMLElement>("[data-anime-scroll]").forEach((section) => {
+        const observer = new IntersectionObserver(([entry]) => {
+          if (!entry?.isIntersecting || !motionEnabled()) return;
+          const animation = animate(section.querySelectorAll<HTMLElement>(".step-card,.category-card,.marketing-callout"), {
+            opacity: [0, 1],
+            translateY: [28, 0],
+            delay: (_element, index) => (index ?? 0) * 55,
+            duration: 620,
+            ease: "out(4)",
+          });
+          if (animation) sectionAnimations.push(animation);
+          observer.disconnect();
+        }, { threshold: 0.14 });
+        observer.observe(section);
+        teardown.push(() => observer.disconnect());
+      });
+    }
+    page.querySelectorAll<HTMLElement>(".step-card,.category-card,.queue-demo").forEach((element) => {
+      const enter = () => { if (motionEnabled()) animate(element, { translateY: -4, scale: 1.012, duration: 220, ease: "out(3)" }); };
+      const leave = () => { if (motionEnabled()) animate(element, { translateY: 0, scale: 1, duration: 280, ease: "out(3)" }); };
+      element.addEventListener("pointerenter", enter);
+      element.addEventListener("pointerleave", leave);
+      element.addEventListener("focusin", enter);
+      element.addEventListener("focusout", leave);
+      teardown.push(() => {
+        element.removeEventListener("pointerenter", enter);
+        element.removeEventListener("pointerleave", leave);
+        element.removeEventListener("focusin", enter);
+        element.removeEventListener("focusout", leave);
+      });
+    });
     return () => {
+      teardown.forEach((cleanup) => cleanup());
+      sectionAnimations.forEach((animation) => animation.revert());
       intro?.revert();
       rules?.revert();
     };
@@ -119,6 +155,7 @@ export default function LandingPage() {
         <section
           id="how"
           className="marketing-section"
+          data-anime-scroll
           aria-labelledby="how-title"
         >
           <div className="section-kicker">A calmer rhythm</div>
@@ -146,6 +183,7 @@ export default function LandingPage() {
         <section
           id="categories"
           className="marketing-section"
+          data-anime-scroll
           aria-labelledby="category-title"
         >
           <div className="section-kicker">Choose the next stop</div>
@@ -168,6 +206,7 @@ export default function LandingPage() {
 
         <section
           className="marketing-section"
+          data-anime-scroll
           aria-labelledby="questions-title"
         >
           <div className="section-kicker">Three useful questions</div>
@@ -182,7 +221,7 @@ export default function LandingPage() {
           </div>
         </section>
 
-        <section className="marketing-section">
+        <section className="marketing-section" data-anime-scroll>
           <div className="marketing-callout" data-anime-intro>
             <div>
               <div className="section-kicker">For walk-in businesses</div>

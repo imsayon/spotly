@@ -422,3 +422,14 @@ button.merchant-status { min-height:44px; }
 .workspace-footer-analytics { background: linear-gradient(155deg,#262a25 0 42%,#536b58 42% 70%,#b06a4e 70%); }
 .workspace-footer-settings { background: linear-gradient(120deg,#292822 0 28%,#62544a 28% 62%,#bd7558 62%); }
 .workspace-footer-queue > div,.workspace-footer-outlets > div,.workspace-footer-services > div,.workspace-footer-analytics > div,.workspace-footer-settings > div { background: color-mix(in srgb,#282723 88%,transparent); }
+
+.marketing-page .marketing-hero { position:relative; }
+.marketing-page .marketing-hero::after { content:""; position:absolute; z-index:-1; top:10%; right:-8%; width:360px; height:360px; border:1px solid color-mix(in srgb,var(--brand) 18%,transparent); border-radius:50%; opacity:.5; animation:spotly-orbit 18s linear infinite; }
+.marketing-page .queue-demo { will-change:transform; transition:box-shadow .3s ease,border-color .3s ease; }
+.marketing-page .queue-demo:hover,.marketing-page .queue-demo:focus-within { border-color:var(--brand); box-shadow:0 24px 54px rgba(23,47,42,.18); }
+.marketing-page .step-card,.marketing-page .category-card { will-change:transform; }
+.marketing-page .step-card:hover,.marketing-page .step-card:focus-within,.marketing-page .category-card:hover,.marketing-page .category-card:focus-within { border-color:color-mix(in srgb,var(--brand) 56%,var(--border)); }
+.marketing-page .category-card > svg { transition:transform .25s ease,background .25s ease; }
+.marketing-page .category-card:hover > svg,.marketing-page .category-card:focus-within > svg { transform:rotate(-8deg) scale(1.08); }
+@keyframes spotly-orbit { from { transform:rotate(0deg) translateX(12px) rotate(0deg); } to { transform:rotate(360deg) translateX(12px) rotate(-360deg); } }
+@media (prefers-reduced-motion:reduce) { .marketing-page .marketing-hero::after { animation:none; } }

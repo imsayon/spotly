@@ -16,4 +16,11 @@ export class LocationController {
       longitude?.trim() ? Number(longitude) : Number.NaN,
     );
   }
+
+  @Get("search")
+  @Header("Cache-Control", "private, max-age=300")
+  @ApiOperation({ summary: "Search for a place to use as a discovery center" })
+  search(@Query("q") query: string) {
+    return this.locationService.search(query);
+  }
 }

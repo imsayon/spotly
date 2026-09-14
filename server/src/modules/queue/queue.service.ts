@@ -119,9 +119,11 @@ export class QueueService {
   async issueVerification(userId: string, sessionId: string) {
     const entry = await this.prisma.queueEntry.findFirst({
       where: { userId, status: "CALLED" },
-      select: { id: true, outletId: true, tokenNumber: true },
+      orderBy: { calledAt: "desc" },
+      select: { id: true, outletId: true, tokenNumber: true, verificationUsedAt: true },
     });
     if (!entry) throw new ConflictException("A QR is available only for your called ticket");
+    if (entry.verificationUsedAt) throw new ConflictException("This ticket has already been verified");
 
     const token = randomBytes(32).toString("base64url");
     const digest = createHash("sha256").update(token).digest("hex");
@@ -150,7 +152,7 @@ export class QueueService {
     if (entry.outlet.merchant.ownerId !== userId) throw new ForbiddenException("You do not own this outlet");
     const result = await this.prisma.queueEntry.updateMany({
       where: { id: entry.id, outletId, status: "CALLED", verificationTokenDigest: digest, verificationUsedAt: null, verificationExpiresAt: { gt: now } },
-      data: { verificationUsedAt: now },
+      data: { verificationUsedAt: now, verificationExpiresAt: null },
     });
     if (!result.count) throw new ConflictException("This customer QR is expired or already used");
     await this.emitQueueUpdate(entry.outletId);
@@ -175,7 +177,7 @@ export class QueueService {
   async leaveQueue(entryId: string, userId: string) {
     const entry = await this.getEntry(entryId, userId);
     if (entry.userId !== userId) throw new ForbiddenException("You can only leave your own queue");
-    const result = await this.prisma.queueEntry.updateMany({ where: { id: entryId, userId, status: { in: active } }, data: { status: "CANCELLED" } });
+    const result = await this.prisma.queueEntry.updateMany({ where: { id: entryId, userId, status: { in: active } }, data: { status: "CANCELLED", verificationTokenDigest: null, verificationExpiresAt: null, verificationSessionId: null } });
     if (!result.count) throw new ConflictException("This entry is no longer active");
     await this.emitQueueUpdate(entry.outletId);
   }
@@ -185,7 +187,11 @@ export class QueueService {
     await this.cleanupStalePendingEntries();
     const result = await this.prisma.queueEntry.updateMany({
       where: { id: entryId, outletId, status: { in: from }, ...(requiresVerification ? { verificationUsedAt: { not: null } } : {}) },
-      data: { status, ...(status === "SERVED" ? { servedAt: new Date() } : {}) },
+      data: {
+        status,
+        ...(status === "SERVED" ? { servedAt: new Date() } : {}),
+        ...(status === "SERVED" || status === "MISSED" ? { verificationTokenDigest: null, verificationExpiresAt: null, verificationSessionId: null } : {}),
+      },
     });
     if (!result.count) throw new ConflictException(requiresVerification ? "This queue action is no longer available. Verify the customer's QR before marking served" : "This queue action is no longer available");
     await this.emitQueueUpdate(outletId);
@@ -200,7 +206,7 @@ export class QueueService {
     const cutoff = pendingCutoff();
     const stale = await this.prisma.queueEntry.findMany({ where: { status: "PENDING_ACCEPTANCE", createdAt: { lt: cutoff } }, select: { outletId: true } });
     if (!stale.length) return;
-    await this.prisma.queueEntry.updateMany({ where: { status: "PENDING_ACCEPTANCE", createdAt: { lt: cutoff } }, data: { status: "MISSED" } });
+    await this.prisma.queueEntry.updateMany({ where: { status: "PENDING_ACCEPTANCE", createdAt: { lt: cutoff } }, data: { status: "MISSED", verificationTokenDigest: null, verificationExpiresAt: null, verificationSessionId: null } });
     for (const outletId of new Set(stale.map((entry) => entry.outletId))) await this.emitQueueUpdate(outletId);
   }
 

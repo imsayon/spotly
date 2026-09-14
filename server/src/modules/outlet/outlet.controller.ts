@@ -1,16 +1,22 @@
 import { CurrentUser } from "../../infra/auth/current-user.decorator";
-import { CreateOutletDtoSchema, UpdateOutletDtoSchema } from "@spotly/types";
+import { CreateOutletDtoSchema, DiscoverOutletQuerySchema, UpdateOutletDtoSchema } from "@spotly/types";
 import { ZodValidationPipe } from "../../shared/pipes/zod-validation.pipe";
 import { Controller, Delete, ParseBoolPipe, Get, Post, Patch, Param, Body, Query, UseGuards } from "@nestjs/common";
 import { ApiTags, ApiOperation, ApiBearerAuth } from "@nestjs/swagger";
 import { OutletService } from "./outlet.service";
 import { JwtAuthGuard } from "../../infra/auth/jwt-auth.guard";
-import { CreateOutletDto, UpdateOutletDto } from "@spotly/types";
+import { CreateOutletDto, DiscoverOutletQuery, UpdateOutletDto } from "@spotly/types";
 
 @ApiTags("Outlet")
 @Controller("outlet")
 export class OutletController {
   constructor(private readonly outletService: OutletService) {}
+
+  @Get("discover")
+  @ApiOperation({ summary: "Discover public outlets by location or explicit search" })
+  async discover(@Query(new ZodValidationPipe(DiscoverOutletQuerySchema)) query: DiscoverOutletQuery) {
+    return this.outletService.discover(query);
+  }
 
   @Get(":id")
   @ApiOperation({ summary: "Get outlet details with menu categories" })

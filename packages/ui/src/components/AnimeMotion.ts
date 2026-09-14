@@ -1,4 +1,4 @@
-import { animate, stagger } from "animejs";
+import { animate, createScope, onScroll, spring, stagger, svg, utils } from "animejs";
 
 type AnimeTargets = Parameters<typeof animate>[0];
 type AnimeParams = Parameters<typeof animate>[1];
@@ -25,4 +25,4 @@ export function animeReveal(
   });
 }
 
-export { animate, stagger };
+export { animate, createScope, onScroll, spring, stagger, svg, utils };

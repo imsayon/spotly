@@ -1,11 +1,128 @@
 import { Injectable, ConflictException, ForbiddenException, NotFoundException } from "@nestjs/common";
 import { Prisma } from "@prisma/client";
 import { PrismaService } from "../../infra/prisma/prisma.service";
-import { CreateOutletDto, UpdateOutletDto } from "@spotly/types";
+import { CreateOutletDto, DiscoverOutletQuery, UpdateOutletDto } from "@spotly/types";
+
+type DiscoverRow = {
+  id: string;
+  merchant_id: string;
+  outlet_name: string;
+  outlet_address: string | null;
+  outlet_lat: number | null;
+  outlet_lng: number | null;
+  is_active: boolean;
+  open_time: string | null;
+  close_time: string | null;
+  merchant_name: string;
+  category: string;
+  description: string | null;
+  verified: boolean;
+  logo_url: string | null;
+  distance_meters: number | null;
+};
 
 @Injectable()
 export class OutletService {
   constructor(private readonly prisma: PrismaService) {}
+
+  async discover(query: DiscoverOutletQuery) {
+    const predicates: Prisma.Sql[] = [];
+    const search = query.q?.trim();
+    if (search) {
+      const pattern = `%${search}%`;
+      predicates.push(Prisma.sql`(
+        m."name" ILIKE ${pattern}
+        OR m."category" ILIKE ${pattern}
+        OR COALESCE(m."address", '') ILIKE ${pattern}
+        OR o."name" ILIKE ${pattern}
+        OR COALESCE(o."address", '') ILIKE ${pattern}
+      )`);
+    }
+    if (query.category && query.category !== "All") {
+      predicates.push(Prisma.sql`m."category" ILIKE ${query.category}`);
+    }
+
+    let distanceExpression = Prisma.sql`NULL`;
+    let orderBy = Prisma.sql`m."name" ASC, o."name" ASC, o."id" ASC`;
+    if (query.mode === "nearby") {
+      const latitude = query.lat as number;
+      const longitude = query.lng as number;
+      const latDelta = 10_000 / 111_320;
+      const longitudeScale = Math.max(Math.cos((latitude * Math.PI) / 180), 0.01);
+      const lngDelta = 10_000 / (111_320 * longitudeScale);
+      distanceExpression = Prisma.sql`(
+        6371000 * acos(least(1, greatest(-1,
+          sin(radians(${latitude})) * sin(radians(o."lat")) +
+          cos(radians(${latitude})) * cos(radians(o."lat")) * cos(radians(o."lng") - radians(${longitude}))
+        )))
+      )`;
+      predicates.push(
+        Prisma.sql`o."lat" IS NOT NULL AND o."lng" IS NOT NULL AND o."lat" BETWEEN ${latitude - latDelta} AND ${latitude + latDelta} AND o."lng" BETWEEN ${longitude - lngDelta} AND ${longitude + lngDelta}`,
+        Prisma.sql`${distanceExpression} <= 10000`,
+      );
+      orderBy = Prisma.sql`${distanceExpression} ASC, o."id" ASC`;
+    } else if (query.mode === "viewport") {
+      predicates.push(Prisma.sql`o."lat" IS NOT NULL AND o."lng" IS NOT NULL`);
+      const north = query.north as number;
+      const south = query.south as number;
+      const east = query.east as number;
+      const west = query.west as number;
+      predicates.push(Prisma.sql`o."lat" BETWEEN ${south} AND ${north}`);
+      predicates.push(
+        west <= east
+          ? Prisma.sql`o."lng" BETWEEN ${west} AND ${east}`
+          : Prisma.sql`(o."lng" >= ${west} OR o."lng" <= ${east})`,
+      );
+    }
+
+    const rows = await this.prisma.$queryRaw<DiscoverRow[]>(Prisma.sql`
+      SELECT
+        o."id",
+        o."merchantId" AS merchant_id,
+        o."name" AS outlet_name,
+        o."address" AS outlet_address,
+        o."lat" AS outlet_lat,
+        o."lng" AS outlet_lng,
+        o."isActive" AS is_active,
+        o."openTime" AS open_time,
+        o."closeTime" AS close_time,
+        m."name" AS merchant_name,
+        m."category",
+        m."description",
+        m."verified",
+        m."logoUrl" AS logo_url,
+        ${distanceExpression} AS distance_meters
+      FROM "Outlet" o
+      INNER JOIN "Merchant" m ON m."id" = o."merchantId"
+      ${predicates.length ? Prisma.sql`WHERE ${Prisma.join(predicates, " AND ")}` : Prisma.empty}
+      ORDER BY ${orderBy}
+      LIMIT ${query.limit + 1}
+      OFFSET ${query.offset}
+    `);
+
+    const hasMore = rows.length > query.limit;
+    const items = rows.slice(0, query.limit).map((row) => ({
+      id: row.id,
+      merchantId: row.merchant_id,
+      name: row.outlet_name,
+      address: row.outlet_address,
+      lat: row.outlet_lat,
+      lng: row.outlet_lng,
+      isActive: row.is_active,
+      openTime: row.open_time,
+      closeTime: row.close_time,
+      distanceMeters: row.distance_meters === null ? null : Number(row.distance_meters),
+      merchant: {
+        id: row.merchant_id,
+        name: row.merchant_name,
+        category: row.category,
+        description: row.description,
+        verified: row.verified,
+        logoUrl: row.logo_url,
+      },
+    }));
+    return { items, mode: query.mode, hasMore, nextOffset: hasMore ? query.offset + query.limit : null };
+  }
 
   async findById(id: string) {
     const outlet = await this.prisma.outlet.findUnique({

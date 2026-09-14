@@ -32,8 +32,15 @@ function readCachedLocation(): LiveLocationSnapshot | null {
 		const parsed = JSON.parse(raw) as LiveLocationSnapshot
 		if (
 			!Number.isFinite(parsed.latitude) ||
+			parsed.latitude < -90 ||
+			parsed.latitude > 90 ||
 			!Number.isFinite(parsed.longitude) ||
-			(parsed.updatedAt > 0 && Date.now() - parsed.updatedAt > CACHE_MAX_AGE_MS)
+			parsed.longitude < -180 ||
+			parsed.longitude > 180 ||
+			!Number.isFinite(parsed.updatedAt) ||
+			parsed.updatedAt <= 0 ||
+			parsed.updatedAt > Date.now() + 5 * 60 * 1000 ||
+			Date.now() - parsed.updatedAt > CACHE_MAX_AGE_MS
 		)
 			return null
 		return parsed
@@ -45,7 +52,11 @@ function readCachedLocation(): LiveLocationSnapshot | null {
 function saveLocation(snapshot: LiveLocationSnapshot) {
 	if (typeof window === "undefined") return
 
-	window.localStorage.setItem(STORAGE_KEY, JSON.stringify(snapshot))
+	try {
+		window.localStorage.setItem(STORAGE_KEY, JSON.stringify(snapshot))
+	} catch {
+		// Private browsing and storage quotas must not block the live fix.
+	}
 	window.dispatchEvent(
 		new CustomEvent<LiveLocationSnapshot>(LOCATION_EVENT, {
 			detail: snapshot,
@@ -140,17 +151,35 @@ export function useLiveLocation(options: UseLiveLocationOptions = {}) {
 
 		let watchId: number | null = null
 		let isMounted = true
+		const handleError = (geoError: GeolocationPositionError) => {
+			if (!isMounted) return
+			if (geoError.code === 1) {
+				setPermissionStatus("denied")
+			}
+			setLoading(false)
+			setError(geoError.message || "Unable to fetch your location")
+		}
 
-		const updateFromPosition = async (position: GeolocationPosition) => {
+		const updateFromPosition = (position: GeolocationPosition) => {
 			const sequence = ++updateSequence.current
 			const { latitude, longitude, accuracy } = position.coords
-			const label = await reverseGeocode(latitude, longitude)
+			if (
+				!Number.isFinite(latitude) ||
+				latitude < -90 ||
+				latitude > 90 ||
+				!Number.isFinite(longitude) ||
+				longitude < -180 ||
+				longitude > 180
+			) {
+				handleError({ code: 2, message: "The browser returned an invalid location" } as GeolocationPositionError)
+				return
+			}
 
 			const snapshot: LiveLocationSnapshot = {
 				latitude,
 				longitude,
-				accuracy: Number.isFinite(accuracy) ? accuracy : null,
-				label,
+				accuracy: Number.isFinite(accuracy) && accuracy >= 0 ? accuracy : null,
+				label: FALLBACK_LABEL,
 				updatedAt: Number.isFinite(position.timestamp) && position.timestamp > 0 ? position.timestamp : Date.now(),
 			}
 
@@ -160,15 +189,15 @@ export function useLiveLocation(options: UseLiveLocationOptions = {}) {
 			setPermissionStatus("granted")
 			setError(null)
 			setLoading(false)
-		}
-
-		const handleError = (geoError: GeolocationPositionError) => {
-			if (!isMounted) return
-			if (geoError.code === 1) {
-				setPermissionStatus("denied")
-			}
-			setLoading(false)
-			setError(geoError.message || "Unable to fetch your location")
+			void reverseGeocode(latitude, longitude).then((resolvedLabel) => {
+				if (!isMounted || sequence !== updateSequence.current) return
+				setLocation((current) => {
+					if (!current || current.updatedAt !== snapshot.updatedAt) return current
+					const updated = { ...current, label: resolvedLabel }
+					saveLocation(updated)
+					return updated
+				})
+			})
 		}
 
 		setLoading(true)

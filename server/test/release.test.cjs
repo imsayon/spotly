@@ -13,7 +13,7 @@ const { LocationService } = require('../dist/modules/location/location.service')
 const { QueueGateway } = require('../dist/modules/queue/queue.gateway');
 const { MerchantController } = require('../dist/modules/merchant/merchant.controller');
 const { ZodValidationPipe } = require('../dist/shared/pipes/zod-validation.pipe');
-const { CreateMerchantDtoSchema, CreateOutletDtoSchema, UpdateUserProfileDtoSchema, UpdateMenuItemDtoSchema, VerificationTokenDtoSchema } = require('@spotly/types');
+const { CreateMerchantDtoSchema, CreateOutletDtoSchema, DiscoverOutletQuerySchema, UpdateUserProfileDtoSchema, UpdateMenuItemDtoSchema, VerificationTokenDtoSchema } = require('@spotly/types');
 
 test('production static clients use the versioned API and bare websocket origins', () => {
   const blueprint = fs.readFileSync(path.resolve(__dirname, '../../render.yaml'), 'utf8');
@@ -32,6 +32,10 @@ test('request validation removes privilege and ownership injection', () => {
   assert.throws(() => CreateOutletDtoSchema.parse({ merchantId: '00000000-0000-0000-0000-000000000000', name: 'Shop', lat: 1 }));
   assert.throws(() => VerificationTokenDtoSchema.parse({ token: 'short', outletId: '00000000-0000-0000-0000-000000000000' }));
   assert.throws(() => VerificationTokenDtoSchema.parse({ token: 'A'.repeat(43), outletId: 'not-an-id' }));
+  assert.equal(DiscoverOutletQuerySchema.parse({ mode: 'nearby', lat: '31.1048', lng: '77.1734' }).lat, 31.1048);
+  assert.throws(() => DiscoverOutletQuerySchema.parse({ mode: 'nearby' }));
+  assert.throws(() => DiscoverOutletQuerySchema.parse({ mode: 'global' }));
+  assert.throws(() => DiscoverOutletQuerySchema.parse({ mode: 'viewport', north: 10, south: 20, east: 30, west: 5 }));
 });
 
 test('registration uses verified identity and does not promote roles', async () => {

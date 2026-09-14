@@ -1,6 +1,7 @@
 import { BadRequestException, HttpException, HttpStatus, Injectable, ServiceUnavailableException } from "@nestjs/common";
 
 type CachedLabel = { label: string; expiresAt: number };
+type CachedSearch = { items: Array<{ label: string; latitude: number; longitude: number }>; expiresAt: number };
 
 const CACHE_TTL_MS = 5 * 60 * 1000;
 const CACHE_LIMIT = 512;
@@ -17,6 +18,7 @@ function formatLabel(address?: Record<string, string | undefined>, displayName?:
 @Injectable()
 export class LocationService {
   private readonly cache = new Map<string, CachedLabel>();
+  private readonly searchCache = new Map<string, CachedSearch>();
   private lastUpstreamRequestAt = 0;
 
   async reverse(latitude: number, longitude: number) {
@@ -63,5 +65,48 @@ export class LocationService {
     // ponytail: process-local bounded cache; use shared cache only when lookup volume justifies it.
     if (this.cache.size > CACHE_LIMIT) this.cache.delete(this.cache.keys().next().value as string);
     return { label };
+  }
+
+  async search(rawQuery: string) {
+    const query = rawQuery?.trim();
+    if (!query || query.length < 2 || query.length > 120) {
+      throw new BadRequestException("Enter at least 2 characters to search for a place");
+    }
+    const key = query.toLowerCase();
+    const cached = this.searchCache.get(key);
+    if (cached && cached.expiresAt > Date.now()) return { items: cached.items };
+    if (cached) this.searchCache.delete(key);
+    if (Date.now() - this.lastUpstreamRequestAt < 1000) throw new HttpException("Address lookup is busy; try again shortly", HttpStatus.TOO_MANY_REQUESTS);
+    this.lastUpstreamRequestAt = Date.now();
+
+    const url = new URL("https://nominatim.openstreetmap.org/search");
+    url.searchParams.set("q", query);
+    url.searchParams.set("format", "jsonv2");
+    url.searchParams.set("limit", "5");
+    url.searchParams.set("addressdetails", "1");
+
+    let response: Response;
+    try {
+      response = await fetch(url, {
+        headers: { "User-Agent": "Spotly-App/1.0 (contact@spotly.app)", "Accept-Language": "en" },
+        signal: AbortSignal.timeout(5000),
+      });
+    } catch {
+      throw new ServiceUnavailableException("Address search unavailable");
+    }
+    if (!response.ok) throw new ServiceUnavailableException("Address search unavailable");
+
+    let data: Array<{ display_name?: string; lat?: string; lon?: string }>;
+    try {
+      data = (await response.json()) as typeof data;
+    } catch {
+      throw new ServiceUnavailableException("Address search unavailable");
+    }
+    const items = data
+      .map((item) => ({ label: item.display_name?.trim() || "Selected area", latitude: Number(item.lat), longitude: Number(item.lon) }))
+      .filter((item) => item.label && Number.isFinite(item.latitude) && item.latitude >= -90 && item.latitude <= 90 && Number.isFinite(item.longitude) && item.longitude >= -180 && item.longitude <= 180);
+    this.searchCache.set(key, { items, expiresAt: Date.now() + CACHE_TTL_MS });
+    if (this.searchCache.size > CACHE_LIMIT) this.searchCache.delete(this.searchCache.keys().next().value as string);
+    return { items };
   }
 }

@@ -242,6 +242,58 @@ export const VerificationTokenDtoSchema = z.object({
 }).strict();
 export type VerificationTokenDto = z.infer<typeof VerificationTokenDtoSchema>;
 
+// ─── Discovery ───────────────────────────────────────────────────────────────
+
+const queryNumber = z.preprocess(
+  (value) => (value === undefined || value === "" ? undefined : Number(value)),
+  z.number().finite(),
+);
+
+export const DiscoveryModeEnum = z.enum(["nearby", "viewport", "global"]);
+export type DiscoveryMode = z.infer<typeof DiscoveryModeEnum>;
+
+export const DiscoverOutletQuerySchema = z
+  .object({
+    mode: DiscoveryModeEnum.default("nearby"),
+    lat: queryNumber.pipe(z.number().min(-90).max(90)).optional(),
+    lng: queryNumber.pipe(z.number().min(-180).max(180)).optional(),
+    north: queryNumber.pipe(z.number().min(-90).max(90)).optional(),
+    south: queryNumber.pipe(z.number().min(-90).max(90)).optional(),
+    east: queryNumber.pipe(z.number().min(-180).max(180)).optional(),
+    west: queryNumber.pipe(z.number().min(-180).max(180)).optional(),
+    q: z.string().trim().max(120).optional(),
+    category: z.string().trim().max(80).optional(),
+    limit: z
+      .preprocess((value) => (value === undefined || value === "" ? 50 : Number(value)), z.number().int().min(1).max(100))
+      .default(50),
+    offset: z
+      .preprocess((value) => (value === undefined || value === "" ? 0 : Number(value)), z.number().int().min(0).max(1000))
+      .default(0),
+  })
+  .superRefine((value, context) => {
+    const hasLat = value.lat !== undefined;
+    const hasLng = value.lng !== undefined;
+    if (hasLat !== hasLng) {
+      context.addIssue({ code: z.ZodIssueCode.custom, path: [hasLat ? "lng" : "lat"], message: "Latitude and longitude must be provided together" });
+    }
+    if (value.mode === "nearby" && (!hasLat || !hasLng)) {
+      context.addIssue({ code: z.ZodIssueCode.custom, path: ["mode"], message: "Nearby discovery needs a location" });
+    }
+    if (value.mode === "global" && !value.q?.trim()) {
+      context.addIssue({ code: z.ZodIssueCode.custom, path: ["q"], message: "Search everywhere needs a search term" });
+    }
+    if (value.mode === "viewport") {
+      const bounds = [value.north, value.south, value.east, value.west];
+      if (bounds.some((bound) => bound === undefined)) {
+        context.addIssue({ code: z.ZodIssueCode.custom, path: ["mode"], message: "Viewport discovery needs map bounds" });
+      }
+      if (value.north !== undefined && value.south !== undefined && value.north < value.south) {
+        context.addIssue({ code: z.ZodIssueCode.custom, path: ["north"], message: "North bound must be greater than south bound" });
+      }
+    }
+  });
+export type DiscoverOutletQuery = z.infer<typeof DiscoverOutletQuerySchema>;
+
 // ─── Response Envelope Schemas ───────────────────────────────────────────────
 
 export const ResponseMetaSchema = z.object({
