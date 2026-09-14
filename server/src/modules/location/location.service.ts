@@ -2,6 +2,7 @@ import { BadRequestException, HttpException, HttpStatus, Injectable, ServiceUnav
 
 type CachedLabel = { label: string; expiresAt: number };
 type CachedSearch = { items: Array<{ label: string; latitude: number; longitude: number }>; expiresAt: number };
+type PhotonFeature = { properties?: Record<string, string | undefined>; geometry?: { coordinates?: unknown } };
 
 const CACHE_TTL_MS = 5 * 60 * 1000;
 const CACHE_LIMIT = 512;
@@ -13,6 +14,22 @@ function formatLabel(address?: Record<string, string | undefined>, displayName?:
   const city = address.city || address.town || address.county || address.state_district;
   const parts = [locality, city, address.state, address.country].filter(Boolean) as string[];
   return parts.length ? Array.from(new Set(parts)).join(", ") : displayName || FALLBACK_LABEL;
+}
+
+function formatPhotonLabel(properties?: Record<string, string | undefined>) {
+  if (!properties) return FALLBACK_LABEL;
+  const parts = [properties.name, properties.locality, properties.district, properties.city, properties.state, properties.country].filter(Boolean) as string[];
+  return parts.length ? Array.from(new Set(parts)).join(", ") : FALLBACK_LABEL;
+}
+
+async function requestJson<T>(url: URL, headers?: Record<string, string>) {
+  try {
+    const response = await fetch(url, { headers, signal: AbortSignal.timeout(5000) });
+    if (!response.ok) return null;
+    return (await response.json()) as T;
+  } catch {
+    return null;
+  }
 }
 
 @Injectable()
@@ -39,28 +56,20 @@ export class LocationService {
     url.searchParams.set("format", "jsonv2");
     url.searchParams.set("addressdetails", "1");
     url.searchParams.set("zoom", "16");
-
-    let response: Response;
-    try {
-      response = await fetch(url, {
-        headers: {
-          "User-Agent": "Spotly-App/1.0 (contact@spotly.app)",
-          "Accept-Language": "en",
-        },
-        signal: AbortSignal.timeout(5000),
-      });
-    } catch {
-      throw new ServiceUnavailableException("Address lookup unavailable");
+    const nominatim = await requestJson<{ address?: Record<string, string | undefined>; display_name?: string }>(url, {
+      "User-Agent": "Spotly-App/1.0 (contact@spotly.app)",
+      "Accept-Language": "en",
+    });
+    let label = nominatim ? formatLabel(nominatim.address, nominatim.display_name) : FALLBACK_LABEL;
+    if (label === FALLBACK_LABEL) {
+      const photonUrl = new URL("https://photon.komoot.io/reverse");
+      photonUrl.searchParams.set("lat", String(latitude));
+      photonUrl.searchParams.set("lon", String(longitude));
+      photonUrl.searchParams.set("limit", "1");
+      const photon = await requestJson<{ features?: PhotonFeature[] }>(photonUrl);
+      label = formatPhotonLabel(photon?.features?.[0]?.properties);
     }
-    if (!response.ok) throw new ServiceUnavailableException("Address lookup unavailable");
-
-    let data: { address?: Record<string, string | undefined>; display_name?: string };
-    try {
-      data = (await response.json()) as typeof data;
-    } catch {
-      throw new ServiceUnavailableException("Address lookup unavailable");
-    }
-    const label = formatLabel(data.address, data.display_name);
+    if (label === FALLBACK_LABEL) throw new ServiceUnavailableException("Address lookup unavailable");
     this.cache.set(key, { label, expiresAt: Date.now() + CACHE_TTL_MS });
     // ponytail: process-local bounded cache; use shared cache only when lookup volume justifies it.
     if (this.cache.size > CACHE_LIMIT) this.cache.delete(this.cache.keys().next().value as string);
@@ -84,27 +93,27 @@ export class LocationService {
     url.searchParams.set("format", "jsonv2");
     url.searchParams.set("limit", "5");
     url.searchParams.set("addressdetails", "1");
-
-    let response: Response;
-    try {
-      response = await fetch(url, {
-        headers: { "User-Agent": "Spotly-App/1.0 (contact@spotly.app)", "Accept-Language": "en" },
-        signal: AbortSignal.timeout(5000),
-      });
-    } catch {
-      throw new ServiceUnavailableException("Address search unavailable");
-    }
-    if (!response.ok) throw new ServiceUnavailableException("Address search unavailable");
-
-    let data: Array<{ display_name?: string; lat?: string; lon?: string }>;
-    try {
-      data = (await response.json()) as typeof data;
-    } catch {
-      throw new ServiceUnavailableException("Address search unavailable");
-    }
-    const items = data
+    const nominatim = await requestJson<Array<{ display_name?: string; lat?: string; lon?: string }>>(url, {
+      "User-Agent": "Spotly-App/1.0 (contact@spotly.app)",
+      "Accept-Language": "en",
+    });
+    let items = (nominatim || [])
       .map((item) => ({ label: item.display_name?.trim() || "Selected area", latitude: Number(item.lat), longitude: Number(item.lon) }))
       .filter((item) => item.label && Number.isFinite(item.latitude) && item.latitude >= -90 && item.latitude <= 90 && Number.isFinite(item.longitude) && item.longitude >= -180 && item.longitude <= 180);
+    if (!items.length) {
+      const photonUrl = new URL("https://photon.komoot.io/api/");
+      photonUrl.searchParams.set("q", query);
+      photonUrl.searchParams.set("limit", "5");
+      const photon = await requestJson<{ features?: PhotonFeature[] }>(photonUrl);
+      items = (photon?.features || [])
+        .map((feature) => {
+          const coordinates = feature.geometry?.coordinates;
+          const longitude = Array.isArray(coordinates) ? Number(coordinates[0]) : Number.NaN;
+          const latitude = Array.isArray(coordinates) ? Number(coordinates[1]) : Number.NaN;
+          return { label: formatPhotonLabel(feature.properties), latitude, longitude };
+        })
+        .filter((item) => item.label !== FALLBACK_LABEL && Number.isFinite(item.latitude) && item.latitude >= -90 && item.latitude <= 90 && Number.isFinite(item.longitude) && item.longitude >= -180 && item.longitude <= 180);
+    }
     this.searchCache.set(key, { items, expiresAt: Date.now() + CACHE_TTL_MS });
     if (this.searchCache.size > CACHE_LIMIT) this.searchCache.delete(this.searchCache.keys().next().value as string);
     return { items };
