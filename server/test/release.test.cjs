@@ -33,6 +33,8 @@ test('request validation removes privilege and ownership injection', () => {
   assert.throws(() => VerificationTokenDtoSchema.parse({ token: 'short', outletId: '00000000-0000-0000-0000-000000000000' }));
   assert.throws(() => VerificationTokenDtoSchema.parse({ token: 'A'.repeat(43), outletId: 'not-an-id' }));
   assert.equal(DiscoverOutletQuerySchema.parse({ mode: 'nearby', lat: '31.1048', lng: '77.1734' }).lat, 31.1048);
+  const discoveryQuery = new ZodValidationPipe(DiscoverOutletQuerySchema).transform({ mode: 'nearby', lat: '31.1048', lng: '77.1734' }, { type: 'query' });
+  assert.equal(discoveryQuery.lng, 77.1734);
   assert.throws(() => DiscoverOutletQuerySchema.parse({ mode: 'nearby' }));
   assert.throws(() => DiscoverOutletQuerySchema.parse({ mode: 'global' }));
   assert.throws(() => DiscoverOutletQuerySchema.parse({ mode: 'viewport', north: 10, south: 20, east: 30, west: 5 }));
