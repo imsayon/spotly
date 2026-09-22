@@ -1,8 +1,4 @@
-Correct. Since **Spotly is your project and not an open-source project**, the README should not have a `Contributing` section or an open-source `License` section.
 
-Use this as the final `README.md`:
-
-````markdown
 <div align="center">
 
 <img src="docs/logo.png" alt="Spotly Logo" width="80">
@@ -570,4 +566,3 @@ The repository contains the consumer application, merchant application, backend 
 Real-time digital queue management and place discovery.
 
 </div>
-```
