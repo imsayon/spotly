@@ -21,7 +21,8 @@ build
 
 # Local Markdown Documentation (Excluded from remote repo)
 *.md
-
+!README.md
+!Readme.md
 # Turbo
 .turbo
 
