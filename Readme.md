@@ -1,8 +1,6 @@
 
 <div align="center">
 
-<img src="docs/logo.png" alt="Spotly Logo" width="80">
-
 # Spotly
 
 ### Real-Time Digital Queue & Place Discovery Platform
