@@ -1,1 +1,1 @@
-export { default } from "../src/features/discovery/DiscoveryScreen";
+export { default } from "../src/features/welcome/WelcomeScreen";

@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import {
   ActivityIndicator,
   Alert,
+  Image,
   Pressable,
   RefreshControl,
   ScrollView,
@@ -28,6 +29,9 @@ export const colors = {
   brand: "#b34c35",
   brandStrong: "#963c29",
   brandSoft: "#f4dfd8",
+  merchantBrand: "#176b60",
+  merchantBorder: "#c7d8ce",
+  merchantSoft: "#e8f0e8",
   success: "#2f6b52",
   successSoft: "#e1efe8",
   warning: "#a5661b",
@@ -74,7 +78,7 @@ export function PageFrame({
     <SafeAreaView style={styles.safeArea} edges={["top", "bottom"]}>
       <View style={styles.header}>
         <Pressable style={styles.brandLockup} onPress={() => router.replace("/")} accessibilityRole="button" accessibilityLabel="Spotly home">
-          <View style={styles.brandMark}><Text style={styles.brandLetter}>S</Text></View>
+          <Image source={require("../../assets/spotly-app-icon.png")} style={styles.brandMark} resizeMode="contain" />
           <Text style={styles.brandName}>Spotly</Text>
         </Pressable>
         {user ? (
@@ -82,7 +86,7 @@ export function PageFrame({
             <Text style={styles.headerAction}>Sign out</Text>
           </Pressable>
         ) : (
-          <Pressable onPress={() => router.push("/sign-in")} hitSlop={8} accessibilityRole="button">
+          <Pressable onPress={() => router.push({ pathname: "/sign-in", params: { returnTo: "/discover" } })} hitSlop={8} accessibilityRole="button">
             <Text style={styles.headerAction}>Sign in</Text>
           </Pressable>
         )}
@@ -101,7 +105,7 @@ export function PageFrame({
         <View style={styles.bottomNav}>
           <Pressable
             style={[styles.navItem, activeTab === "discover" && styles.navItemActive]}
-            onPress={() => router.replace("/")}
+            onPress={() => router.replace("/discover")}
             accessibilityRole="button"
             accessibilityState={{ selected: activeTab === "discover" }}
           >
@@ -208,8 +212,7 @@ const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: colors.page },
   header: { minHeight: 60, paddingHorizontal: 20, flexDirection: "row", alignItems: "center", justifyContent: "space-between", borderBottomWidth: 1, borderBottomColor: colors.border, backgroundColor: colors.page },
   brandLockup: { flexDirection: "row", alignItems: "center", gap: 10 },
-  brandMark: { width: 32, height: 32, borderRadius: 9, backgroundColor: colors.brand, alignItems: "center", justifyContent: "center" },
-  brandLetter: { color: colors.white, fontSize: 18, fontWeight: "800" },
+  brandMark: { width: 32, height: 32, borderRadius: 9, overflow: "hidden", backgroundColor: colors.page },
   brandName: { color: colors.ink, fontSize: 18, fontWeight: "700", letterSpacing: -0.4 },
   headerAction: { color: colors.brandStrong, fontWeight: "700", fontSize: 14 },
   scroll: { flex: 1 },

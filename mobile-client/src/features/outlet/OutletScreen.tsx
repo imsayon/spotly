@@ -137,7 +137,7 @@ export default function OutletScreen() {
 
   return (
     <PageFrame onRefresh={() => setRevision((value) => value + 1)} refreshing={loading}>
-      <Pressable onPress={() => router.canGoBack() ? router.back() : router.replace("/")} accessibilityRole="button" hitSlop={8}>
+      <Pressable onPress={() => router.canGoBack() ? router.back() : router.replace("/discover")} accessibilityRole="button" hitSlop={8}>
         <Text style={styles.backLink}>‹  Back to places</Text>
       </Pressable>
       {loading ? <LoadingState label="Loading outlet details…" /> : null}

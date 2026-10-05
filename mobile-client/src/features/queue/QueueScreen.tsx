@@ -173,7 +173,7 @@ export default function QueueScreen() {
         <Card>
           <Text style={styles.cardTitle}>No active request.</Text>
           <Text style={styles.bodyText}>Choose an outlet and request a spot to see your ticket here.</Text>
-          <Button label="Discover places" onPress={() => router.replace("/")} />
+          <Button label="Discover places" onPress={() => router.replace("/discover")} />
         </Card>
       ) : null}
       {!loading && entry ? (
@@ -201,7 +201,7 @@ export default function QueueScreen() {
             {lastUpdated ? <Text style={styles.updatedAt}>Updated {new Date(lastUpdated).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}</Text> : null}
             {isActive ? <Button label="Cancel request" tone="danger" onPress={cancelRequest} loading={canceling} /> : null}
           </Card>
-          <Button label="Discover more places" tone="secondary" onPress={() => router.replace("/")} />
+          <Button label="Discover more places" tone="secondary" onPress={() => router.replace("/discover")} />
         </>
       ) : null}
     </PageFrame>
