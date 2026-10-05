@@ -3,13 +3,13 @@ import type { ExpoConfig } from "expo/config";
 const config: ExpoConfig = {
   name: "Spotly",
   slug: "spotly",
-  version: "1.0.0",
+  version: "1.0.1",
   scheme: "com.pingfloyd.spotly",
   platforms: ["android", "ios"],
   orientation: "portrait",
   android: {
     package: "com.pingfloyd.spotly",
-    versionCode: 1,
+    versionCode: 2,
   },
   plugins: [
     "expo-router",
