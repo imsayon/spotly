@@ -8,6 +8,9 @@ dist
 .next
 out
 build
+/mobile-client/android
+/mobile-client/ios
+/mobile-client/.expo
 
 # Environment files
 .env
@@ -23,6 +26,7 @@ build
 *.md
 !README.md
 !Readme.md
+!.github/ANDROID_RELEASE.md
 # Turbo
 .turbo
 

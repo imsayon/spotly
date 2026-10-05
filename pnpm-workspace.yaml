@@ -2,6 +2,7 @@ packages:
   - server
   - consumer-client
   - merchant-client
+  - mobile-client
   - packages/*
 allowBuilds:
   '@prisma/engines': true
