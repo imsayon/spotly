@@ -2,7 +2,7 @@ import {
   WebSocketGateway,
   WebSocketServer,
   SubscribeMessage,
-  OnGatewayConnection,
+  OnGatewayInit,
   OnGatewayDisconnect,
 } from "@nestjs/websockets";
 import { Logger, OnModuleInit } from "@nestjs/common";
@@ -18,7 +18,7 @@ import { AppEventsService } from "../../shared/events/app-events.service";
     credentials: true,
   },
 })
-export class QueueGateway implements OnGatewayConnection, OnGatewayDisconnect, OnModuleInit {
+export class QueueGateway implements OnGatewayInit, OnGatewayDisconnect, OnModuleInit {
   private readonly logger = new Logger(QueueGateway.name);
   private supabaseClient: SupabaseClient | null = null;
 
@@ -46,7 +46,16 @@ export class QueueGateway implements OnGatewayConnection, OnGatewayDisconnect, O
     });
   }
 
-  async handleConnection(client: Socket) {
+  afterInit(server: Server) {
+    server.use((client, next) => {
+      void this.authenticate(client).then(
+        () => next(),
+        () => next(new Error("Authentication required")),
+      );
+    });
+  }
+
+  private async authenticate(client: Socket) {
     const auth = client.handshake.auth as { accessToken?: unknown } | undefined;
     const header = client.handshake.headers.authorization;
     const token = typeof auth?.accessToken === "string"
@@ -56,21 +65,10 @@ export class QueueGateway implements OnGatewayConnection, OnGatewayDisconnect, O
         : "";
     const supabase = this.getSupabaseClient();
     if (!token || !supabase) {
-      client.disconnect(true);
-      return;
+      throw new Error("Authentication required");
     }
-    let user: import("@supabase/supabase-js").User | null = null;
-    let error: { message?: string } | null = null;
-    try {
-      ({ data: { user }, error } = await supabase.auth.getUser(token));
-    } catch {
-      client.disconnect(true);
-      return;
-    }
-    if (error || !user) {
-      client.disconnect(true);
-      return;
-    }
+    const { data: { user }, error } = await supabase.auth.getUser(token);
+    if (error || !user) throw new Error("Authentication required");
     client.data.userId = user.id;
     this.logger.debug(`Client ${client.id} authenticated`);
   }

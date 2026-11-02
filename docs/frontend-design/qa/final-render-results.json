@@ -11,6 +11,16 @@
   },
   {
     "role": "consumer",
+    "path": "/home?q=corner&scope=global",
+    "width": 360,
+    "overflow": false,
+    "errors": [],
+    "headings": [
+      "A calmer way to walk in."
+    ]
+  },
+  {
+    "role": "consumer",
     "path": "/merchant?id=m1&outletId=o1",
     "width": 360,
     "overflow": false,
@@ -61,6 +71,16 @@
   },
   {
     "role": "consumer",
+    "path": "/home?q=corner&scope=global",
+    "width": 768,
+    "overflow": false,
+    "errors": [],
+    "headings": [
+      "A calmer way to walk in."
+    ]
+  },
+  {
+    "role": "consumer",
     "path": "/merchant?id=m1&outletId=o1",
     "width": 768,
     "overflow": false,
@@ -102,6 +122,16 @@
   {
     "role": "consumer",
     "path": "/home",
+    "width": 1440,
+    "overflow": false,
+    "errors": [],
+    "headings": [
+      "A calmer way to walk in."
+    ]
+  },
+  {
+    "role": "consumer",
+    "path": "/home?q=corner&scope=global",
     "width": 1440,
     "overflow": false,
     "errors": [],
