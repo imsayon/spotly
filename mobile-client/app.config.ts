@@ -3,14 +3,14 @@ import type { ExpoConfig } from "expo/config";
 const config: ExpoConfig = {
   name: "Spotly",
   slug: "spotly",
-  version: "1.0.3",
+  version: "1.0.4-rc.1",
   scheme: "com.pingfloyd.spotly",
   icon: "./assets/spotly-app-icon.png",
   platforms: ["android", "ios"],
   orientation: "portrait",
   android: {
     package: "com.pingfloyd.spotly",
-    versionCode: 4,
+    versionCode: 5,
     adaptiveIcon: {
       foregroundImage: "./assets/spotly-adaptive-icon.png",
       backgroundColor: "#faf7f2",

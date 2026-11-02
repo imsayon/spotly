@@ -110,13 +110,12 @@ test('reverse geocoding rejects coordinates outside the world', async () => {
 });
 
 test('queue websocket rejects clients without a verified access token', async () => {
-  let disconnected = false;
-  await new QueueGateway({}, undefined).handleConnection({
-    id: 'socket',
-    handshake: { auth: {}, headers: {} },
-    disconnect: () => { disconnected = true; },
-  });
-  assert.equal(disconnected, true);
+  let middleware;
+  new QueueGateway({}, undefined).afterInit({ use: callback => { middleware = callback; } });
+  const error = await new Promise(resolve => middleware({
+    id: 'socket', handshake: { auth: {}, headers: {} }, data: {},
+  }, resolve));
+  assert.match(error.message, /Authentication required/);
 });
 
 test('menu item edits are owner checked and limited to editable fields', async () => {
@@ -209,4 +208,56 @@ test('outlet history requires ownership before querying customer activity', asyn
   }, {});
   await assert.rejects(service.getOutletHistory('outlet', 'intruder'), /Forbidden/);
   assert.equal(queried, false);
+});
+
+test('a stale QR issuance cannot clear a completed verification', async () => {
+  let verifiedAt = null;
+  const service = new QueueService({ queueEntry: {
+    findFirst: async () => {
+      const entry = { id: 'entry', outletId: 'outlet', tokenNumber: 7, verificationUsedAt: null };
+      verifiedAt = new Date(); // Redemption wins after the issuance read.
+      return entry;
+    },
+    updateMany: async ({ where, data }) => {
+      assert.equal(where.verificationUsedAt, null);
+      assert.equal(Object.hasOwn(data, 'verificationUsedAt'), false);
+      return { count: verifiedAt ? 0 : 1 };
+    },
+  } }, { emit() {} });
+  await assert.rejects(service.issueVerification('consumer', 'session'), /ticket changed/);
+  assert.ok(verifiedAt);
+});
+
+test('socket connection waits for authentication before room subscription', { timeout: 5000 }, async () => {
+  const { createServer } = require('node:http');
+  const { Server } = require('socket.io');
+  const { createRequire } = require('node:module');
+  const { io } = createRequire(path.resolve(__dirname, '../../consumer-client/package.json'))('socket.io-client');
+  const http = createServer();
+  const server = new Server(http);
+  const gateway = new QueueGateway({ on() {} }, {});
+  let authenticate;
+  gateway.supabaseClient = { auth: { getUser: () => new Promise(resolve => { authenticate = resolve; }) } };
+  gateway.afterInit(server);
+  server.on('connection', socket => socket.on('join_outlet_room', (outlet, ack) => ack(gateway.handleJoinRoom(socket, outlet))));
+  await new Promise(resolve => http.listen(0, '127.0.0.1', resolve));
+  const client = io(`http://127.0.0.1:${http.address().port}`, { auth: { accessToken: 'test' }, autoConnect: false, transports: ['websocket'], reconnection: false });
+  const outlet = '00000000-0000-4000-8000-000000000001';
+  const result = new Promise((resolve, reject) => {
+    client.on('connect_error', reject);
+    client.on('connect', () => client.emit('join_outlet_room', outlet, resolve));
+  });
+  try {
+    client.connect();
+    for (let n = 0; !authenticate && n < 100; n++) await new Promise(resolve => setTimeout(resolve, 5));
+    assert.ok(authenticate);
+    assert.equal(client.connected, false);
+    authenticate({ data: { user: { id: 'verified-user' } }, error: null });
+    const ack = await result;
+    assert.equal(ack.status, 'joined');
+    assert.equal(ack.outletId, outlet);
+  } finally {
+    client.disconnect();
+    await new Promise(resolve => server.close(resolve));
+  }
 });

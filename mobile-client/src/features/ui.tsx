@@ -57,7 +57,7 @@ export function PageFrame({
   onRefresh,
 }: PageFrameProps) {
   const router = useRouter();
-  const { user, signOut } = useAuth();
+  const { user, signOut, identityError, loading, retryIdentity } = useAuth();
 
   const handleSignOut = () => {
     Alert.alert("Sign out?", "You can sign back in at any time.", [
@@ -99,6 +99,7 @@ export function PageFrame({
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.brand} />
         ) : undefined}
       >
+        {identityError ? <Card><Notice tone="error">{identityError}</Notice><Button label="Reconnect account" onPress={retryIdentity} loading={loading} /></Card> : null}
         {children}
       </ScrollView>
       {showNav ? (
@@ -139,6 +140,8 @@ export function Button({ label, onPress, disabled = false, loading = false, tone
       onPress={onPress}
       disabled={disabled || loading}
       accessibilityRole="button"
+      accessibilityLabel={label}
+      accessibilityState={{ disabled: disabled || loading, busy: loading }}
       style={({ pressed }) => [
         styles.button,
         tone === "primary" && styles.buttonPrimary,

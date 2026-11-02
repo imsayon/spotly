@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from "react";
+import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -65,7 +65,7 @@ export default function ConsumerHome() {
   const [searchingAreas, setSearchingAreas] = useState(false);
   const [areaSearchError, setAreaSearchError] = useState("");
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(false);
+  const [error, setError] = useState("");
   const [reloadNonce, setReloadNonce] = useState(0);
   const [hydrated, setHydrated] = useState(false);
   const pageRef = useRef<HTMLDivElement>(null);
@@ -85,18 +85,13 @@ export default function ConsumerHome() {
     setHydrated(true);
   }, []);
 
-  const categoryOptions = useMemo(() => {
-    const fromResults = outlets
-      .map((outlet) => outlet.merchant.category?.trim())
-      .filter((item): item is string => Boolean(item));
-    return ["All", ...Array.from(new Set(fromResults))];
-  }, [outlets]);
+  const [categoryOptions, setCategoryOptions] = useState<string[]>(["All"]);
+  const categoryScope = useRef("");
+  const locationDialog = useRef<HTMLDialogElement>(null);
 
   useEffect(() => {
-    if (hydrated && category !== "All" && categoryOptions.length > 1 && !categoryOptions.includes(category)) {
-      setCategory("All");
-    }
-  }, [category, categoryOptions, hydrated]);
+    if (showLocationPicker) locationDialog.current?.showModal();
+  }, [showLocationPicker]);
 
   useEffect(() => {
     if (!hydrated) return;
@@ -115,18 +110,20 @@ export default function ConsumerHome() {
     if (mode === "nearby" && !activeCenter) {
       setOutlets([]);
       setLoading(false);
+      setError("");
       return;
     }
     if (mode === "global" && !search) {
       setOutlets([]);
       setLoading(false);
+      setError("");
       return;
     }
     if (mode === "viewport" && !bounds) return;
 
     const controller = new AbortController();
     setLoading(true);
-    setError(false);
+    setError("");
     const params: Record<string, string | number> = {
       mode,
       limit: 50,
@@ -142,13 +139,21 @@ export default function ConsumerHome() {
     api
       .get("/outlet/discover", { params, signal: controller.signal })
       .then((response) => {
-        const data = response.data.data;
-        setOutlets((data?.items || []) as OutletResult[]);
+        const items = (response.data.data?.items || []) as OutletResult[];
+        setOutlets(items);
+        const scope = JSON.stringify([mode, search, activeCenterKey, bounds]);
+        const found = items.map((outlet) => outlet.merchant.category?.trim()).filter((value): value is string => Boolean(value));
+        const previous = categoryScope.current === scope;
+        categoryScope.current = scope;
+        setCategoryOptions((current) => ["All", ...Array.from(new Set([
+          ...(previous ? current.filter((value) => value !== "All") : []),
+          ...(category === "All" ? [] : [category]), ...found,
+        ]))]);
       })
       .catch((requestError) => {
         if (requestError?.code === "ERR_CANCELED") return;
-        setError(true);
-        add("Places could not be loaded", "error");
+        setOutlets([]);
+        setError(requestError.message || "Places could not be loaded. Try again.");
       })
       .finally(() => {
         if (!controller.signal.aborted) setLoading(false);
@@ -213,7 +218,7 @@ export default function ConsumerHome() {
     setSelectedId("");
   }, []);
 
-  const selected = outlets.find((outlet) => outlet.id === selectedId) || null;
+  const selected = !loading && !error ? outlets.find((outlet) => outlet.id === selectedId) || null : null;
   const locationLabel = manualLabel || location?.label || profile?.location || "Choose your area";
   const locationSource = manualCenter ? "Selected area" : location ? "Current location" : "Location needed";
   const center = activeCenter || INDIA_CENTER;
@@ -272,18 +277,18 @@ export default function ConsumerHome() {
           <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search businesses, outlets, or services" />
           {query ? <button type="button" className="discovery-clear-search" aria-label="Clear search" onClick={() => setQuery("")}>×</button> : null}
         </label>
-        <button className={`discovery-scope-toggle ${mode === "global" ? "is-active" : ""}`} onClick={exploreEverywhere}>
+        <button className={`discovery-scope-toggle ${mode === "global" ? "is-active" : ""}`} onClick={exploreEverywhere} aria-pressed={mode === "global"}>
           <Ic.Map size={15} /> {mode === "global" ? "Everywhere" : "Search everywhere"}
         </button>
         <div className="consumer-view-switch" role="group" aria-label="Discovery view">
-          <button className={view === "list" ? "is-active" : ""} onClick={() => setView("list")}><Ic.Grid size={16} /> List</button>
-          <button className={view === "map" ? "is-active" : ""} onClick={() => setView("map")}><Ic.Map size={16} /> Map</button>
+          <button className={view === "list" ? "is-active" : ""} aria-pressed={view === "list"} onClick={() => setView("list")}><Ic.Grid size={16} /> List</button>
+          <button className={view === "map" ? "is-active" : ""} aria-pressed={view === "map"} onClick={() => setView("map")}><Ic.Map size={16} /> Map</button>
         </div>
       </div>
 
-      <div className="consumer-filter-row discovery-filter-row" role="tablist" aria-label="Business categories">
+      <div className="consumer-filter-row discovery-filter-row" role="group" aria-label="Business categories">
         {categoryOptions.map((item) => (
-          <button key={item} className={`consumer-filter ${category === item ? "is-active" : ""}`} role="tab" aria-selected={category === item} onClick={() => setCategory(item)}>{item}</button>
+          <button key={item} className={`consumer-filter ${category === item ? "is-active" : ""}`} aria-pressed={category === item} onClick={() => setCategory(item)}>{item}</button>
         ))}
       </div>
 
@@ -294,18 +299,18 @@ export default function ConsumerHome() {
           <button className="consumer-button compact" onClick={activeCenter ? useDeviceLocation : openAreaPicker}>{activeCenter ? "Use my location" : "Choose an area"}</button>
         </div>
       ) : null}
-      {locationError && !isDenied ? <div className="consumer-inline-error" role="alert">{locationError}</div> : null}
+      {locationError && !isDenied && mode === "nearby" && !manualCenter ? <div className="consumer-inline-error" role="alert">Your location could not be read. Choose an area or search everywhere.</div> : null}
       {permissionStatus === "unsupported" ? <div className="consumer-inline-error" role="alert">This browser does not provide location access. Choose an area manually.</div> : null}
 
       {view === "map" ? (
         <section className="discovery-workspace" aria-label="Explore outlets on a map">
           <aside className="discovery-results-pane">
             <div className="discovery-pane-heading">
-              <div><div className="consumer-kicker">{mode === "viewport" ? "Map area" : mode === "global" ? "Everywhere" : "Within 10 km"}</div><h2>{loading ? "Finding places…" : `${outlets.length} ${outlets.length === 1 ? "outlet" : "outlets"}`}</h2></div>
+              <div><div className="consumer-kicker">{mode === "viewport" ? "Map area" : mode === "global" ? "Everywhere" : "Within 10 km"}</div><h2>{loading ? "Finding places…" : error ? "Places unavailable" : `${outlets.length} ${outlets.length === 1 ? "outlet" : "outlets"}`}</h2></div>
               {mode !== "nearby" ? <button className="consumer-button quiet compact" onClick={useDeviceLocation}><Ic.MapPin size={15} /> Near me</button> : null}
             </div>
             <div className="discovery-results-scroll">
-              {error ? <div className="consumer-empty-state compact-state"><h2>Could not load places.</h2><button className="consumer-button compact" onClick={() => setReloadNonce((value) => value + 1)}>Try again</button></div> : loading ? <div className="discovery-skeleton-list" aria-label="Loading places"><span /><span /><span /></div> : outlets.length === 0 ? <div className="consumer-empty-state compact-state"><span className="discovery-empty-mark"><Ic.MapPin size={19} /></span><h2>{mode === "global" && !query.trim() ? "Search a place or service" : "Nothing here yet"}</h2><p>{mode === "global" && !query.trim() ? "Turn on Search everywhere after entering a search term." : "Move the map, adjust your area, or clear a filter."}</p></div> : outlets.map((outlet) => (
+              {error ? <div className="consumer-empty-state compact-state"><h2>Could not load places.</h2><p role="alert">{error}</p><button className="consumer-button compact" onClick={() => setReloadNonce((value) => value + 1)}>Try again</button></div> : loading ? <div className="discovery-skeleton-list" aria-label="Loading places"><span /><span /><span /></div> : outlets.length === 0 ? <div className="consumer-empty-state compact-state"><span className="discovery-empty-mark"><Ic.MapPin size={19} /></span><h2>{mode === "global" && !query.trim() ? "Search a place or service" : "Nothing here yet"}</h2><p>{mode === "global" && !query.trim() ? "Turn on Search everywhere after entering a search term." : "Move the map, adjust your area, or clear a filter."}</p></div> : outlets.map((outlet) => (
                 <article key={outlet.id} data-outlet-id={outlet.id} className={`consumer-place-row discovery-place-card ${selectedId === outlet.id ? "is-selected" : ""}`} onMouseEnter={() => setSelectedId(outlet.id)} onFocus={() => setSelectedId(outlet.id)}>
                   <span className="consumer-place-logo discovery-place-icon"><Ic.Store size={19} /></span>
                   <span className="consumer-place-copy"><span className="discovery-place-business">{outlet.merchant.name}</span><h3>{outlet.name}</h3><p>{outlet.merchant.category || "Everyday services"}</p><small>{outlet.address || "Address unavailable"}</small></span>
@@ -316,18 +321,18 @@ export default function ConsumerHome() {
           </aside>
           <div className="discovery-map-pane">
             <div className="discovery-map-topline"><span>{mode === "nearby" ? "Showing a 10 km radius" : mode === "viewport" ? "Exploring this map area" : "Showing search matches"}</span><button className="consumer-button quiet compact" onClick={activeCenter ? useDeviceLocation : openAreaPicker} disabled={locationLoading}><Ic.MapPin size={15} /> {locationLoading ? "Finding you…" : activeCenter ? "Recenter" : "Set location"}</button></div>
-            <MapDiscovery outlets={outlets} center={center} selectedId={selectedId} userLocation={location ? [location.latitude, location.longitude] : undefined} userAccuracy={location?.accuracy} onSelect={(outlet) => setSelectedId(outlet.id)} onBoundsChange={handleBoundsChange} />
+            <MapDiscovery outlets={loading || error ? [] : outlets} center={center} selectedId={selectedId} userLocation={location ? [location.latitude, location.longitude] : undefined} userAccuracy={location?.accuracy} onSelect={(outlet) => setSelectedId(outlet.id)} onBoundsChange={handleBoundsChange} />
             {selected ? <div className="consumer-map-selection discovery-selected-card"><div><div className="consumer-kicker">Selected outlet</div><h2>{selected.name}</h2><p>{selected.merchant.name} · {selected.address || "Address unavailable"}</p></div><Link className="consumer-button" href={resultHref(selected)} onClick={() => router.prefetch(resultHref(selected))}>View details <Ic.Arrow size={16} /></Link></div> : <div className="discovery-map-hint"><Ic.Map size={15} /> Pan the map to explore another area</div>}
           </div>
         </section>
       ) : (
         <section className="consumer-section discovery-list-section" aria-live="polite">
-          <div className="consumer-section-heading"><div><div className="consumer-kicker">{mode === "global" ? "Search results" : "Nearby outlets"}</div><h2>{mode === "global" ? (query.trim() ? `Results for “${query.trim()}”` : "Search everywhere") : "Places worth the walk"}</h2></div><span>{loading ? "Updating…" : `${outlets.length} ${outlets.length === 1 ? "outlet" : "outlets"}`}</span></div>
-          {error ? <div className="consumer-empty-state"><h2>We could not load the directory.</h2><p>Try again when the catalog is available.</p><button className="consumer-button" onClick={() => setReloadNonce((value) => value + 1)}>Try again</button></div> : loading ? <div className="discovery-skeleton-list discovery-skeleton-list-wide" aria-label="Loading places"><span /><span /><span /><span /></div> : outlets.length === 0 ? <div className="consumer-empty-state"><span className="discovery-empty-mark"><Ic.MapPin size={21} /></span><h2>{mode === "global" && !query.trim() ? "Search for a place anywhere" : mode === "nearby" ? "No nearby outlets yet" : "No outlets in this area"}</h2><p>{mode === "nearby" ? "Choose another area or search everywhere to discover more of Spotly." : "Try moving the map or choosing another area."}</p><div className="discovery-empty-actions"><button className="consumer-button" onClick={openAreaPicker}>Choose an area</button><button className="consumer-button secondary" onClick={exploreEverywhere}>Search everywhere</button></div></div> : <div className="consumer-place-list discovery-list">{outlets.map((outlet) => <article key={outlet.id} data-outlet-id={outlet.id} className="consumer-place-row discovery-place-card" onMouseEnter={() => setSelectedId(outlet.id)} onFocus={() => setSelectedId(outlet.id)}><span className="consumer-place-logo discovery-place-icon"><Ic.Store size={19} /></span><span className="consumer-place-copy"><span className="discovery-place-business">{outlet.merchant.name}</span><h3>{outlet.name}</h3><p>{outlet.merchant.category || "Everyday services"}</p><small>{outlet.address || "Address unavailable"}</small></span><span className="consumer-place-meta"><strong className={outlet.isActive === false ? "is-paused" : ""}>{outlet.isActive === false ? "Requests paused" : "Requests enabled"}</strong>{formatDistance(outlet.distanceMeters) ? <small>{formatDistance(outlet.distanceMeters)}</small> : null}<Link className="discovery-card-link" href={resultHref(outlet)} aria-label={`View details for ${outlet.name}`}>View details <Ic.Arrow size={15} /></Link></span></article>)}</div>}
+          <div className="consumer-section-heading"><div><div className="consumer-kicker">{mode === "global" ? "Search results" : "Nearby outlets"}</div><h2>{mode === "global" ? (query.trim() ? `Results for “${query.trim()}”` : "Search everywhere") : "Places worth the walk"}</h2></div><span role="status">{loading ? "Updating…" : error ? "Unavailable" : `${outlets.length} ${outlets.length === 1 ? "outlet" : "outlets"}`}</span></div>
+          {error ? <div className="consumer-empty-state"><h2>We could not load places.</h2><p role="alert">{error}</p><button className="consumer-button" onClick={() => setReloadNonce((value) => value + 1)}>Try again</button></div> : loading ? <div className="discovery-skeleton-list discovery-skeleton-list-wide" aria-label="Loading places"><span /><span /><span /><span /></div> : outlets.length === 0 ? <div className="consumer-empty-state"><span className="discovery-empty-mark"><Ic.MapPin size={21} /></span><h2>{mode === "global" ? (!query.trim() ? "Search for a place anywhere" : "No matching outlets") : mode === "nearby" ? (!activeCenter ? "Choose where to look" : "No nearby outlets yet") : "No outlets in this area"}</h2><p>{mode === "nearby" ? "Choose another area or search everywhere to discover more of Spotly." : mode === "global" ? "Enter a business or service name, or try a different search." : "Try moving the map or choosing another area."}</p><div className="discovery-empty-actions"><button className="consumer-button" onClick={openAreaPicker}>Choose an area</button><button className="consumer-button secondary" onClick={exploreEverywhere}>Search everywhere</button></div></div> : <div className="consumer-place-list discovery-list">{outlets.map((outlet) => <article key={outlet.id} data-outlet-id={outlet.id} className="consumer-place-row discovery-place-card" onMouseEnter={() => setSelectedId(outlet.id)} onFocus={() => setSelectedId(outlet.id)}><span className="consumer-place-logo discovery-place-icon"><Ic.Store size={19} /></span><span className="consumer-place-copy"><span className="discovery-place-business">{outlet.merchant.name}</span><h3>{outlet.name}</h3><p>{outlet.merchant.category || "Everyday services"}</p><small>{outlet.address || "Address unavailable"}</small></span><span className="consumer-place-meta"><strong className={outlet.isActive === false ? "is-paused" : ""}>{outlet.isActive === false ? "Requests paused" : "Requests enabled"}</strong>{formatDistance(outlet.distanceMeters) ? <small>{formatDistance(outlet.distanceMeters)}</small> : null}<Link className="discovery-card-link" href={resultHref(outlet)} aria-label={`View details for ${outlet.name}`}>View details <Ic.Arrow size={15} /></Link></span></article>)}</div>}
         </section>
       )}
 
-      {showLocationPicker ? <div className="consumer-modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setShowLocationPicker(false); }}><section className="consumer-location-modal" role="dialog" aria-modal="true" aria-labelledby="location-picker-title"><div className="consumer-location-modal-head"><div><div className="consumer-kicker">Discovery location</div><h2 id="location-picker-title">Where should Spotly look?</h2><p>Choose a point and we’ll show outlets within 10 km.</p></div><button className="consumer-icon-button" aria-label="Close location picker" onClick={() => setShowLocationPicker(false)}>×</button></div><form className="consumer-area-search" onSubmit={searchAreas}><label htmlFor="area-search-input">Search a city or address</label><div><Ic.Search size={16} /><input id="area-search-input" value={areaQuery} onChange={(event) => setAreaQuery(event.target.value)} placeholder="Try Shimla, Koramangala, or an address" /><button className="consumer-button compact" type="submit" disabled={searchingAreas}>{searchingAreas ? "Searching…" : "Search"}</button></div>{areaSearchError ? <small role="alert">{areaSearchError}</small> : null}</form>{areaResults.length ? <div className="consumer-area-results" aria-label="Place search results">{areaResults.map((result) => <button key={`${result.latitude}-${result.longitude}-${result.label}`} type="button" onClick={() => { setAreaResults([]); chooseManualLocation(result.latitude, result.longitude, result.label); }}><Ic.MapPin size={15} /><span>{result.label}</span><Ic.Arrow size={14} /></button>)}</div> : null}<div className="consumer-location-modal-actions"><button className="consumer-button secondary" onClick={useDeviceLocation} disabled={locationLoading}><Ic.MapPin size={16} /> {locationLoading ? "Finding you…" : "Use my location"}</button><span>or drag the pin to refine it, then confirm</span></div><MapPicker lat={pickerCenter[0]} lng={pickerCenter[1]} onSelect={chooseManualLocation} zoom={activeCenter ? 13 : 5} /></section></div> : null}
+      {showLocationPicker ? <dialog ref={locationDialog} className="consumer-modal-backdrop" aria-labelledby="location-picker-title" onClose={() => setShowLocationPicker(false)} onCancel={() => setShowLocationPicker(false)} onMouseDown={(event) => { if (event.target === event.currentTarget) setShowLocationPicker(false); }}><section className="consumer-location-modal"><div className="consumer-location-modal-head"><div><div className="consumer-kicker">Discovery location</div><h2 id="location-picker-title">Where should Spotly look?</h2><p>Choose a point and we’ll show outlets within 10 km.</p></div><button className="consumer-icon-button" aria-label="Close location picker" onClick={() => setShowLocationPicker(false)}>×</button></div><form className="consumer-area-search" onSubmit={searchAreas}><label htmlFor="area-search-input">Search a city or address</label><div><Ic.Search size={16} /><input id="area-search-input" value={areaQuery} onChange={(event) => setAreaQuery(event.target.value)} placeholder="Try Shimla, Koramangala, or an address" /><button className="consumer-button compact" type="submit" disabled={searchingAreas}>{searchingAreas ? "Searching…" : "Search"}</button></div>{areaSearchError ? <small role="alert">{areaSearchError}</small> : null}</form>{areaResults.length ? <div className="consumer-area-results" aria-label="Place search results">{areaResults.map((result) => <button key={`${result.latitude}-${result.longitude}-${result.label}`} type="button" onClick={() => { setAreaResults([]); chooseManualLocation(result.latitude, result.longitude, result.label); }}><Ic.MapPin size={15} /><span>{result.label}</span><Ic.Arrow size={14} /></button>)}</div> : null}<div className="consumer-location-modal-actions"><button className="consumer-button secondary" onClick={useDeviceLocation} disabled={locationLoading}><Ic.MapPin size={16} /> {locationLoading ? "Finding you…" : "Use my location"}</button><span>or drag the pin to refine it, then confirm</span></div><MapPicker lat={pickerCenter[0]} lng={pickerCenter[1]} onSelect={chooseManualLocation} zoom={activeCenter ? 13 : 5} /></section></dialog> : null}
     </div>
   );
 }

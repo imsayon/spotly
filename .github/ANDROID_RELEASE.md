@@ -54,3 +54,5 @@ adb install -r Spotly-mobile-v1.0.0.apk
 ```
 
 Do not reuse a release tag. Fix the source and publish a new, higher version and tag.
+
+Tags containing `-rc.` publish a prerelease candidate. Mobile TypeScript is checked before packaging. A signed APK does not establish working authentication or queue acceptance; validate those journeys with an approved test account before promoting a candidate.

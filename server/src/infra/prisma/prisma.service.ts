@@ -18,7 +18,7 @@ export class PrismaService
       );
     }
 
-    const adapter = new PrismaPg({ connectionString });
+    const adapter = new PrismaPg({ connectionString, connectionTimeoutMillis: 5_000 });
     super({ adapter } as ConstructorParameters<typeof PrismaClient>[0]);
   }
 

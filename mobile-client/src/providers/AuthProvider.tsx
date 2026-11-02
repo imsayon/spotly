@@ -21,6 +21,7 @@ type AuthState = {
 };
 
 type AuthContextValue = AuthState & {
+  retryIdentity: () => void;
   signInWithEmail: (email: string, password: string) => Promise<void>;
   signUpWithEmail: (
     email: string,
@@ -49,6 +50,7 @@ async function ensureBackendUser() {
 }
 
 export function AuthProvider({ children }: PropsWithChildren) {
+  const [identityRevision, setIdentityRevision] = useState(0);
   const [state, setState] = useState<AuthState>({
     session: null,
     user: null,
@@ -129,7 +131,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
       mounted = false;
       subscription.unsubscribe();
     };
-  }, []);
+  }, [identityRevision]);
 
   const completeAuthRedirect = useCallback((url: string) => {
     const previous = completedRedirects.get(url);
@@ -247,6 +249,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
   const value = useMemo<AuthContextValue>(
     () => ({
       ...state,
+      retryIdentity: () => setIdentityRevision((value) => value + 1),
       signInWithEmail,
       signUpWithEmail,
       resendSignupConfirmation,

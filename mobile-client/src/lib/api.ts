@@ -9,6 +9,7 @@ if (!baseURL) {
 
 const api = axios.create({
   baseURL,
+  timeout: 20_000,
   headers: { "Content-Type": "application/json" },
 });
 
@@ -29,7 +30,11 @@ api.interceptors.request.use(async (config) => {
 api.interceptors.response.use(
   (response) => response,
   (error: unknown) => {
-    if (axios.isAxiosError(error) && error.response) {
+    if (axios.isAxiosError(error) && (error.code === "ECONNABORTED" || error.code === "ETIMEDOUT")) {
+      error.message = "Spotly is taking too long to respond. Refresh to check the latest status before trying again.";
+    } else if (axios.isAxiosError(error) && error.code === "ERR_NETWORK") {
+      error.message = "Spotly could not be reached. Check your connection and try again.";
+    } else if (axios.isAxiosError(error) && error.response) {
       error.message =
         error.response.data?.error?.message ??
         error.response.data?.message ??

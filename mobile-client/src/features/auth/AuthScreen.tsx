@@ -147,7 +147,6 @@ export default function AuthScreen({ mode }: { mode: AuthMode }) {
           </>
         ) : null}
         {error ? <Notice tone="error">{error}</Notice> : null}
-        {identityError && user ? <Notice tone="error">{identityError}</Notice> : null}
         {notice ? <Notice tone="success">{notice}</Notice> : null}
         {mode === "sign-up" && confirmationPending ? (
           <Pressable onPress={() => void resendConfirmation()} accessibilityRole="button" hitSlop={8}>

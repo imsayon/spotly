@@ -27,12 +27,13 @@ export default function OutletScreen() {
   const router = useRouter();
   const { outletId: routeOutletId } = useLocalSearchParams<{ outletId: string }>();
   const outletId = Array.isArray(routeOutletId) ? routeOutletId[0] : routeOutletId;
-  const { user, loading: authLoading } = useAuth();
+  const { user, loading: authLoading, identityError } = useAuth();
   const [outlet, setOutlet] = useState<OutletDetails | null>(null);
   const [queueEntries, setQueueEntries] = useState<OutletQueueEntry[]>([]);
   const [activeEntry, setActiveEntry] = useState<QueueEntry | null>(null);
   const [loading, setLoading] = useState(true);
   const [activeLoading, setActiveLoading] = useState(false);
+  const [activeError, setActiveError] = useState(false);
   const [joining, setJoining] = useState(false);
   const [error, setError] = useState("");
   const [queueError, setQueueError] = useState(false);
@@ -77,16 +78,19 @@ export default function OutletScreen() {
     if (!user) {
       setActiveEntry(null);
       setActiveLoading(false);
+      setActiveError(false);
       return;
     }
     let mounted = true;
+    setActiveEntry(null);
     setActiveLoading(true);
+    setActiveError(false);
     api.get("/queue/active")
       .then((response) => {
         if (mounted) setActiveEntry((response.data.data || null) as QueueEntry | null);
       })
       .catch(() => {
-        if (mounted) setActiveEntry(null);
+        if (mounted) setActiveError(true);
       })
       .finally(() => {
         if (mounted) setActiveLoading(false);
@@ -103,7 +107,7 @@ export default function OutletScreen() {
   const calledCount = queueEntries.filter((entry) => entry.status === "CALLED").length;
 
   const joinQueue = async () => {
-    if (!outlet || joining || !outlet.isActive) return;
+    if (!outlet || joining || !outlet.isActive || authLoading || activeLoading || activeError || identityError) return;
     if (!user) {
       router.push({ pathname: "/sign-in", params: { returnTo: `/outlet/${outlet.id}` } });
       return;
@@ -120,15 +124,14 @@ export default function OutletScreen() {
       router.push({ pathname: "/queue", params: { entryId: entry.id } });
     } catch (cause) {
       const message = errorMessage(cause, "Your request could not be sent.");
-      if (/active queue entry/i.test(message)) {
-        const current = await api.get("/queue/active").catch(() => null);
-        const entry = current?.data.data as QueueEntry | null | undefined;
-        if (entry) {
-          setActiveEntry(entry);
-          router.push({ pathname: "/queue", params: { entryId: entry.id } });
-          return;
-        }
+      const current = await api.get("/queue/active").catch(() => null);
+      const entry = current?.data.data as QueueEntry | null | undefined;
+      if (entry) {
+        setActiveEntry(entry);
+        router.push({ pathname: "/queue", params: { entryId: entry.id } });
+        return;
       }
+      if (!current) setActiveError(true);
       Alert.alert("Request not sent", message);
     } finally {
       setJoining(false);
@@ -166,10 +169,12 @@ export default function OutletScreen() {
             {activeEntry ? (
               <Notice tone="success">You already have an active Spotly request. You can follow it here.</Notice>
             ) : null}
+            {activeError ? <Notice tone="error">Your existing ticket could not be checked. Refresh before requesting another spot.</Notice> : null}
+            {activeError ? <Button label="Check your ticket again" tone="secondary" onPress={() => setRevision((value) => value + 1)} /> : null}
             <Button
               label={activeEntry ? "View your active ticket" : "Request a spot"}
               onPress={() => void joinQueue()}
-              disabled={!outlet.isActive || authLoading || activeLoading}
+              disabled={!outlet.isActive || authLoading || activeLoading || activeError || !!identityError}
               loading={joining || activeLoading}
             />
             {!outlet.isActive ? <Text style={styles.bodyText}>This outlet has paused new requests. Check back later.</Text> : null}

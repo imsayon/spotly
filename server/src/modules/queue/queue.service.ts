@@ -129,11 +129,10 @@ export class QueueService {
     const digest = createHash("sha256").update(token).digest("hex");
     const expiresAt = new Date(Date.now() + 90 * 1000);
     const updated = await this.prisma.queueEntry.updateMany({
-      where: { id: entry.id, userId, status: "CALLED" },
+      where: { id: entry.id, userId, status: "CALLED", verificationUsedAt: null },
       data: {
         verificationTokenDigest: digest,
         verificationExpiresAt: expiresAt,
-        verificationUsedAt: null,
         verificationSessionId: sessionId,
       },
     });

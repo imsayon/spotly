@@ -4,6 +4,7 @@ import { env } from "./env"
 
 const api = axios.create({
 	baseURL: env.NEXT_PUBLIC_API_URL,
+	timeout: 20_000,
 	headers: {
 		"Content-Type": "application/json",
 	},
@@ -29,7 +30,11 @@ api.interceptors.request.use(async (config) => {
 api.interceptors.response.use(
 	(response) => response,
 	(error) => {
-		if (error.response) {
+		if (error.code === "ECONNABORTED" || error.code === "ETIMEDOUT") {
+			error.message = "Spotly is taking too long to respond. Refresh to check the latest status before trying again."
+		} else if (error.code === "ERR_NETWORK") {
+			error.message = "Spotly could not be reached. Check your connection and try again."
+		} else if (error.response) {
 			error.message =
 				error.response.data?.error?.message ??
 				error.response.data?.message ??

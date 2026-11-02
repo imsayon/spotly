@@ -21,7 +21,7 @@ const fixtures = {
   '/review/outlet/o1': [5, 4].map((rating, i) => ({ id: `r${i}`, userId: i ? 'other' : user.id, outletId: 'o1', rating, comment: 'A lovely corner of the neighborhood.', createdAt: now, user: { name: i ? 'Alex' : 'Sam' } })),
 };
 const suites = [
-  ['consumer', 4100, ['/home', '/merchant?id=m1&outletId=o1', '/home/queue?entryId=e2', '/home/favorites', '/home/profile']],
+  ['consumer', 4100, ['/home', '/home?q=corner&scope=global', '/merchant?id=m1&outletId=o1', '/home/queue?entryId=e2', '/home/favorites', '/home/profile']],
   ['merchant', 4102, ['/dashboard', '/dashboard/outlets', '/dashboard/outlets/detail?id=o1', '/dashboard/inventory', '/dashboard/analytics', '/dashboard/settings', '/dashboard/business', '/dashboard/settings/reviews']],
 ];
 (async () => {
@@ -51,6 +51,13 @@ const suites = [
         }
         if (url.pathname.includes('/auth/v1/')) return route.fulfill({ json: { user } });
         const path = url.pathname.split('/api/v1')[1];
+        if (path === '/outlet/discover') {
+          const items = [
+            { ...outlets[0], merchant: { name: 'Corner House', category: 'Coffee' }, distanceMeters: null },
+            { ...outlets[1], merchant: { name: 'Northside Studio', category: 'Services' }, distanceMeters: null },
+          ].filter(item => !url.searchParams.get('category') || item.merchant.category === url.searchParams.get('category'));
+          return route.fulfill({ json: { data: { items } } });
+        }
         if (route.request().method() === 'GET' && Object.hasOwn(fixtures, path)) return route.fulfill({ json: { data: fixtures[path] } });
         return route.fulfill({ status: 503, json: { message: 'Offline fixture: no external request was made' } });
       });
@@ -73,6 +80,17 @@ const suites = [
           assert.equal(overflow, false, JSON.stringify(result));
           assert.deepEqual(errors, [], JSON.stringify(result));
           if (width !== 768) await page.screenshot({ path: `docs/frontend-design/qa/final-${role}-${path.replace(/\W+/g, '-')}-${width}.png`, fullPage: true });
+          if (role === 'consumer' && path.includes('scope=global')) {
+            await page.getByRole('button', { name: 'Coffee', exact: true }).click();
+            await page.waitForFunction(() => document.querySelectorAll('.discovery-list article').length === 1);
+            assert.equal(await page.getByRole('button', { name: 'Services', exact: true }).isVisible(), true);
+            await page.getByRole('button', { name: 'Adjust area', exact: true }).click();
+            await page.getByRole('dialog').waitFor();
+            for (let key = 0; key < 8; key++) await page.keyboard.press('Tab');
+            assert.equal(await page.evaluate(() => !!document.activeElement.closest('dialog')), true);
+            await page.keyboard.press('Escape');
+            assert.equal(await page.getByRole('dialog').count(), 0);
+          }
           if (role === 'merchant' && width === 360 && path === '/dashboard') {
             await page.getByRole('button', { name: 'Open navigation' }).click();
             assert.equal(await page.getByRole('dialog').isVisible(), true);
@@ -81,11 +99,39 @@ const suites = [
           }
         }
       }
+      if (role === 'consumer') {
+        let fail = true;
+        await context.route('**/api/v1/outlet/discover*', route => {
+          if (fail) return route.fulfill({ status: 503, json: { message: 'Spotly is unavailable in this fixture. Try again.' } });
+          return route.fulfill({ json: { data: { items: [] } } });
+        });
+        await page.goto('http://localhost:4100/home?q=retry&scope=global');
+        await page.getByText('Spotly is unavailable in this fixture. Try again.', { exact: true }).waitFor();
+        assert.equal(await page.locator('.consumer-section-heading').innerText().then(text => text.includes('Unavailable')), true);
+        fail = false;
+        await page.getByRole('button', { name: 'Try again', exact: true }).click();
+        await page.getByRole('heading', { name: 'No matching outlets' }).waitFor();
+      }
       await context.close();
     }
+    const anonymous = await browser.newContext();
+    await anonymous.route('**/*', async route => {
+      const url = new URL(route.request().url());
+      if (url.hostname !== 'localhost') return route.abort();
+      if (route.request().isNavigationRequest() && url.pathname !== '/' && !url.pathname.includes('.')) {
+        const response = await route.fetch({ url: `${url.origin}${url.pathname}.html${url.search}` });
+        return route.fulfill({ response });
+      }
+      return route.continue();
+    });
+    const signIn = await anonymous.newPage();
+    await signIn.goto('http://localhost:4102/dashboard/outlets/detail?id=o1');
+    await signIn.waitForURL('**/auth/sign-in?returnTo=*');
+    assert.equal(new URL(signIn.url()).searchParams.get('returnTo'), '/dashboard/outlets/detail?id=o1');
+    await anonymous.close();
   } finally {
     fs.writeFileSync('docs/frontend-design/qa/final-render-results.json', JSON.stringify(results, null, 2));
     await browser.close();
   }
-  console.log(`PASS: ${results.length} production-route renders; mobile navigation opens and closes with Escape. Fixtures only.`);
+  console.log(`PASS: ${results.length} production-route renders; navigation, discovery filters, dialog focus/Escape, error recovery and signed-out redirect passed. Fixtures only.`);
 })().catch(error => { console.error(error); process.exitCode = 1; });

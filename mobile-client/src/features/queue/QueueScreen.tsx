@@ -3,6 +3,7 @@ import { Alert, AppState, Pressable, StyleSheet, Text, View } from "react-native
 import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
 import type { QueueEntry, QueueStatus } from "@spotly/types";
 import api from "../../lib/api";
+import { VerificationQr } from "./VerificationQr";
 import { useAuth } from "../../providers/AuthProvider";
 import {
   Button,
@@ -45,7 +46,7 @@ export default function QueueScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<{ entryId?: string | string[] }>();
   const entryId = Array.isArray(params.entryId) ? params.entryId[0] : params.entryId;
-  const { user, loading: authLoading, identityError } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const [entry, setEntry] = useState<Ticket | null>(null);
   const [snapshot, setSnapshot] = useState<QueueSnapshotEntry[]>([]);
   const [loading, setLoading] = useState(true);
@@ -55,11 +56,15 @@ export default function QueueScreen() {
   const [stale, setStale] = useState(false);
   const [lastUpdated, setLastUpdated] = useState<number | null>(null);
   const requestGeneration = useRef(0);
+  const inFlight = useRef<number | null>(null);
 
   const load = useCallback(async (silent = false) => {
-    if (authLoading) return;
+    if (authLoading || (silent && inFlight.current !== null)) return;
     const generation = ++requestGeneration.current;
+    inFlight.current = generation;
+    setSnapshot([]);
     if (!user) {
+      inFlight.current = null;
       setEntry(null);
       setSnapshot([]);
       setError("");
@@ -94,9 +99,11 @@ export default function QueueScreen() {
       setLastUpdated(Date.now());
     } catch (cause) {
       if (generation === requestGeneration.current) {
+        setStale(true);
         setError(errorMessage(cause, "Your ticket could not be loaded. Check your connection and try again."));
       }
     } finally {
+      if (inFlight.current === generation) inFlight.current = null;
       if (generation === requestGeneration.current) {
         setLoading(false);
         setRefreshing(false);
@@ -105,6 +112,8 @@ export default function QueueScreen() {
   }, [authLoading, entryId, user]);
 
   useFocusEffect(useCallback(() => {
+    setEntry(null);
+    setLastUpdated(null);
     void load();
     const interval = setInterval(() => {
       if (AppState.currentState === "active") void load(true);
@@ -114,6 +123,7 @@ export default function QueueScreen() {
     });
     return () => {
       requestGeneration.current += 1;
+      inFlight.current = null;
       clearInterval(interval);
       subscription.remove();
     };
@@ -136,13 +146,17 @@ export default function QueueScreen() {
           setCanceling(true);
           void api.patch(`/queue/entry/${encodeURIComponent(entry.id)}/leave`)
             .then(() => {
-              setEntry((current) => current ? { ...current, status: "CANCELLED" } : current);
+              requestGeneration.current += 1;
+              inFlight.current = null;
+              setEntry((current) => current?.id === entry.id ? { ...current, status: "CANCELLED" } : current);
               setSnapshot([]);
               setStale(false);
               setLastUpdated(Date.now());
             })
             .catch((cause) => {
               Alert.alert("Could not cancel request", errorMessage(cause, "Check your connection and try again."));
+              requestGeneration.current += 1;
+              inFlight.current = null;
               void load(true);
             })
             .finally(() => setCanceling(false));
@@ -162,7 +176,6 @@ export default function QueueScreen() {
           <Button label="Sign in" onPress={() => router.push({ pathname: "/sign-in", params: { returnTo: entryId ? `/queue?entryId=${encodeURIComponent(entryId)}` : "/queue" } })} />
         </Card>
       ) : null}
-      {identityError && user ? <Notice tone="error">{identityError}</Notice> : null}
       {error && user ? (
         <Card>
           <Notice tone="error">{error}</Notice>
@@ -197,10 +210,11 @@ export default function QueueScreen() {
             {entry.status === "WAITING" && ahead !== null ? (
               <Text style={styles.bodyText}>{ahead === 0 ? "No one is ahead of you in the waiting line." : `${ahead} ${ahead === 1 ? "person is" : "people are"} ahead in the waiting line.`}</Text>
             ) : null}
-            {stale && isActive ? <Notice>Ticket status is current, but the outlet’s waiting line could not be refreshed. Pull down to retry.</Notice> : null}
+            {stale && isActive ? <Notice>{error ? "Showing your last confirmed ticket. Refresh to check its latest status." : "Ticket status was checked, but the outlet’s waiting line could not be refreshed. Pull down to retry."}</Notice> : null}
             {lastUpdated ? <Text style={styles.updatedAt}>Updated {new Date(lastUpdated).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}</Text> : null}
             {isActive ? <Button label="Cancel request" tone="danger" onPress={cancelRequest} loading={canceling} /> : null}
           </Card>
+          {entry.status === "CALLED" && !error ? <VerificationQr key={entry.id} entryId={entry.id} /> : null}
           <Button label="Discover more places" tone="secondary" onPress={() => router.replace("/discover")} />
         </>
       ) : null}

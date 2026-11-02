@@ -216,7 +216,7 @@ export default function DiscoveryScreen() {
       <View style={styles.resultsHeading}>
         <View>
           <Text style={styles.kicker}>{mode === "nearby" ? "NEARBY" : mode === "global" ? "SEARCH RESULTS" : "YOUR NEXT STOP"}</Text>
-          <Text style={styles.sectionTitle}>{loading ? "Finding places…" : searched ? `${outlets.length} ${outlets.length === 1 ? "outlet" : "outlets"}` : "Ready when you are"}</Text>
+          <Text style={styles.sectionTitle}>{loading ? "Finding places…" : error ? "Places unavailable" : searched ? `${outlets.length} ${outlets.length === 1 ? "outlet" : "outlets"}` : "Ready when you are"}</Text>
         </View>
         {error ? <Pressable onPress={() => void runSearch()} accessibilityRole="button"><Text style={styles.textLink}>Retry</Text></Pressable> : null}
       </View>
@@ -231,7 +231,7 @@ export default function DiscoveryScreen() {
         </View>
       ) : null}
 
-      {loading ? <LoadingState label="Looking for nearby places…" /> : null}
+      {loading ? <LoadingState label={mode === "global" ? "Searching for places…" : "Looking for nearby places…"} /> : null}
       {!loading && !searched ? (
         <Card style={styles.emptyCard}>
           <Text style={styles.emptyTitle}>Start with a place or a search.</Text>

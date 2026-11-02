@@ -50,9 +50,9 @@ export default function MerchantLayout({
 
   useEffect(() => {
     if (authLoading || identityError) return;
-    if (!user) router.replace("/");
+    if (!user) router.replace(`/auth/sign-in?returnTo=${encodeURIComponent(`${pathname}${window.location.search}`)}`);
     else if (!merchantProfile) router.replace("/onboarding");
-  }, [authLoading, identityError, merchantProfile, router, user]);
+  }, [authLoading, identityError, merchantProfile, pathname, router, user]);
 
   useEffect(() => {
     const content = contentRef.current;
